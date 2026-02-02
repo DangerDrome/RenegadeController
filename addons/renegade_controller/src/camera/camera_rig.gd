@@ -23,6 +23,8 @@ var _first_person_active: bool = false
 var _fp_yaw: float = 0.0
 var _fp_pitch: float = 0.0
 var _active_tween: Tween
+var _locked_direction: Vector3 = Vector3.ZERO  # Locked world-space direction during transitions.
+var _last_input: Vector2 = Vector2.ZERO  # Previous frame's input for change detection.
 
 ## Assigned in _ready — NOT @onready because hierarchy may need building first.
 var pivot: Node3D
@@ -62,6 +64,9 @@ func transition_to(preset: CameraPreset) -> void:
 	var entering_first_person := preset.is_first_person
 	if _active_tween and _active_tween.is_valid():
 		_active_tween.kill()
+	# Lock current movement direction before transition starts.
+	if _last_input.length_squared() > 0.01 and current_preset:
+		_locked_direction = _calculate_raw_direction(_last_input)
 	is_transitioning = true
 	_transition_target = preset
 	# Disable cursor during camera transitions.
@@ -105,8 +110,34 @@ func get_input_mode() -> String:
 
 
 func calculate_move_direction(input: Vector2) -> Vector3:
-	if not current_preset or input.length_squared() < 0.01:
+	if not current_preset:
+		_last_input = Vector2.ZERO
+		_locked_direction = Vector3.ZERO
 		return Vector3.ZERO
+
+	# Check if input changed (different keys pressed, not just magnitude).
+	var input_changed := _has_input_direction_changed(input, _last_input)
+	_last_input = input
+
+	# No input: clear lock and return zero.
+	if input.length_squared() < 0.01:
+		_locked_direction = Vector3.ZERO
+		return Vector3.ZERO
+
+	# During transitions: use locked direction if we have one and input hasn't changed.
+	if is_transitioning:
+		if _locked_direction.length_squared() > 0.01 and not input_changed:
+			return _locked_direction
+		# Lock current direction if starting to move or input changed.
+		_locked_direction = _calculate_raw_direction(input)
+		return _locked_direction
+
+	# Not transitioning: calculate fresh direction and clear lock.
+	_locked_direction = Vector3.ZERO
+	return _calculate_raw_direction(input)
+
+
+func _calculate_raw_direction(input: Vector2) -> Vector3:
 	match current_preset.input_mode:
 		"CAMERA_RELATIVE":
 			return _camera_relative_direction(input)
@@ -115,6 +146,26 @@ func calculate_move_direction(input: Vector2) -> Vector3:
 		"WORLD":
 			return _world_direction(input)
 	return _camera_relative_direction(input)
+
+
+func _has_input_direction_changed(new_input: Vector2, old_input: Vector2) -> bool:
+	# Check if input direction changed (ignoring magnitude).
+	var old_has_input := old_input.length_squared() > 0.01
+	var new_has_input := new_input.length_squared() > 0.01
+
+	# Started or stopped moving.
+	if old_has_input != new_has_input:
+		return true
+
+	# Both have input: check if direction changed significantly.
+	if old_has_input and new_has_input:
+		var old_dir := old_input.normalized()
+		var new_dir := new_input.normalized()
+		# Threshold for direction change (about 45 degrees).
+		if old_dir.dot(new_dir) < 0.7:
+			return true
+
+	return false
 
 #endregion
 

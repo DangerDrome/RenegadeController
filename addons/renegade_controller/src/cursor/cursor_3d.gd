@@ -36,6 +36,20 @@ signal interactable_unhovered(target: Node3D)
 ## Surface offset to prevent z-fighting with ground.
 @export var surface_offset: float = 0.02
 
+@export_group("Aim Line")
+## The character to draw the aim line from.
+@export var aim_line_origin: Node3D
+## Height offset for the aim line origin (e.g., chest height).
+@export var aim_line_height: float = 1.2
+## Color of the aim line.
+@export var aim_line_color: Color = Color(1.0, 0.2, 0.2, 0.8)
+## Width of the aim line.
+@export var aim_line_width: float = 0.02
+## Length of each dash segment.
+@export var aim_line_dash_length: float = 0.3
+## Length of each gap between dashes.
+@export var aim_line_gap_length: float = 0.15
+
 @export_group("Input")
 ## Action name for primary click (interact / shoot).
 @export var click_action: String = "interact"
@@ -55,6 +69,8 @@ var hovering_interactable: bool = false
 
 var _active: bool = true
 var _cursor_mesh: MeshInstance3D
+var _aim_line_mesh: MeshInstance3D
+var _aim_line_immediate: ImmediateMesh
 var _previous_hovered: Node3D = null
 var _space_state: PhysicsDirectSpaceState3D
 
@@ -62,16 +78,19 @@ var _space_state: PhysicsDirectSpaceState3D
 func _ready() -> void:
 	if show_cursor:
 		_create_cursor_visual()
+	_create_aim_line_visual()
 
 
 func _physics_process(_delta: float) -> void:
 	if not _active or not camera:
 		_set_cursor_visible(false)
+		_set_aim_line_visible(false)
 		has_hit = false
 		return
-	
+
 	_do_raycast()
 	_update_cursor_visual()
+	_update_aim_line()
 	_check_hover_changes()
 
 
@@ -248,6 +267,135 @@ func _update_cursor_visual() -> void:
 func _set_cursor_visible(visible: bool) -> void:
 	if _cursor_mesh:
 		_cursor_mesh.visible = visible
+
+#endregion
+
+
+#region Aim Line Visual
+
+func _create_aim_line_visual() -> void:
+	_aim_line_mesh = MeshInstance3D.new()
+	_aim_line_mesh.name = "AimLineVisual"
+	_aim_line_mesh.top_level = true
+	_aim_line_mesh.visible = false
+
+	_aim_line_immediate = ImmediateMesh.new()
+	_aim_line_mesh.mesh = _aim_line_immediate
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = aim_line_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_aim_line_mesh.material_override = mat
+
+	add_child(_aim_line_mesh)
+
+
+func _update_aim_line() -> void:
+	if not _aim_line_mesh or not _aim_line_immediate:
+		return
+
+	var is_aim_pressed := Input.is_action_pressed(aim_action)
+
+	if not is_aim_pressed or not has_hit or not aim_line_origin:
+		_set_aim_line_visible(false)
+		return
+
+	_set_aim_line_visible(true)
+
+	# Calculate line endpoints.
+	var start_pos := aim_line_origin.global_position + Vector3.UP * aim_line_height
+	var end_pos := world_position
+
+	# Update material color.
+	var mat: StandardMaterial3D = _aim_line_mesh.material_override
+	if mat:
+		mat.albedo_color = aim_line_color
+
+	# Rebuild the dashed line geometry.
+	_draw_dashed_line(start_pos, end_pos)
+
+
+func _draw_dashed_line(start: Vector3, end: Vector3) -> void:
+	_aim_line_immediate.clear_surfaces()
+
+	var direction := end - start
+	var total_length := direction.length()
+	if total_length < 0.01:
+		return
+
+	direction = direction.normalized()
+	var segment_length := aim_line_dash_length + aim_line_gap_length
+	var current_dist := 0.0
+
+	# Calculate perpendicular vectors for line width.
+	var up := Vector3.UP
+	if absf(direction.dot(up)) > 0.99:
+		up = Vector3.RIGHT
+	var right := direction.cross(up).normalized() * aim_line_width * 0.5
+	var forward := direction.cross(right).normalized() * aim_line_width * 0.5
+
+	_aim_line_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	while current_dist < total_length:
+		var dash_start := current_dist
+		var dash_end := minf(current_dist + aim_line_dash_length, total_length)
+
+		if dash_end > dash_start:
+			var p1 := start + direction * dash_start
+			var p2 := start + direction * dash_end
+
+			# Create a quad strip (two triangles per face, 4 faces for a box-like line).
+			_add_line_segment(p1, p2, right, forward)
+
+		current_dist += segment_length
+
+	_aim_line_immediate.surface_end()
+
+
+func _add_line_segment(p1: Vector3, p2: Vector3, right: Vector3, forward: Vector3) -> void:
+	# Top face.
+	_aim_line_immediate.surface_add_vertex(p1 - right + forward)
+	_aim_line_immediate.surface_add_vertex(p1 + right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right + forward)
+
+	_aim_line_immediate.surface_add_vertex(p1 - right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right + forward)
+
+	# Bottom face.
+	_aim_line_immediate.surface_add_vertex(p1 + right - forward)
+	_aim_line_immediate.surface_add_vertex(p1 - right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right - forward)
+
+	_aim_line_immediate.surface_add_vertex(p1 + right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right - forward)
+
+	# Left face.
+	_aim_line_immediate.surface_add_vertex(p1 - right - forward)
+	_aim_line_immediate.surface_add_vertex(p1 - right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right + forward)
+
+	_aim_line_immediate.surface_add_vertex(p1 - right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 - right - forward)
+
+	# Right face.
+	_aim_line_immediate.surface_add_vertex(p1 + right + forward)
+	_aim_line_immediate.surface_add_vertex(p1 + right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right - forward)
+
+	_aim_line_immediate.surface_add_vertex(p1 + right + forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right - forward)
+	_aim_line_immediate.surface_add_vertex(p2 + right + forward)
+
+
+func _set_aim_line_visible(visible: bool) -> void:
+	if _aim_line_mesh:
+		_aim_line_mesh.visible = visible
 
 #endregion
 

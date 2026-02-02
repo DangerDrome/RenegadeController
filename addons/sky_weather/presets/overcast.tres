@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="WeatherPreset" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/sky_weather/weather_preset.gd" id="1"]
+[ext_resource type="Texture2D" path="res://addons/sky_weather/icons/wbCloudy.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1")
+name = "Overcast"
+icon = ExtResource("2_icon")
+sky_tint = Color(0.6, 0.6, 0.65, 1)
+clouds = 0.9
+fog_density = 0.005
+fog_color = Color(0.55, 0.55, 0.6, 1)
+sun_intensity = 0.25

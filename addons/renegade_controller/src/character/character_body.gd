@@ -43,8 +43,10 @@ class_name RenegadeCharacter extends CharacterBody3D
 @export var visual_root: Node3D
 
 @export_group("Navigation (Move-To)")
-@export var arrival_distance: float = 1.5
-@export var interact_distance: float = 2.0
+## How close the character gets to a move-to destination (ground click).
+@export var arrival_distance: float = 0.2
+## How close the character needs to be to interact with a target.
+@export var interact_distance: float = 0.8
 
 var move_direction: Vector3 = Vector3.ZERO
 var aim_direction: Vector3 = Vector3.FORWARD

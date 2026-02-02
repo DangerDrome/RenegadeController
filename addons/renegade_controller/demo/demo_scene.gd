@@ -44,6 +44,7 @@ func _ready() -> void:
 	# Cursor needs the camera — wait one frame for CameraRig to initialize.
 	await get_tree().process_frame
 	cursor_3d.camera = cam_rig.get_camera()
+	cursor_3d.aim_line_origin = player
 	player_ctrl.cursor = cursor_3d
 	
 	# Debug overlay.
