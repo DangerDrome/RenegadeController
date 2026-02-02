@@ -1,8 +1,14 @@
 @tool
 extends EditorPlugin
 
+var _camera_zone_inspector: EditorInspectorPlugin
+
 
 func _enter_tree() -> void:
+	# Inspector plugins.
+	_camera_zone_inspector = preload("src/editor/camera_zone_inspector.gd").new()
+	add_inspector_plugin(_camera_zone_inspector)
+
 	# Controllers
 	add_custom_type("PlayerController", "Node", preload("src/controllers/player_controller.gd"), null)
 	add_custom_type("AIController", "Node", preload("src/controllers/ai_controller.gd"), null)
@@ -23,6 +29,11 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	# Inspector plugins.
+	if _camera_zone_inspector:
+		remove_inspector_plugin(_camera_zone_inspector)
+		_camera_zone_inspector = null
+
 	remove_custom_type("PlayerController")
 	remove_custom_type("AIController")
 	remove_custom_type("RenegadeCharacter")
