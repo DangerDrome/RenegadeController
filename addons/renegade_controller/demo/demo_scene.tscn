@@ -235,8 +235,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 5)
 [node name="CameraSystem" parent="." unique_id=1562357881 instance=ExtResource("3")]
 
 [node name="ThirdPersonCamera" parent="CameraSystem" index="0" node_paths=PackedStringArray("look_at_target")]
-transform = Transform3D(0.96592575, 0.045557234, 0.25477818, -0.14387862, 0.91278386, 0.38226253, -0.21514258, -0.40589437, 0.8882362, -0.082376, 2.950704, 0.20318651)
-look_at_target = NodePath("../../Player")
+transform = Transform3D(0.96592575, 0.045557234, 0.25477818, -0.14387862, 0.91278386, 0.38226253, -0.21514258, -0.40589437, 0.8882362, -0.46279624, 2.8290524, 7.6785307)
+look_at_target = NodePath("../../Player/Mesh/Head")
 
 [node name="SideScrollerZone" parent="." unique_id=1924114065 node_paths=PackedStringArray("camera_marker") instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -20)
@@ -364,6 +364,7 @@ text = "[b][color=yellow]CONTROLS[/color][/b]
 • Camera shifts when aiming (RMB)"
 fit_content = true
 
+[editable path="Player"]
 [editable path="CameraSystem"]
 [editable path="SideScrollerZone"]
 [editable path="TopDownZone"]

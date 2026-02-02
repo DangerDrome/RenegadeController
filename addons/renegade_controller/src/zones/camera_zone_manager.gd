@@ -90,14 +90,11 @@ func _on_zone_exited(zone: CameraZone) -> void:
 func _resolve_active_camera() -> void:
 	if not camera_rig:
 		return
-	
+
 	if _active_zones.is_empty():
-		# Revert to default.
+		# Revert to default camera (uses CameraRig's default_preset and default_camera_marker).
 		_current_zone = null
-		if default_preset:
-			camera_rig.transition_to(default_preset)
-		else:
-			camera_rig.reset_to_default()
+		camera_rig.reset_to_default()
 		active_zone_changed.emit(null)
 		return
 	

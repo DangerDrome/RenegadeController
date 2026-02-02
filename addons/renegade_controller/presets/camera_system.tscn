@@ -15,6 +15,7 @@
 script = ExtResource("1")
 third_person_camera = NodePath("ThirdPersonCamera")
 first_person_camera = NodePath("FirstPersonCamera")
+default_preset = ExtResource("5")
 shake_modifier = ExtResource("7")
 zoom_modifier = ExtResource("8")
 framing_modifier = ExtResource("9")
@@ -52,3 +53,4 @@ script = ExtResource("3")
 
 [node name="CameraZoneManager" type="Node" parent="."]
 script = ExtResource("4")
+camera_rig = NodePath("../CameraRig")

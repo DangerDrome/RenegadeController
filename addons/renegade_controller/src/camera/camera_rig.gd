@@ -45,7 +45,10 @@ var _camera_marker: Marker3D  # Optional fixed camera position (from zone).
 var _look_at_node: Node3D  # Optional look-at target (any Node3D).
 var _target_zoom: float = 5.0  # Target spring arm length for smooth zoom.
 var _target_fov: float = 75.0  # Target FOV for marker mode zoom.
-var _marker_offset: Vector3 = Vector3.ZERO  # Marker's local position (for follow mode).
+var _marker_offset: Vector3 = Vector3.ZERO  # Current marker offset (for follow mode).
+var _default_follow_offset: Vector3 = Vector3.ZERO  # Initial offset from player (set at startup, reused on zone exit).
+var _transition_start_pos: Vector3 = Vector3.ZERO  # Camera position at start of transition.
+var _transition_progress: float = 0.0  # 0 to 1 progress through transition.
 
 ## Default camera marker (set by CameraSystem for editor-adjustable positioning).
 var default_camera_marker: Marker3D
@@ -110,14 +113,26 @@ func _unhandled_input(event: InputEvent) -> void:
 #region Public API
 
 func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at_node: Node3D = null) -> void:
+	# Debug: Log transition details.
+	if camera_marker:
+		print("CameraRig.transition_to: Using marker at ", camera_marker.global_position)
+	else:
+		print("CameraRig.transition_to: No marker, using preset values (offset=", preset.offset if preset else "null", ")")
+
 	if preset == current_preset and not is_transitioning and camera_marker == _camera_marker:
+		print("CameraRig.transition_to: Early return - already at this state")
 		return
 	_camera_marker = camera_marker
 	_look_at_node = look_at_node
 	# Calculate offset as difference between marker's global position and player's global position.
 	# This ensures the camera starts at marker's exact world position when follow_target is true.
 	if camera_marker and target:
-		_marker_offset = camera_marker.global_position - target.global_position
+		# When returning to the default marker, use the stored startup offset for consistency.
+		if camera_marker == default_camera_marker and _default_follow_offset != Vector3.ZERO:
+			_marker_offset = _default_follow_offset
+			print("CameraRig.transition_to: Using stored _default_follow_offset=", _default_follow_offset)
+		else:
+			_marker_offset = camera_marker.global_position - target.global_position
 	elif camera_marker:
 		_marker_offset = camera_marker.global_position
 	var was_first_person := _first_person_active
@@ -140,10 +155,11 @@ func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at
 	var ease := preset.ease_type
 	if entering_first_person:
 		_transition_to_first_person(preset, dur, trans, ease)
+	elif _camera_marker:
+		# Marker mode takes priority - use marker position regardless of previous mode.
+		_transition_to_marker(preset, dur, trans, ease)
 	elif was_first_person:
 		_transition_from_first_person(preset, dur, trans, ease)
-	elif _camera_marker:
-		_transition_to_marker(preset, dur, trans, ease)
 	else:
 		_transition_third_person(preset, dur, trans, ease, was_fixed)
 	_active_tween.chain().tween_callback(_on_transition_complete.bind(preset, entering_first_person))
@@ -164,12 +180,46 @@ func apply_instant(preset: CameraPreset) -> void:
 
 ## Reset camera to the default preset, using the default_camera_marker if set.
 func reset_to_default() -> void:
+	print("CameraRig.reset_to_default: Called")
 	if not default_preset:
+		push_warning("CameraRig.reset_to_default: No default_preset set!")
 		return
-	# Use marker mode if we have a default marker (same as zone cameras).
-	if default_camera_marker:
-		transition_to(default_preset, default_camera_marker, null)
+
+	# Try multiple ways to find the marker.
+	var marker: Marker3D = null
+	var found_via := "none"
+
+	# Method 1: Use stored default_camera_marker.
+	if default_camera_marker and is_instance_valid(default_camera_marker):
+		marker = default_camera_marker
+		found_via = "stored default_camera_marker"
+
+	# Method 2: Get from parent CameraSystem.
+	if not marker:
+		var parent := get_parent()
+		print("CameraRig.reset_to_default: Parent is ", parent, " (is CameraSystem: ", parent is CameraSystem, ")")
+		if parent is CameraSystem and parent.third_person_camera:
+			marker = parent.third_person_camera
+			found_via = "parent.third_person_camera"
+		elif parent:
+			# Method 3: Search sibling nodes for ThirdPersonCamera.
+			var sibling := parent.get_node_or_null("ThirdPersonCamera")
+			if sibling is Marker3D:
+				marker = sibling
+				found_via = "sibling ThirdPersonCamera"
+
+	print("CameraRig.reset_to_default: Marker found via '", found_via, "', marker=", marker)
+
+	# Update stored reference.
+	if marker and is_instance_valid(marker):
+		default_camera_marker = marker
+		# Get look_at_target from DefaultCameraMarker if set.
+		var look_at: Node3D = null
+		if marker is DefaultCameraMarker:
+			look_at = marker.look_at_target
+		transition_to(default_preset, marker, look_at)
 	else:
+		push_warning("CameraRig.reset_to_default: No marker found, using preset values only!")
 		transition_to(default_preset, null, null)
 
 
@@ -181,13 +231,23 @@ func apply_default_marker() -> void:
 
 	# Use marker mode - exactly like zone cameras.
 	_camera_marker = default_camera_marker
-	# Calculate offset as difference between marker's global position and player's global position.
-	# This ensures the camera starts at marker's exact world position when follow_target is true.
-	if target:
-		_marker_offset = default_camera_marker.global_position - target.global_position
+
+	# Get look_at_target from DefaultCameraMarker if available.
+	if default_camera_marker is DefaultCameraMarker:
+		_look_at_node = default_camera_marker.look_at_target
 	else:
-		_marker_offset = default_camera_marker.global_position
+		_look_at_node = null
+
+	# Calculate and STORE the initial offset from player at startup.
+	# This offset is reused when returning from zones to maintain consistent follow behavior.
+	if target:
+		_default_follow_offset = default_camera_marker.global_position - target.global_position
+		_marker_offset = _default_follow_offset
+	else:
+		_default_follow_offset = default_camera_marker.global_position
+		_marker_offset = _default_follow_offset
 	_target_fov = default_preset.fov if default_preset else 70.0
+	print("apply_default_marker: Stored _default_follow_offset=", _default_follow_offset)
 
 	# Apply preset for marker mode.
 	if default_preset:
@@ -201,8 +261,14 @@ func apply_default_marker() -> void:
 		else:
 			global_position = _camera_marker.global_position
 
-		# Rotation: look at player if follow_target is true, otherwise use marker's rotation.
-		if default_preset and default_preset.follow_target and target:
+		# Rotation: use look_at_node if set, otherwise use marker's rotation.
+		if _look_at_node and is_instance_valid(_look_at_node):
+			var look_target := _look_at_node.global_position
+			var dir := look_target - camera.global_position
+			if dir.length_squared() > 0.001:
+				var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
+				camera.look_at(look_target, up)
+		elif default_preset and default_preset.follow_target and target:
 			var look_target := target.global_position + Vector3.UP * 1.0
 			var dir := look_target - camera.global_position
 			if dir.length_squared() > 0.001:
@@ -327,26 +393,35 @@ func _update_third_person(delta: float) -> void:
 
 
 func _update_marker_camera(delta: float) -> void:
-	var follow_speed := current_preset.follow_speed if current_preset else 8.0
+	# Use the transition target preset during transitions, otherwise current preset.
+	var active_preset := _transition_target if is_transitioning and _transition_target else current_preset
+	var follow_speed := active_preset.follow_speed if active_preset else 8.0
 
-	# Calculate target position based on follow_target setting.
+	# Calculate current target position.
 	var target_pos: Vector3
-	if current_preset and current_preset.follow_target and target:
+	if active_preset and active_preset.follow_target and target:
 		# Follow mode: marker offset is relative to player.
 		target_pos = target.global_position + _marker_offset
 	else:
 		# Fixed mode: camera at marker's world position.
 		target_pos = _camera_marker.global_position
 
-	global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_speed * delta))
+	if is_transitioning and active_preset and active_preset.follow_target:
+		# During follow-mode transitions: interpolate from start to current target using progress.
+		# This ensures we always track the player, even if they move during the transition.
+		global_position = _transition_start_pos.lerp(target_pos, _transition_progress)
+	elif not is_transitioning:
+		# After transition: smoothly lerp position to track the player.
+		global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_speed * delta))
 
 	# Smooth FOV zoom interpolation for marker mode.
 	if absf(camera.fov - _target_fov) > 0.1:
 		camera.fov = lerpf(camera.fov, _target_fov, 1.0 - exp(-zoom_speed * delta))
 		camera.reset_physics_interpolation()
 
-	# Don't touch rotation during transitions.
-	if is_transitioning:
+	# During fixed-mode transitions, let the tween handle rotation.
+	# For follow-mode transitions, we handle rotation here with slerp.
+	if is_transitioning and not (active_preset and active_preset.follow_target):
 		return
 
 	# Rotation: look at target if follow_target is true or explicit look_at_node is set.
@@ -357,7 +432,7 @@ func _update_marker_camera(delta: float) -> void:
 	if _look_at_node and is_instance_valid(_look_at_node):
 		should_look_at_target = true
 		look_target = _look_at_node.global_position
-	elif current_preset and current_preset.follow_target and target:
+	elif active_preset and active_preset.follow_target and target:
 		# Follow mode: always look at the player.
 		should_look_at_target = true
 		look_target = target.global_position + Vector3.UP * 1.0
@@ -366,7 +441,10 @@ func _update_marker_camera(delta: float) -> void:
 		var dir := look_target - camera.global_position
 		if dir.length_squared() > 0.001:
 			var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
-			camera.look_at(look_target, up)
+			# Smooth slerp - use faster speed during transitions to catch up, slower after.
+			var rot_speed := 4.0 if is_transitioning else 2.0
+			var target_basis := Basis.looking_at(dir, up)
+			camera.global_basis = camera.global_basis.slerp(target_basis, 1.0 - exp(-rot_speed * delta))
 	else:
 		# Fixed mode: use marker's rotation directly.
 		camera.global_basis = _camera_marker.global_basis
@@ -437,6 +515,7 @@ func _world_direction(input: Vector2) -> Vector3:
 #region Transitions
 
 func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType, from_fixed: bool = false) -> void:
+	print(">>> _transition_third_person: Using preset values! offset=", preset.offset, " spring_length=", preset.spring_length)
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
 	# Update target zoom to match preset (user can still override with scroll wheel).
@@ -491,36 +570,50 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 
 
 func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
-	# Transition to a fixed marker position.
+	# Transition to a marker position (fixed or follow mode).
 	spring_arm.collision_mask = 0
 	# Reset FOV target to preset default for marker mode.
 	_target_fov = preset.fov
-	# Collapse spring arm and reset rotations since camera.look_at() will handle orientation.
-	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(spring_arm, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(pivot, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
+
+	# IMMEDIATELY collapse spring arm and reset rotations.
+	# This ensures camera world position = rig position for clean transitions.
+	# First, move rig to camera's current world position so the snap doesn't cause a visual pop.
+	var camera_world_pos := camera.global_position
+	spring_arm.spring_length = 0.0
+	spring_arm.rotation = Vector3.ZERO
+	pivot.rotation = Vector3.ZERO
+	global_position = camera_world_pos
+
+	# Tween FOV.
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
 
-	# Tween rig to marker position.
-	var marker_pos := _camera_marker.global_position
-	_active_tween.tween_property(self, "global_position", marker_pos, dur).set_trans(trans).set_ease(ease_t)
-
-	# Calculate target rotation to look at look_at_node or player.
-	var look_target: Vector3
-	if _look_at_node and is_instance_valid(_look_at_node):
-		look_target = _look_at_node.global_position
-	elif target:
-		look_target = target.global_position + Vector3.UP * 1.0
+	if preset.follow_target and target:
+		# FOLLOW MODE: Use progress-based interpolation so target updates each frame.
+		# This ensures we always end up at the correct position even if player moves.
+		_transition_start_pos = camera_world_pos
+		_transition_progress = 0.0
+		print(">>> _transition_to_marker: FOLLOW MODE - progress-based from ", camera_world_pos)
+		_active_tween.tween_property(self, "_transition_progress", 1.0, dur).set_trans(trans).set_ease(ease_t)
+		# Note: position is updated in _update_marker_camera using _transition_progress
 	else:
-		look_target = marker_pos + _camera_marker.global_basis.z * -1.0
+		# FIXED MODE: Tween both position and rotation to fixed marker location.
+		var target_pos := _camera_marker.global_position
+		print(">>> _transition_to_marker: FIXED MODE marker=", _camera_marker.name, " pos=", target_pos)
+		_active_tween.tween_property(self, "global_position", target_pos, dur).set_trans(trans).set_ease(ease_t)
 
-	# Calculate the target transform for the camera.
-	var dir := (look_target - marker_pos).normalized()
-	if dir.length_squared() < 0.001:
-		return
-	var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
-	var target_basis := Basis.looking_at(look_target - marker_pos, up)
-	_active_tween.tween_property(camera, "global_basis", target_basis, dur).set_trans(trans).set_ease(ease_t)
+		var look_target: Vector3
+		if _look_at_node and is_instance_valid(_look_at_node):
+			look_target = _look_at_node.global_position
+		elif target:
+			look_target = target.global_position + Vector3.UP * 1.0
+		else:
+			look_target = target_pos + _camera_marker.global_basis.z * -1.0
+
+		var dir := (look_target - target_pos).normalized()
+		if dir.length_squared() > 0.001:
+			var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
+			var target_basis := Basis.looking_at(dir, up)
+			_active_tween.tween_property(camera, "global_basis", target_basis, dur).set_trans(trans).set_ease(ease_t)
 
 #endregion
 

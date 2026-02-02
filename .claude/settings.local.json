@@ -4,5 +4,6 @@
       "Bash(find:*)",
       "Bash(godot:*)"
     ]
-  }
+  },
+  "outputStyle": "default"
 }

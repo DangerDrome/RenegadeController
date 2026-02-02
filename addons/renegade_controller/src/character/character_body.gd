@@ -54,6 +54,16 @@ class_name RenegadeCharacter extends CharacterBody3D
 ## Color of the move-to marker.
 @export var move_marker_color: Color = Color(0.2, 0.6, 1.0, 0.8)
 
+@export_group("Physics Interaction")
+## Approximate mass of the character in kg. Used for push force ratio against RigidBody3D objects.
+@export var character_mass: float = 80.0
+## Multiplier for push impulse strength. Higher = pushes harder.
+@export var push_force_scale: float = 5.0
+## If a RigidBody3D is this many times heavier than the character, don't push it at all.
+@export var max_mass_ratio: float = 4.0
+## Enable/disable rigidbody pushing entirely.
+@export var push_rigidbodies: bool = true
+
 var move_direction: Vector3 = Vector3.ZERO
 var aim_direction: Vector3 = Vector3.FORWARD
 var is_sprinting: bool = false
@@ -89,6 +99,7 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	_update_jump()
 	move_and_slide()
+	_push_rigid_bodies()
 
 
 #region Movement
@@ -177,6 +188,42 @@ func _apply_gravity(delta: float) -> void:
 func _update_jump() -> void:
 	if is_on_floor() and controller.is_action_just_pressed(jump_action):
 		velocity.y = jump_velocity
+
+#endregion
+
+
+#region Physics Interaction
+
+signal pushed_rigidbody(body: RigidBody3D, impulse: Vector3)
+
+func _push_rigid_bodies() -> void:
+	if not push_rigidbodies:
+		return
+	for i: int in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var collider := collision.get_collider()
+		if not collider is RigidBody3D:
+			continue
+		var body := collider as RigidBody3D
+		# Mass ratio: heavier objects are harder to push.
+		var mass_ratio: float = minf(1.0, character_mass / body.mass)
+		# Skip objects that massively outweigh us.
+		if mass_ratio < (1.0 / max_mass_ratio):
+			continue
+		# Push direction is away from character (collision normal points out of the body we hit).
+		var push_dir: Vector3 = -collision.get_normal()
+		# Only push if we're moving faster than the body in the push direction.
+		var velocity_diff: float = velocity.dot(push_dir) - body.linear_velocity.dot(push_dir)
+		velocity_diff = maxf(0.0, velocity_diff)
+		# Don't push vertically — keeps things grounded and predictable.
+		push_dir.y = 0.0
+		if push_dir.length_squared() < 0.001:
+			continue
+		# Apply impulse at the contact point for realistic torque.
+		var impulse: Vector3 = push_dir * velocity_diff * mass_ratio * push_force_scale
+		var contact_offset: Vector3 = collision.get_position() - body.global_position
+		body.apply_impulse(impulse, contact_offset)
+		pushed_rigidbody.emit(body, impulse)
 
 #endregion
 

@@ -11,6 +11,8 @@ class_name CameraSystem extends Node3D
 @export var third_person_camera: Marker3D
 ## Marker defining the first-person camera position (head offset from player origin).
 @export var first_person_camera: Marker3D
+## The default camera preset (used when returning from zone cameras).
+@export var default_preset: CameraPreset
 
 @export_group("Camera Modifiers")
 ## Shake modifier for camera trauma/impact effects.
@@ -49,9 +51,11 @@ func _ready() -> void:
 		if _camera_rig.modifier_stack:
 			_modifier_stack = _camera_rig.modifier_stack
 			_update_stack_modifiers()
-		# Pass camera markers to rig.
+		# Pass camera markers and default preset to rig.
 		_camera_rig.default_camera_marker = third_person_camera
 		_camera_rig.first_person_marker = first_person_camera
+		if default_preset:
+			_camera_rig.default_preset = default_preset
 		# Apply the default marker after the scene is fully ready (target may not be set yet).
 		if third_person_camera:
 			call_deferred("_apply_default_camera")
@@ -63,7 +67,11 @@ func _apply_default_camera() -> void:
 	# Re-read the marker position at runtime to catch any scene overrides.
 	var marker := get_node_or_null("ThirdPersonCamera")
 	if marker:
+		print("CameraSystem._apply_default_camera: ThirdPersonCamera global_position=", marker.global_position)
 		_camera_rig.default_camera_marker = marker
+		# Ensure default_preset is set on the rig.
+		if default_preset and not _camera_rig.default_preset:
+			_camera_rig.default_preset = default_preset
 		_camera_rig.apply_default_marker()
 
 
