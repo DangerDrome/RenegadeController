@@ -56,6 +56,14 @@ signal interactable_unhovered(target: Node3D)
 ## Color of the aim hit plane.
 @export var aim_plane_color: Color = Color(1.0, 0.3, 0.3, 0.5)
 
+@export_group("Sticky")
+## Enable sticky cursor on interactables.
+@export var sticky_enabled: bool = true
+## Radius in screen-space to detect nearby interactables for sticky effect.
+@export var sticky_radius: float = 120.0
+## Smoothing speed for sticky transitions (higher = snappier).
+@export var sticky_speed: float = 15.0
+
 @export_group("Input")
 ## Action name for primary click (interact / shoot).
 @export var click_action: String = "interact"
@@ -72,6 +80,8 @@ var has_hit: bool = false
 var hovered_object: Node3D = null
 ## True if hovered_object is an interactable.
 var hovering_interactable: bool = false
+## Marker3D that follows the cursor position - use this as a camera look_at target.
+var look_at_target: Marker3D
 
 var _active: bool = true
 var _cursor_mesh: MeshInstance3D
@@ -80,16 +90,24 @@ var _aim_line_immediate: ImmediateMesh
 var _aim_plane_mesh: MeshInstance3D
 var _previous_hovered: Node3D = null
 var _space_state: PhysicsDirectSpaceState3D
+var _sticky_target: Node3D = null
+var _sticky_position: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
+	# Create look_at_target marker for camera system to use.
+	look_at_target = Marker3D.new()
+	look_at_target.name = "CursorLookAtTarget"
+	look_at_target.top_level = true  # Independent of parent transform.
+	add_child(look_at_target)
+
 	if show_cursor:
 		_create_cursor_visual()
 	_create_aim_line_visual()
 	_create_aim_plane_visual()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not _active or not camera:
 		_set_cursor_visible(false)
 		_set_aim_line_visible(false)
@@ -98,10 +116,17 @@ func _physics_process(_delta: float) -> void:
 		return
 
 	_do_raycast()
+	_apply_sticky(delta)
+	_update_look_at_target()
 	_update_cursor_visual()
 	_update_aim_line()
 	_update_aim_plane()
 	_check_hover_changes()
+
+
+func _update_look_at_target() -> void:
+	if look_at_target:
+		look_at_target.global_position = world_position
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -180,6 +205,63 @@ func _do_raycast() -> void:
 	var collider: Node3D = result.collider
 	hovered_object = collider
 	hovering_interactable = _is_interactable(collider)
+
+#endregion
+
+
+#region Sticky Cursor
+
+func _apply_sticky(delta: float) -> void:
+	if not sticky_enabled or not has_hit or not camera:
+		_sticky_target = null
+		return
+
+	var viewport := camera.get_viewport()
+	if not viewport:
+		return
+
+	var mouse_pos := viewport.get_mouse_position()
+
+	# Find the closest interactable within sticky_radius.
+	var best_target: Node3D = null
+	var best_dist_sq: float = sticky_radius * sticky_radius
+
+	# Get all interactables in the scene.
+	var interactables := get_tree().get_nodes_in_group("interactable")
+
+	for node in interactables:
+		if not node is Node3D:
+			continue
+		var node3d := node as Node3D
+		if not node3d.is_inside_tree():
+			continue
+
+		# Project interactable position to screen.
+		var screen_pos := camera.unproject_position(node3d.global_position)
+
+		# Check if on screen (behind camera check).
+		if camera.is_position_behind(node3d.global_position):
+			continue
+
+		# Calculate screen-space distance to mouse.
+		var dist_sq := mouse_pos.distance_squared_to(screen_pos)
+		if dist_sq < best_dist_sq:
+			best_dist_sq = dist_sq
+			best_target = node3d
+
+	# Update sticky target.
+	if best_target:
+		_sticky_target = best_target
+		# Smoothly interpolate toward sticky position.
+		var target_pos := best_target.global_position
+		_sticky_position = _sticky_position.lerp(target_pos, 1.0 - exp(-sticky_speed * delta))
+		world_position = _sticky_position
+		hovered_object = best_target
+		hovering_interactable = true
+	else:
+		_sticky_target = null
+		_sticky_position = world_position
+
 
 #endregion
 

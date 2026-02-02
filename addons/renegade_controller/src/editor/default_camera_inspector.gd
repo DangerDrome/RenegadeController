@@ -111,9 +111,9 @@ class DefaultCameraPreviewControl extends VBoxContainer:
 		else:
 			_preview_camera.global_basis = _marker.global_basis
 
-		# FOV from preset.
-		var fov := preset.fov if preset else 70.0
-		_preview_camera.fov = fov
+		# FOV from marker (takes priority) or preset.
+		var fov_value := _marker.fov if _marker.fov > 0 else (preset.fov if preset else 70.0)
+		_preview_camera.fov = fov_value
 
 	func _find_camera_rig(node: Node) -> CameraRig:
 		# Look for CameraRig as sibling (child of same parent).

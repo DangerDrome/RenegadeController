@@ -20,10 +20,11 @@ shake_modifier = ExtResource("7")
 zoom_modifier = ExtResource("8")
 framing_modifier = ExtResource("9")
 
-[node name="ThirdPersonCamera" type="Marker3D" parent="."]
+[node name="ThirdPersonCamera" type="Marker3D" parent="." node_paths=PackedStringArray("cursor_look_at")]
 transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 3, 6)
 gizmo_extents = 0.5
 script = ExtResource("10")
+cursor_look_at = NodePath("../Cursor3D")
 marker_label = "3rd Person"
 
 [node name="FirstPersonCamera" type="Marker3D" parent="."]

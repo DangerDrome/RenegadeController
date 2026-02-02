@@ -126,8 +126,8 @@ class CameraPreviewControl extends VBoxContainer:
 		# Position the camera at the marker.
 		_preview_camera.global_transform = marker.global_transform
 
-		# Look at the target if available.
-		var look_node := _zone.get_look_at_node()
+		# Look at the target if available (use editor version to avoid tracking player).
+		var look_node := _zone.get_editor_look_at_node()
 		if look_node and is_instance_valid(look_node) and look_node.is_inside_tree():
 			var look_pos := look_node.global_position
 			var cam_pos := _preview_camera.global_position

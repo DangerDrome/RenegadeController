@@ -83,6 +83,7 @@ corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [node name="DemoScene" type="Node3D" unique_id=43422542]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.8998163, -0.36247635)
 script = ExtResource("1")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1391113257]
@@ -98,7 +99,7 @@ shadow_enabled = true
 navigation_mesh = SubResource("4")
 
 [node name="Ground" type="CSGBox3D" parent="NavRegion" unique_id=1429176654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.002963066, -0.5, 0.0075206757)
 use_collision = true
 size = Vector3(60, 1, 60)
 material = SubResource("5")
@@ -235,29 +236,53 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 5)
 [node name="CameraSystem" parent="." unique_id=1562357881 instance=ExtResource("3")]
 
 [node name="ThirdPersonCamera" parent="CameraSystem" index="0" node_paths=PackedStringArray("look_at_target")]
-transform = Transform3D(0.96592575, 0.045557234, 0.25477818, -0.14387862, 0.91278386, 0.38226253, -0.21514258, -0.40589437, 0.8882362, -0.46279624, 2.8290524, 7.6785307)
-look_at_target = NodePath("../../Player/Mesh/Head")
+transform = Transform3D(0.95318675, -0.06305345, 0.29573515, -0.061207183, 0.9175397, 0.39290527, -0.29612276, -0.3926132, 0.8707275, 1.3953123, 7.061879, 13.572011)
+look_at_target = NodePath("../../Player/Mesh/Body")
+max_cursor_angle = 60.0
+fov = 20.0
 
-[node name="SideScrollerZone" parent="." unique_id=1924114065 node_paths=PackedStringArray("camera_marker") instance=ExtResource("4")]
+[node name="FirstPersonCamera" parent="CameraSystem" index="1"]
+max_cursor_angle = 60.0
+
+[node name="CameraRig" parent="CameraSystem" index="2" node_paths=PackedStringArray("target", "player_controller")]
+target = NodePath("../../Player")
+player_controller = NodePath("../../Player/PlayerController")
+auto_frame_zoom_in = -5.0
+auto_frame_zoom_out = -10.0
+auto_frame_speed = 100.0
+idle_zoom_amount = -6.5
+idle_zoom_delay = 0.05
+idle_shake_frequency = 0.005
+idle_shake_fade_speed = 0.1
+transition_speed_mult = 2.0
+transition_type_override = 1
+ease_type_override = 2
+
+[node name="SideScrollerZone" parent="." unique_id=1924114065 node_paths=PackedStringArray("camera_marker", "look_at_target", "look_at_marker") instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -20)
 collision_layer = 0
 zone_priority = 1
+revert_on_exit = false
 zone_size = Vector3(16, 5, 5)
 camera_marker = NodePath("Camera")
+look_at_target = NodePath("../Player/Mesh/Head")
+look_at_marker = NodePath("Camera/Camera_target")
 
 [node name="Camera_volume" parent="SideScrollerZone" index="0"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("BoxShape3D_5dq0v")
 
 [node name="Camera" parent="SideScrollerZone" index="1"]
-transform = Transform3D(1.2730672e-07, -0.23983836, 0.97081286, 3.1451002e-08, 0.97081286, 0.23983836, -1, 0, 1.3113416e-07, 10.422567, 2, 0)
+transform = Transform3D(1.2730672e-07, -0.23983836, 0.97081286, 3.1451002e-08, 0.97081286, 0.23983836, -1, 0, 1.3113416e-07, 10.250484, 2.69655, 1.6430123e-15)
 
-[node name="TopDownZone" parent="." unique_id=1642621498 node_paths=PackedStringArray("camera_marker") instance=ExtResource("5")]
+[node name="TopDownZone" parent="." unique_id=1642621498 node_paths=PackedStringArray("camera_marker", "look_at_target", "look_at_marker") instance=ExtResource("5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, -20)
 collision_layer = 0
 zone_priority = 1
 zone_size = Vector3(10, 5, 12)
 camera_marker = NodePath("Camera")
+look_at_target = NodePath("../Player/Mesh/Body")
+look_at_marker = NodePath("Camera/Camera_target")
 
 [node name="Camera_volume" parent="TopDownZone" index="0"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
@@ -266,11 +291,19 @@ shape = SubResource("BoxShape3D_8y21c")
 [node name="Camera" parent="TopDownZone" index="1"]
 transform = Transform3D(-4.371139e-08, -0.70710677, 0.70710677, 0, 0.70710677, 0.70710677, -1, 3.090862e-08, -3.090862e-08, 8.1798115, 10.451593, 0.5627785)
 
-[node name="FirstPersonZone" parent="." unique_id=938536592 instance=ExtResource("6")]
+[node name="FirstPersonZone" parent="." unique_id=938536592 node_paths=PackedStringArray("camera_marker", "look_at_marker") instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23, 0, 15)
 collision_layer = 0
 zone_priority = 2
 zone_size = Vector3(7, 5, 8)
+camera_marker = NodePath("Camera")
+look_at_marker = NodePath("Camera_target")
+
+[node name="Camera" type="Marker3D" parent="FirstPersonZone" unique_id=137575982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -5)
+
+[node name="Camera_target" type="Marker3D" parent="FirstPersonZone" unique_id=111477726]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
 [node name="PatrolNPC" parent="." unique_id=728365141 instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, -5)

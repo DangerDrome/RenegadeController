@@ -16,6 +16,10 @@ class_name CameraZone extends Area3D
 ## When true, leaving this zone reverts to the previous preset or default.
 @export var revert_on_exit: bool = true
 
+## When true, camera follows the player (marker defines offset from player).
+## When false, camera stays at fixed world position (marker defines exact position).
+@export var follow_player: bool = true
+
 @export_group("Zone Size")
 ## Size of the zone collision box. Edit this to change zone bounds.
 @export var zone_size: Vector3 = Vector3(10, 5, 10):
@@ -31,16 +35,22 @@ class_name CameraZone extends Area3D
 		camera_marker = value
 		_update_camera_preview()
 
-## Custom look-at target (any Node3D). If set, camera will look at this instead of the default marker.
-## Use this to make the camera look at a specific object in the scene.
+## When true, camera will look at the player at runtime (uses Camera_target marker for editor preview).
+@export var target_player: bool = true:
+	set(value):
+		target_player = value
+		_update_camera_preview()
+
+## Custom look-at target (any Node3D). If set, camera will look at this instead of the player.
+## Only used when target_player is false.
 @export var look_at_target: Node3D:
 	set(value):
 		look_at_target = value
 		_update_camera_preview()
 
-## Default look-at marker (auto-discovered as child named "Camera_target").
-## Only used if look_at_target is not set.
-var look_at_marker: Marker3D:
+## Look-at marker for editor preview (auto-created as child "Camera_target" if missing).
+## Move this marker in the editor to frame your shot. At runtime, targets the player instead.
+@export var look_at_marker: Marker3D:
 	set(value):
 		look_at_marker = value
 		_update_camera_preview()
@@ -60,10 +70,25 @@ var _collision_shape: CollisionShape3D
 var _is_editor_selected: bool = false
 
 
-## Returns the effective look-at node: look_at_target if set, otherwise look_at_marker.
+## Returns the effective look-at node for runtime.
+## If target_player is true, returns the player. Otherwise returns look_at_target or look_at_marker.
 func get_look_at_node() -> Node3D:
+	if target_player and not Engine.is_editor_hint():
+		# At runtime with target_player enabled, find the player.
+		var players := get_tree().get_nodes_in_group("player")
+		if not players.is_empty() and players[0] is Node3D:
+			return players[0] as Node3D
+	# Fallback to explicit target or marker.
 	if look_at_target and is_instance_valid(look_at_target):
 		return look_at_target
+	if look_at_marker and is_instance_valid(look_at_marker):
+		return look_at_marker
+	return null
+
+
+## Returns the look-at node for editor preview (ALWAYS the local marker, NEVER the player).
+func get_editor_look_at_node() -> Node3D:
+	# Always use the local marker for editor preview - never chase the player.
 	if look_at_marker and is_instance_valid(look_at_marker):
 		return look_at_marker
 	return null
@@ -106,6 +131,13 @@ func _auto_discover_markers() -> void:
 		var cam_node := get_node_or_null("Camera")
 		if cam_node is Marker3D:
 			camera_marker = cam_node
+		elif Engine.is_editor_hint():
+			# Create camera marker in editor if missing.
+			camera_marker = Marker3D.new()
+			camera_marker.name = "Camera"
+			add_child(camera_marker, true)
+			camera_marker.owner = get_tree().edited_scene_root
+			camera_marker.position = Vector3(0, 3, -5)
 
 	# Auto-discover look-at marker if not assigned.
 	# First check as sibling, then as child of camera_marker.
@@ -117,6 +149,15 @@ func _auto_discover_markers() -> void:
 			var child_look := camera_marker.get_node_or_null("Camera_target")
 			if child_look is Marker3D:
 				look_at_marker = child_look
+
+	# Create look-at marker in editor if still missing.
+	if not look_at_marker and Engine.is_editor_hint():
+		look_at_marker = Marker3D.new()
+		look_at_marker.name = "Camera_target"
+		add_child(look_at_marker, true)
+		look_at_marker.owner = get_tree().edited_scene_root
+		# Position at zone center + height for easy framing.
+		look_at_marker.position = Vector3(0, 1.5, 0)
 
 
 func _setup_collision_shape() -> void:
@@ -227,15 +268,20 @@ func _update_camera_preview() -> void:
 	if not camera_marker or not is_instance_valid(camera_marker):
 		return
 
-	# Get effective look-at node (target takes priority over marker).
-	var look_node := get_look_at_node()
+	# Get look-at node for editor preview (uses local marker, not player).
+	var look_node := get_editor_look_at_node()
+
+	# Get look position from the marker.
+	var look_pos := Vector3.ZERO
+	if look_node:
+		look_pos = look_node.global_position
 
 	# Calculate camera orientation.
 	var cam_pos := camera_marker.global_position
 	var cam_basis: Basis
 
 	if look_node:
-		var dir := (look_node.global_position - cam_pos).normalized()
+		var dir := (look_pos - cam_pos).normalized()
 		var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
 		# Build basis looking at target.
 		var z_axis := -dir
@@ -394,7 +440,6 @@ func _update_camera_preview() -> void:
 	im_lines.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	_add_tri(im_lines, arrow_left, arrow_tip, arrow_right_pt)
 	if look_node:
-		var look_pos := look_node.global_position
 		_add_filled_cube(im_lines, look_pos, 0.15, cam_basis)
 	im_lines.surface_end()
 
@@ -426,7 +471,6 @@ func _update_camera_preview() -> void:
 
 	# Look-at target line and cube wireframe.
 	if look_node:
-		var look_pos := look_node.global_position
 		_add_line(im_lines, cam_pos, look_pos)
 		_add_wireframe_cube(im_lines, look_pos, 0.15, cam_basis)
 
@@ -450,7 +494,6 @@ func _update_camera_preview() -> void:
 
 	# === TARGET CROSSHAIR (layer 1, visible in preview) ===
 	if look_node:
-		var look_pos := look_node.global_position
 		var cross_size := 0.1
 
 		im_target.surface_begin(Mesh.PRIMITIVE_LINES)

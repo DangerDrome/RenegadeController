@@ -6,16 +6,34 @@
 class_name DefaultCameraMarker extends Marker3D
 
 ## Optional look-at target. If not set, camera looks at player.
+## At runtime, if cursor_look_at is set, this will be overridden by cursor.look_at_target.
 @export var look_at_target: Node3D:
 	set(value):
 		look_at_target = value
 		_update_preview()
+
+## Optional Cursor3D reference. If set, camera will look at cursor position instead of look_at_target.
+## This allows mouse-based camera look-at in the player scene.
+@export var cursor_look_at: Cursor3D
+## Action name for aim mode (cursor look-at only active when this is held).
+@export var aim_action: String = "aim"
+## Maximum angle (degrees) the camera can look away from center toward cursor.
+@export var max_cursor_angle: float = 15.0
+## Multiplier for cursor influence (0 = no effect, 1 = full effect).
+@export_range(0.0, 1.0) var cursor_influence: float = 0.3
 
 ## Label shown in editor.
 @export var marker_label: String = "Camera":
 	set(value):
 		marker_label = value
 		_update_label()
+
+@export_group("Lens")
+## Field of view in degrees. Overrides preset FOV when set > 0.
+@export_range(20.0, 120.0) var fov: float = 50.0:
+	set(value):
+		fov = value
+		_update_preview()
 
 var _debug_label: Label3D
 var _body_mesh: MeshInstance3D
@@ -27,6 +45,74 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		_create_debug_label()
 		_create_preview_meshes()
+	else:
+		# At runtime, resolve cursor_look_at to actual look_at_target.
+		_resolve_cursor_look_at()
+
+
+## Resolve cursor reference at runtime (no longer overwrites look_at_target).
+## Cursor tracking is handled via get_clamped_cursor_position() when aiming.
+func _resolve_cursor_look_at() -> void:
+	# Just ensure cursor is ready - don't overwrite look_at_target.
+	# The original look_at_target (player body) should be preserved.
+	if cursor_look_at and is_instance_valid(cursor_look_at):
+		if not cursor_look_at.look_at_target:
+			await cursor_look_at.ready
+
+
+## Check if cursor look-at is currently active (aim held + cursor valid).
+func is_cursor_look_at_active() -> bool:
+	if not cursor_look_at or not is_instance_valid(cursor_look_at):
+		return false
+	if not cursor_look_at.look_at_target:
+		return false
+	return Input.is_action_pressed(aim_action)
+
+
+## Get the resolved look-at target.
+## Returns explicit look_at_target if set, otherwise null (camera will look at player).
+func get_look_at_target() -> Node3D:
+	return look_at_target
+
+
+## Get clamped cursor position within max_cursor_angle from center.
+## Only call this when is_cursor_look_at_active() returns true.
+func get_clamped_cursor_position(camera_pos: Vector3, center_target_pos: Vector3) -> Vector3:
+	if not is_cursor_look_at_active():
+		return center_target_pos
+
+	var cursor_pos := cursor_look_at.look_at_target.global_position
+
+	# Direction from camera to center (player).
+	var center_dir := (center_target_pos - camera_pos).normalized()
+	# Direction from camera to cursor.
+	var cursor_dir := (cursor_pos - camera_pos).normalized()
+
+	# Calculate angle between them.
+	var dot := center_dir.dot(cursor_dir)
+	var angle_rad := acos(clampf(dot, -1.0, 1.0))
+	var max_angle_rad := deg_to_rad(max_cursor_angle)
+
+	# Clamp angle to max.
+	var clamped_angle := minf(angle_rad, max_angle_rad)
+
+	# Apply influence multiplier to reduce effect.
+	clamped_angle *= cursor_influence
+
+	# If no significant angle, return center.
+	if clamped_angle < 0.001:
+		return center_target_pos
+
+	# Rotate center_dir toward cursor_dir by clamped angle.
+	var axis := center_dir.cross(cursor_dir)
+	if axis.length_squared() < 0.0001:
+		return center_target_pos
+	axis = axis.normalized()
+	var result_dir := center_dir.rotated(axis, clamped_angle)
+
+	# Project to same distance as cursor for consistent look-at.
+	var cursor_dist := camera_pos.distance_to(cursor_pos)
+	return camera_pos + result_dir * cursor_dist
 
 
 func set_editor_selected(selected: bool) -> void:
@@ -83,8 +169,21 @@ func _update_preview() -> void:
 	var cam_pos := global_position
 	var cam_basis: Basis
 
-	if look_at_target and is_instance_valid(look_at_target):
-		var dir := (look_at_target.global_position - cam_pos).normalized()
+	# In editor, NEVER use the player position - use a fixed preview point instead.
+	var has_look_target := look_at_target and is_instance_valid(look_at_target)
+
+	# Always calculate look_pos for editor preview.
+	var look_pos: Vector3
+	if Engine.is_editor_hint():
+		# Fixed offset in front of camera for editor preview.
+		look_pos = cam_pos + (-global_basis.z) * 5.0 + Vector3(0, -1.0, 0)
+	elif has_look_target:
+		look_pos = look_at_target.global_position
+	else:
+		look_pos = cam_pos + (-global_basis.z) * 5.0
+
+	if has_look_target or Engine.is_editor_hint():
+		var dir := (look_pos - cam_pos).normalized()
 		var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
 		var z_axis := -dir
 		var x_axis := up.cross(z_axis).normalized()
@@ -199,7 +298,7 @@ func _update_preview() -> void:
 	var near_dist := 0.3
 	var far_dist := 1.55
 	var aspect := 16.0 / 9.0
-	var fov_half := deg_to_rad(35.0)
+	var fov_half := deg_to_rad(fov * 0.5)
 
 	var near_h := near_dist * tan(fov_half)
 	var near_w := near_h * aspect
@@ -229,8 +328,9 @@ func _update_preview() -> void:
 
 	im_lines.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	_add_tri(im_lines, arrow_left, arrow_tip, arrow_right_pt)
-	if look_at_target and is_instance_valid(look_at_target):
-		_add_filled_cube(im_lines, look_at_target.global_position, 0.15, cam_basis)
+	if has_look_target or Engine.is_editor_hint():
+		# Always show target cube in editor for framing.
+		_add_filled_cube(im_lines, look_pos, 0.15, cam_basis)
 	im_lines.surface_end()
 
 	im_lines.surface_begin(Mesh.PRIMITIVE_LINES)
@@ -249,9 +349,10 @@ func _update_preview() -> void:
 	_add_line(im_lines, arrow_left, arrow_tip)
 	_add_line(im_lines, arrow_tip, arrow_right_pt)
 	_add_line(im_lines, arrow_right_pt, arrow_left)
-	if look_at_target and is_instance_valid(look_at_target):
-		_add_line(im_lines, cam_pos, look_at_target.global_position)
-		_add_wireframe_cube(im_lines, look_at_target.global_position, 0.15, cam_basis)
+	if has_look_target or Engine.is_editor_hint():
+		# Always show target line/cube in editor for framing.
+		_add_line(im_lines, cam_pos, look_pos)
+		_add_wireframe_cube(im_lines, look_pos, 0.15, cam_basis)
 	im_lines.surface_end()
 
 	var line_face_mat := StandardMaterial3D.new()
