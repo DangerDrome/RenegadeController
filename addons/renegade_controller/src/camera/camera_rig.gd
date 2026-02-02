@@ -41,14 +41,21 @@ var _fp_pitch: float = 0.0
 var _active_tween: Tween
 var _locked_direction: Vector3 = Vector3.ZERO  # Locked world-space direction during transitions.
 var _last_input: Vector2 = Vector2.ZERO  # Previous frame's input for change detection.
-var _camera_marker: Marker3D  # Optional fixed camera position.
+var _camera_marker: Marker3D  # Optional fixed camera position (from zone).
 var _look_at_node: Node3D  # Optional look-at target (any Node3D).
 var _target_zoom: float = 5.0  # Target spring arm length for smooth zoom.
 var _target_fov: float = 75.0  # Target FOV for marker mode zoom.
+var _marker_offset: Vector3 = Vector3.ZERO  # Marker's local position (for follow mode).
+
+## Default camera marker (set by CameraSystem for editor-adjustable positioning).
+var default_camera_marker: Marker3D
+## First-person camera marker (set by CameraSystem for editor-adjustable head position).
+var first_person_marker: Marker3D
 
 ## Assigned in _ready — NOT @onready because hierarchy may need building first.
 var pivot: Node3D
 var spring_arm: SpringArm3D
+var modifier_stack: CameraModifierStack
 var camera: Camera3D
 
 
@@ -58,8 +65,10 @@ func _ready() -> void:
 	
 	pivot = $Pivot
 	spring_arm = $Pivot/SpringArm3D
-	camera = $Pivot/SpringArm3D/Camera3D
-	
+	modifier_stack = $Pivot/SpringArm3D/CameraModifierStack
+	camera = $Pivot/SpringArm3D/CameraModifierStack/Camera3D
+	modifier_stack.camera = camera
+
 	if default_preset:
 		current_preset = default_preset
 		_target_zoom = default_preset.spring_length
@@ -105,6 +114,12 @@ func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at
 		return
 	_camera_marker = camera_marker
 	_look_at_node = look_at_node
+	# Calculate offset as difference between marker's global position and player's global position.
+	# This ensures the camera starts at marker's exact world position when follow_target is true.
+	if camera_marker and target:
+		_marker_offset = camera_marker.global_position - target.global_position
+	elif camera_marker:
+		_marker_offset = camera_marker.global_position
 	var was_first_person := _first_person_active
 	var was_fixed := current_preset and current_preset.fixed_rotation
 	var entering_first_person := preset.is_first_person
@@ -145,6 +160,58 @@ func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at
 
 func apply_instant(preset: CameraPreset) -> void:
 	_apply_preset_instant(preset)
+
+
+## Reset camera to the default preset, using the default_camera_marker if set.
+func reset_to_default() -> void:
+	if not default_preset:
+		return
+	# Use marker mode if we have a default marker (same as zone cameras).
+	if default_camera_marker:
+		transition_to(default_preset, default_camera_marker, null)
+	else:
+		transition_to(default_preset, null, null)
+
+
+## Apply the default camera marker immediately (called by CameraSystem after setting markers).
+## Works exactly like zone cameras - camera at marker position, looks at player.
+func apply_default_marker() -> void:
+	if not default_camera_marker:
+		return
+
+	# Use marker mode - exactly like zone cameras.
+	_camera_marker = default_camera_marker
+	# Calculate offset as difference between marker's global position and player's global position.
+	# This ensures the camera starts at marker's exact world position when follow_target is true.
+	if target:
+		_marker_offset = default_camera_marker.global_position - target.global_position
+	else:
+		_marker_offset = default_camera_marker.global_position
+	_target_fov = default_preset.fov if default_preset else 70.0
+
+	# Apply preset for marker mode.
+	if default_preset:
+		_apply_preset_instant_for_marker(default_preset, 0.0)
+
+	# Set camera position and rotation immediately to match preview.
+	if _camera_marker:
+		# Use follow mode position if enabled, otherwise fixed marker position.
+		if default_preset and default_preset.follow_target and target:
+			global_position = target.global_position + _marker_offset
+		else:
+			global_position = _camera_marker.global_position
+
+		# Rotation: look at player if follow_target is true, otherwise use marker's rotation.
+		if default_preset and default_preset.follow_target and target:
+			var look_target := target.global_position + Vector3.UP * 1.0
+			var dir := look_target - camera.global_position
+			if dir.length_squared() > 0.001:
+				var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
+				camera.look_at(look_target, up)
+		else:
+			camera.global_basis = _camera_marker.global_basis
+		reset_physics_interpolation()
+		camera.reset_physics_interpolation()
 
 
 func get_camera() -> Camera3D:
@@ -224,11 +291,12 @@ func _update_third_person(delta: float) -> void:
 	if not current_preset:
 		return
 
-	# Fixed marker mode: camera stays at marker, looks at target.
+	# Marker mode: camera stays at marker, looks at target (used by zones AND default camera).
 	if _camera_marker and is_instance_valid(_camera_marker):
 		_update_marker_camera(delta)
 		return
 
+	# Standard third-person follow mode (no marker).
 	# Use the transition target preset during transitions for smooth position follow.
 	var active_preset := _transition_target if is_transitioning and _transition_target else current_preset
 	# Always follow position smoothly (even during transitions).
@@ -259,9 +327,18 @@ func _update_third_person(delta: float) -> void:
 
 
 func _update_marker_camera(delta: float) -> void:
-	# Stay at marker position.
-	var marker_pos := _camera_marker.global_position
-	global_position = global_position.lerp(marker_pos, 1.0 - exp(-current_preset.follow_speed * delta))
+	var follow_speed := current_preset.follow_speed if current_preset else 8.0
+
+	# Calculate target position based on follow_target setting.
+	var target_pos: Vector3
+	if current_preset and current_preset.follow_target and target:
+		# Follow mode: marker offset is relative to player.
+		target_pos = target.global_position + _marker_offset
+	else:
+		# Fixed mode: camera at marker's world position.
+		target_pos = _camera_marker.global_position
+
+	global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_speed * delta))
 
 	# Smooth FOV zoom interpolation for marker mode.
 	if absf(camera.fov - _target_fov) > 0.1:
@@ -272,21 +349,27 @@ func _update_marker_camera(delta: float) -> void:
 	if is_transitioning:
 		return
 
-	# Look at look_at_node or player.
+	# Rotation: look at target if follow_target is true or explicit look_at_node is set.
+	# Otherwise use marker's rotation directly (matches 3D viewport).
+	var should_look_at_target := false
 	var look_target: Vector3
-	if _look_at_node and is_instance_valid(_look_at_node):
-		look_target = _look_at_node.global_position
-	elif target:
-		look_target = target.global_position + Vector3.UP * 1.0
-	else:
-		return
 
-	# Just use look_at on the camera directly.
-	var dir := (look_target - camera.global_position).normalized()
-	if dir.length_squared() < 0.001:
-		return
-	var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
-	camera.look_at(look_target, up)
+	if _look_at_node and is_instance_valid(_look_at_node):
+		should_look_at_target = true
+		look_target = _look_at_node.global_position
+	elif current_preset and current_preset.follow_target and target:
+		# Follow mode: always look at the player.
+		should_look_at_target = true
+		look_target = target.global_position + Vector3.UP * 1.0
+
+	if should_look_at_target:
+		var dir := look_target - camera.global_position
+		if dir.length_squared() > 0.001:
+			var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
+			camera.look_at(look_target, up)
+	else:
+		# Fixed mode: use marker's rotation directly.
+		camera.global_basis = _camera_marker.global_basis
 	camera.reset_physics_interpolation()
 
 #endregion
@@ -297,7 +380,9 @@ func _update_marker_camera(delta: float) -> void:
 func _update_first_person(_delta: float) -> void:
 	if not current_preset:
 		return
-	global_position = target.global_position + current_preset.head_offset
+	# Use first_person_marker position if available, otherwise use preset's head_offset.
+	var head_offset := _get_head_offset()
+	global_position = target.global_position + head_offset
 	if player_controller:
 		var look := player_controller.get_look_delta()
 		_fp_yaw -= look.x * current_preset.mouse_sensitivity * 0.001
@@ -305,6 +390,15 @@ func _update_first_person(_delta: float) -> void:
 		_fp_pitch = clampf(_fp_pitch, deg_to_rad(current_preset.min_pitch), deg_to_rad(current_preset.max_pitch))
 	pivot.rotation.y = _fp_yaw
 	spring_arm.rotation.x = _fp_pitch
+
+
+## Get head offset from first_person_marker if set, otherwise from preset.
+func _get_head_offset() -> Vector3:
+	if first_person_marker and is_instance_valid(first_person_marker):
+		return first_person_marker.position
+	if current_preset:
+		return current_preset.head_offset
+	return Vector3(0, 1.7, 0)
 
 #endregion
 
@@ -367,7 +461,9 @@ func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.Tra
 func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
 	_fp_yaw = pivot.rotation.y
 	_fp_pitch = spring_arm.rotation.x
-	var head_pos := target.global_position + preset.head_offset
+	# Use first_person_marker position if available.
+	var head_offset := first_person_marker.position if first_person_marker else preset.head_offset
+	var head_pos := target.global_position + head_offset
 	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(self, "global_position", head_pos, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
@@ -461,7 +557,9 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 		_fp_yaw = 0.0
 		_fp_pitch = 0.0
 		if target:
-			global_position = target.global_position + preset.head_offset
+			# Use first_person_marker position if available.
+			var head_offset := first_person_marker.position if first_person_marker else preset.head_offset
+			global_position = target.global_position + head_offset
 		if player_controller:
 			player_controller.set_first_person(true)
 		first_person_changed.emit(true)
@@ -485,6 +583,32 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 	preset_changed.emit(preset)
 
 
+## Apply preset but preserve marker-based zoom distance (used for follow offset mode).
+func _apply_preset_instant_for_marker(preset: CameraPreset, marker_distance: float) -> void:
+	current_preset = preset
+	# Preserve marker distance instead of using preset.spring_length.
+	_target_zoom = marker_distance
+	# Reset all intermediate transforms for follow offset mode.
+	# Camera position is calculated directly on the rig, so children should be at origin.
+	pivot.transform = Transform3D.IDENTITY
+	spring_arm.transform = Transform3D.IDENTITY
+	spring_arm.spring_length = 0.0
+	spring_arm.collision_mask = 0
+	modifier_stack.transform = Transform3D.IDENTITY
+	camera.transform = Transform3D.IDENTITY
+	camera.fov = preset.fov
+	_first_person_active = false
+	if player_controller:
+		player_controller.set_first_person(false)
+	first_person_changed.emit(false)
+	# Reset physics interpolation to prevent flash frame.
+	reset_physics_interpolation()
+	pivot.reset_physics_interpolation()
+	spring_arm.reset_physics_interpolation()
+	camera.reset_physics_interpolation()
+	preset_changed.emit(preset)
+
+
 func _build_hierarchy() -> void:
 	pivot = Node3D.new()
 	pivot.name = "Pivot"
@@ -495,8 +619,12 @@ func _build_hierarchy() -> void:
 	spring_arm.collision_mask = 1
 	spring_arm.margin = 0.2
 	pivot.add_child(spring_arm)
+	modifier_stack = CameraModifierStack.new()
+	modifier_stack.name = "CameraModifierStack"
+	spring_arm.add_child(modifier_stack)
 	camera = Camera3D.new()
 	camera.name = "Camera3D"
-	spring_arm.add_child(camera)
+	modifier_stack.add_child(camera)
+	modifier_stack.camera = camera
 
 #endregion

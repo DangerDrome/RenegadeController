@@ -64,9 +64,15 @@ var _nav_active: bool = false
 var _nav_interact_target: Node3D = null
 var _nav_arrival_dist: float = 1.5
 var _move_marker: MeshInstance3D
+var _was_on_floor: bool = true
+var _fall_velocity: float = 0.0
+var _was_aiming: bool = false
 
 signal arrived_at_destination()
 signal ready_to_interact(target: Node3D)
+signal landed(fall_velocity: float)
+signal aim_started()
+signal aim_ended()
 
 
 func _ready() -> void:
@@ -89,6 +95,11 @@ func _physics_process(delta: float) -> void:
 
 func _update_aim_state() -> void:
 	is_aiming = controller.is_action_pressed(aim_action)
+	if is_aiming and not _was_aiming:
+		aim_started.emit()
+	elif not is_aiming and _was_aiming:
+		aim_ended.emit()
+	_was_aiming = is_aiming
 
 
 func _update_movement(delta: float) -> void:
@@ -149,9 +160,16 @@ func _update_rotation(delta: float) -> void:
 #region Jump & Gravity
 
 func _apply_gravity(delta: float) -> void:
-	if is_on_floor():
+	var on_floor := is_on_floor()
+	if on_floor:
+		if not _was_on_floor and _fall_velocity < -2.0:
+			landed.emit(absf(_fall_velocity))
+		_fall_velocity = 0.0
 		velocity.y = -0.1
+		_was_on_floor = true
 		return
+	_fall_velocity = velocity.y
+	_was_on_floor = false
 	velocity.y += get_gravity().y * gravity_multiplier * delta
 	velocity.y = maxf(velocity.y, -terminal_velocity)
 

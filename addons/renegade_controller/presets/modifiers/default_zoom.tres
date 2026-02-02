@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="ZoomModifier" format=3 uid="uid://cx4yijl0ua8cf"]
+
+[ext_resource type="Script" uid="uid://bfqyjhehtpmar" path="res://addons/renegade_controller/src/camera/modifiers/zoom_modifier.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+influence = 0.0

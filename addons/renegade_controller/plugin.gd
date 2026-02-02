@@ -1,6 +1,7 @@
 @tool
 extends EditorPlugin
 var _camera_zone_inspector: EditorInspectorPlugin
+var _default_camera_inspector: EditorInspectorPlugin
 var _selection: EditorSelection
 func _enter_tree() -> void:
 	# Track selection to update camera zone colors.
@@ -9,6 +10,8 @@ func _enter_tree() -> void:
 	# Inspector plugins.
 	_camera_zone_inspector = preload("src/editor/camera_zone_inspector.gd").new()
 	add_inspector_plugin(_camera_zone_inspector)
+	_default_camera_inspector = preload("src/editor/default_camera_inspector.gd").new()
+	add_inspector_plugin(_default_camera_inspector)
 	# Controllers
 	add_custom_type("PlayerController", "Node", preload("src/controllers/player_controller.gd"), null)
 	add_custom_type("AIController", "Node", preload("src/controllers/ai_controller.gd"), null)
@@ -17,7 +20,10 @@ func _enter_tree() -> void:
 	add_custom_type("RenegadeCharacter", "CharacterBody3D", preload("src/character/character_body.gd"), null)
 	
 	# Camera
+	add_custom_type("CameraSystem", "Node3D", preload("src/camera/camera_system.gd"), null)
 	add_custom_type("CameraRig", "Node3D", preload("src/camera/camera_rig.gd"), null)
+	add_custom_type("CameraModifierStack", "Node3D", preload("src/camera/modifiers/camera_modifier_stack.gd"), null)
+	add_custom_type("DefaultCameraMarker", "Marker3D", preload("src/camera/default_camera_marker.gd"), null)
 	
 	# Cursor
 	add_custom_type("Cursor3D", "Node3D", preload("src/cursor/cursor_3d.gd"), null)
@@ -42,10 +48,16 @@ func _exit_tree() -> void:
 	if _camera_zone_inspector:
 		remove_inspector_plugin(_camera_zone_inspector)
 		_camera_zone_inspector = null
+	if _default_camera_inspector:
+		remove_inspector_plugin(_default_camera_inspector)
+		_default_camera_inspector = null
 	remove_custom_type("PlayerController")
 	remove_custom_type("AIController")
 	remove_custom_type("RenegadeCharacter")
+	remove_custom_type("CameraSystem")
 	remove_custom_type("CameraRig")
+	remove_custom_type("CameraModifierStack")
+	remove_custom_type("DefaultCameraMarker")
 	remove_custom_type("Cursor3D")
 	remove_custom_type("CameraZone")
 	remove_custom_type("FirstPersonZone")
@@ -67,12 +79,24 @@ func _on_selection_changed() -> void:
 	for zone in zones:
 		var is_selected := _is_zone_or_child_selected(zone, selected)
 		zone.set_editor_selected(is_selected)
+	# Update default camera markers.
+	var markers := _find_default_camera_markers(root)
+	for marker in markers:
+		var is_selected := marker in selected
+		marker.set_editor_selected(is_selected)
 func _find_camera_zones(node: Node) -> Array[Node]:
 	var result: Array[Node] = []
 	if node is CameraZone:
 		result.append(node)
 	for child in node.get_children():
 		result.append_array(_find_camera_zones(child))
+	return result
+func _find_default_camera_markers(node: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	if node is DefaultCameraMarker:
+		result.append(node)
+	for child in node.get_children():
+		result.append_array(_find_default_camera_markers(child))
 	return result
 func _is_zone_or_child_selected(zone: CameraZone, selected: Array[Node]) -> bool:
 	# Check if zone itself is selected.

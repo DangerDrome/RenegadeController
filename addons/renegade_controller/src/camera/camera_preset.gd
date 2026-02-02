@@ -32,6 +32,9 @@ class_name CameraPreset extends Resource
 @export_range(-180.0, 180.0, 0.1) var fixed_yaw: float = 0.0
 
 @export_group("Follow Behavior")
+## When true, camera follows the player (marker position is relative offset).
+## When false, camera stays at fixed world position (default for zone cameras).
+@export var follow_target: bool = false
 ## How fast the rig follows the character position (higher = snappier).
 @export_range(1.0, 50.0, 0.1) var follow_speed: float = 8.0
 ## How fast the rig rotates to match (ignored when fixed_rotation is true).

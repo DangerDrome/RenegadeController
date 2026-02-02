@@ -10,6 +10,7 @@ spring_length = 15.0
 use_collision = false
 pitch = -80.0
 fixed_rotation = true
+follow_target = false
 follow_speed = 10.0
 transition_duration = 0.7
 transition_type = 4

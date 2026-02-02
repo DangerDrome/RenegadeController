@@ -94,9 +94,10 @@ func _resolve_active_camera() -> void:
 	if _active_zones.is_empty():
 		# Revert to default.
 		_current_zone = null
-		var fallback := default_preset if default_preset else camera_rig.default_preset
-		if fallback:
-			camera_rig.transition_to(fallback)
+		if default_preset:
+			camera_rig.transition_to(default_preset)
+		else:
+			camera_rig.reset_to_default()
 		active_zone_changed.emit(null)
 		return
 	

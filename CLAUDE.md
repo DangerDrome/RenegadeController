@@ -62,7 +62,13 @@ addons/renegade_controller/
     │   └── character_body.gd           # Unified CharacterBody3D movement
     ├── camera/
     │   ├── camera_preset.gd            # Resource class for camera configs
-    │   └── camera_rig.gd               # Decoupled camera with transitions
+    │   ├── camera_rig.gd               # Decoupled camera with transitions
+    │   └── modifiers/                  # Camera effect modifiers
+    │       ├── camera_modifier.gd      # Abstract base class for modifiers
+    │       ├── camera_modifier_stack.gd # Manages and applies modifier stack
+    │       ├── shake_modifier.gd       # Trauma-based camera shake
+    │       ├── zoom_modifier.gd        # FOV pulse with attack/sustain/decay
+    │       └── framing_modifier.gd     # Smooth position offset via spring
     ├── cursor/
     │   └── cursor_3d.gd                # 3D mouse cursor + interactable detection
     └── zones/
@@ -102,6 +108,9 @@ CameraRig checks for `has_node("Pivot")` in `_ready()`. If missing, it calls `_b
 
 ### Zone collision
 Camera zones use `collision_mask = 1` (default physics layer). Player must be on collision layer 1 and in the `"player"` group.
+
+### CameraModifierStack sits between SpringArm3D and Camera3D
+Modifiers are Resources with alpha blending — they ease in/out automatically via `alpha_in_time` and `alpha_out_time`. The stack processes modifiers in priority order (lower = first). All offsets are additive (position, rotation degrees, FOV). `CameraModifier` base class uses `@abstract` annotation — subclasses MUST implement `get_position_offset`, `get_rotation_offset`, `get_fov_offset`. ShakeModifier uses trauma system: `intensity = trauma^trauma_power`, sampled via Perlin noise.
 
 ## Key Design Decisions
 

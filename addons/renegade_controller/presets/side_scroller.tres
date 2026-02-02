@@ -11,6 +11,7 @@ use_collision = false
 pitch = 0.0
 fixed_rotation = true
 fixed_yaw = 90.0
+follow_target = false
 follow_speed = 6.0
 transition_duration = 0.8
 transition_type = 4

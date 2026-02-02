@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://sgw3fuxtc582"]
 
 [ext_resource type="Script" uid="uid://b62axs1cohnn6" path="res://addons/renegade_controller/demo/demo_scene.gd" id="1"]
-[ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/player.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://b3uw4wuhb7dx7" path="res://addons/renegade_controller/presets/player.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/camera_system.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/side_scroller_zone.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/top_down_zone.tscn" id="5"]
@@ -9,7 +9,7 @@
 [ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/npc.tscn" id="7"]
 [ext_resource type="Script" uid="uid://df4pcmicyts02" path="res://addons/renegade_controller/demo/demo_interactable.gd" id="8"]
 [ext_resource type="Script" uid="uid://c26s0tyrrfy1t" path="res://addons/renegade_controller/demo/npc_patrol.gd" id="9"]
-[ext_resource type="Script" uid="uid://cwuo8snupeisn" path="res://addons/renegade_controller/demo/debug_overlay.gd" id="10"]
+[ext_resource type="Script" uid="uid://cvmhovoyf4tm7" path="res://addons/renegade_controller/demo/debug_overlay.gd" id="10"]
 [ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/world_pickup.tscn" id="11"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/pistol.tres" id="12"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/shotgun.tres" id="13"]
@@ -56,10 +56,10 @@ albedo_color = Color(0.23, 0.17, 0.23, 1)
 [sub_resource type="StandardMaterial3D" id="10"]
 albedo_color = Color(0.5, 0.5, 0.4, 1)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_i4w5j"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_5dq0v"]
 size = Vector3(16, 5, 5)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_s2r7c"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_8y21c"]
 size = Vector3(10, 5, 12)
 
 [sub_resource type="BoxShape3D" id="11"]
@@ -234,6 +234,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 5)
 
 [node name="CameraSystem" parent="." unique_id=1562357881 instance=ExtResource("3")]
 
+[node name="ThirdPersonCamera" parent="CameraSystem" index="0" node_paths=PackedStringArray("look_at_target")]
+transform = Transform3D(0.96592575, 0.045557234, 0.25477818, -0.14387862, 0.91278386, 0.38226253, -0.21514258, -0.40589437, 0.8882362, -0.082376, 2.950704, 0.20318651)
+look_at_target = NodePath("../../Player")
+
 [node name="SideScrollerZone" parent="." unique_id=1924114065 node_paths=PackedStringArray("camera_marker") instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -20)
 collision_layer = 0
@@ -243,7 +247,7 @@ camera_marker = NodePath("Camera")
 
 [node name="Camera_volume" parent="SideScrollerZone" index="0"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
-shape = SubResource("BoxShape3D_i4w5j")
+shape = SubResource("BoxShape3D_5dq0v")
 
 [node name="Camera" parent="SideScrollerZone" index="1"]
 transform = Transform3D(1.2730672e-07, -0.23983836, 0.97081286, 3.1451002e-08, 0.97081286, 0.23983836, -1, 0, 1.3113416e-07, 10.422567, 2, 0)
@@ -257,7 +261,7 @@ camera_marker = NodePath("Camera")
 
 [node name="Camera_volume" parent="TopDownZone" index="0"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
-shape = SubResource("BoxShape3D_s2r7c")
+shape = SubResource("BoxShape3D_8y21c")
 
 [node name="Camera" parent="TopDownZone" index="1"]
 transform = Transform3D(-4.371139e-08, -0.70710677, 0.70710677, 0, 0.70710677, 0.70710677, -1, 3.090862e-08, -3.090862e-08, 8.1798115, 10.451593, 0.5627785)
@@ -293,26 +297,26 @@ text = "Chest"
 font_size = 24
 outline_size = 8
 
-[node name="Pickups" type="Node3D" parent="."]
+[node name="Pickups" type="Node3D" parent="." unique_id=744942026]
 
-[node name="Pistol" parent="Pickups" instance=ExtResource("11")]
+[node name="Pistol" parent="Pickups" unique_id=1159984920 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.5, 0)
 item = ExtResource("12")
 
-[node name="Shotgun" parent="Pickups" instance=ExtResource("11")]
+[node name="Shotgun" parent="Pickups" unique_id=990961750 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, -3)
 item = ExtResource("13")
 
-[node name="Medkit" parent="Pickups" instance=ExtResource("11")]
+[node name="Medkit" parent="Pickups" unique_id=893851889 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.5, 3)
 item = ExtResource("14")
 quantity = 2
 
-[node name="KevlarVest" parent="Pickups" instance=ExtResource("11")]
+[node name="KevlarVest" parent="Pickups" unique_id=1618478495 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 5)
 item = ExtResource("15")
 
-[node name="SecurityKeycard" parent="Pickups" instance=ExtResource("11")]
+[node name="SecurityKeycard" parent="Pickups" unique_id=883434535 instance=ExtResource("11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 item = ExtResource("16")
 
@@ -343,6 +347,7 @@ text = "[b][color=yellow]CONTROLS[/color][/b]
 [color=white]RMB Hold[/color] — Aim / Strafe
 [color=white]LMB[/color] — Interact / Move-to
 [color=white]F3[/color] — Toggle debug overlay
+[color=white]Scroll[/color] — Zoom in/out
 
 [b][color=yellow]TEST AREAS[/color][/b]
 [color=cyan]Cyan[/color] — Side Scroller Zone
@@ -354,8 +359,11 @@ text = "[b][color=yellow]CONTROLS[/color][/b]
 • Click interactables (colored objects)
 • Click ground to test move-to
 • Hold RMB + move to strafe-aim
-• [color=orange]Orange NPC[/color] patrols on its own"
+• [color=orange]Orange NPC[/color] patrols on its own
+• Camera shake on landing from jumps
+• Camera shifts when aiming (RMB)"
 fit_content = true
 
+[editable path="CameraSystem"]
 [editable path="SideScrollerZone"]
 [editable path="TopDownZone"]
