@@ -47,6 +47,12 @@ class_name RenegadeCharacter extends CharacterBody3D
 @export var arrival_distance: float = 0.2
 ## How close the character needs to be to interact with a target.
 @export var interact_distance: float = 0.8
+## Show a visual marker at the move-to destination.
+@export var show_move_marker: bool = true
+## Size of the move-to marker cube.
+@export var move_marker_size: float = 0.25
+## Color of the move-to marker.
+@export var move_marker_color: Color = Color(0.2, 0.6, 1.0, 0.8)
 
 var move_direction: Vector3 = Vector3.ZERO
 var aim_direction: Vector3 = Vector3.FORWARD
@@ -57,13 +63,14 @@ var _nav_target: Vector3 = Vector3.ZERO
 var _nav_active: bool = false
 var _nav_interact_target: Node3D = null
 var _nav_arrival_dist: float = 1.5
+var _move_marker: MeshInstance3D
 
 signal arrived_at_destination()
 signal ready_to_interact(target: Node3D)
 
 
 func _ready() -> void:
-	pass
+	_create_move_marker()
 
 
 func _physics_process(delta: float) -> void:
@@ -176,11 +183,13 @@ func _start_navigation(target_pos: Vector3, interact_target: Node3D, arrival_dis
 	_nav_active = true
 	_nav_interact_target = interact_target
 	_nav_arrival_dist = arrival_dist
+	_show_move_marker(target_pos)
 
 
 func _cancel_navigation() -> void:
 	_nav_active = false
 	_nav_interact_target = null
+	_hide_move_marker()
 
 
 func _update_navigation(delta: float) -> void:
@@ -238,5 +247,44 @@ func navigate_to(pos: Vector3) -> void:
 
 func navigate_to_interact(target: Node3D) -> void:
 	_on_interact_requested(target)
+
+#endregion
+
+
+#region Move Marker
+
+func _create_move_marker() -> void:
+	if not show_move_marker:
+		return
+
+	_move_marker = MeshInstance3D.new()
+	_move_marker.name = "MoveMarker"
+
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(move_marker_size, move_marker_size, move_marker_size)
+	_move_marker.mesh = mesh
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = move_marker_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.disable_receive_shadows = true
+	_move_marker.material_override = mat
+	_move_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	_move_marker.top_level = true
+	_move_marker.visible = false
+	add_child(_move_marker)
+
+
+func _show_move_marker(pos: Vector3) -> void:
+	if _move_marker:
+		_move_marker.global_position = pos
+		_move_marker.visible = true
+
+
+func _hide_move_marker() -> void:
+	if _move_marker:
+		_move_marker.visible = false
 
 #endregion

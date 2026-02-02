@@ -13,9 +13,9 @@
 [ext_resource type="Script" uid="uid://c26s0tyrrfy1t" path="res://addons/renegade_controller/demo/npc_patrol.gd" id="11"]
 [ext_resource type="Script" uid="uid://cwuo8snupeisn" path="res://addons/renegade_controller/demo/debug_overlay.gd" id="12"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/third_person.tres" id="13"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/side_scroller.tres" id="14"]
+[ext_resource type="Resource" uid="uid://v18oqsuohbws" path="res://addons/renegade_controller/presets/side_scroller.tres" id="14"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/top_down.tres" id="15"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/first_person.tres" id="16"]
+[ext_resource type="Resource" uid="uid://f8yay1rgr0jx" path="res://addons/renegade_controller/presets/first_person.tres" id="16"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
 sky_top_color = Color(0.3, 0.5, 0.8, 1)
@@ -41,19 +41,19 @@ agent_height = 1.8
 agent_radius = 0.4
 
 [sub_resource type="StandardMaterial3D" id="5"]
-albedo_color = Color(0.35, 0.38, 0.35, 1)
+albedo_color = Color(0.053064704, 0.06218639, 0.053071715, 1)
 
 [sub_resource type="StandardMaterial3D" id="6"]
-albedo_color = Color(0.45, 0.4, 0.38, 1)
+albedo_color = Color(0.11566887, 0.09676904, 0.08949194, 1)
 
 [sub_resource type="StandardMaterial3D" id="7"]
-albedo_color = Color(0.5, 0.4, 0.35, 1)
+albedo_color = Color(0.74221605, 0.20967919, 9.62615e-08, 1)
 
 [sub_resource type="StandardMaterial3D" id="8"]
-albedo_color = Color(0.4, 0.45, 0.5, 1)
+albedo_color = Color(0.1515871, 0.23598969, 0.22902688, 1)
 
 [sub_resource type="StandardMaterial3D" id="9"]
-albedo_color = Color(0.5, 0.4, 0.5, 1)
+albedo_color = Color(0.22563496, 0.16894844, 0.22576827, 1)
 
 [sub_resource type="StandardMaterial3D" id="10"]
 albedo_color = Color(0.5, 0.5, 0.4, 1)

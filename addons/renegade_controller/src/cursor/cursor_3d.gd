@@ -50,6 +50,12 @@ signal interactable_unhovered(target: Node3D)
 ## Length of each gap between dashes.
 @export var aim_line_gap_length: float = 0.15
 
+@export_group("Aim Hit Plane")
+## Size of the aim hit plane.
+@export var aim_plane_size: float = 0.5
+## Color of the aim hit plane.
+@export var aim_plane_color: Color = Color(1.0, 0.3, 0.3, 0.5)
+
 @export_group("Input")
 ## Action name for primary click (interact / shoot).
 @export var click_action: String = "interact"
@@ -71,6 +77,7 @@ var _active: bool = true
 var _cursor_mesh: MeshInstance3D
 var _aim_line_mesh: MeshInstance3D
 var _aim_line_immediate: ImmediateMesh
+var _aim_plane_mesh: MeshInstance3D
 var _previous_hovered: Node3D = null
 var _space_state: PhysicsDirectSpaceState3D
 
@@ -79,18 +86,21 @@ func _ready() -> void:
 	if show_cursor:
 		_create_cursor_visual()
 	_create_aim_line_visual()
+	_create_aim_plane_visual()
 
 
 func _physics_process(_delta: float) -> void:
 	if not _active or not camera:
 		_set_cursor_visible(false)
 		_set_aim_line_visible(false)
+		_set_aim_plane_visible(false)
 		has_hit = false
 		return
 
 	_do_raycast()
 	_update_cursor_visual()
 	_update_aim_line()
+	_update_aim_plane()
 	_check_hover_changes()
 
 
@@ -210,21 +220,21 @@ func _clear_hover() -> void:
 func _create_cursor_visual() -> void:
 	_cursor_mesh = MeshInstance3D.new()
 	_cursor_mesh.name = "CursorVisual"
-	
-	# Simple quad/disc mesh.
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(cursor_size, cursor_size)
+
+	# Cube mesh for better visibility.
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(cursor_size, cursor_size, cursor_size)
 	_cursor_mesh.mesh = mesh
-	
-	# Material.
+
+	# Material - occluded by surfaces so we see the half-through effect.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = default_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.no_depth_test = true  # Always visible.
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	mat.disable_receive_shadows = true
 	_cursor_mesh.material_override = mat
-	
+	_cursor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
 	# Top-level so it doesn't inherit parent transforms weirdly.
 	_cursor_mesh.top_level = true
 	add_child(_cursor_mesh)
@@ -233,26 +243,16 @@ func _create_cursor_visual() -> void:
 func _update_cursor_visual() -> void:
 	if not _cursor_mesh or not show_cursor:
 		return
-	
+
 	if not has_hit:
 		_set_cursor_visible(false)
 		return
-	
+
 	_set_cursor_visible(true)
-	
-	# Position on surface with slight offset.
-	_cursor_mesh.global_position = world_position + world_normal * surface_offset
-	
-	# Orient to surface normal.
-	if world_normal.length_squared() > 0.001:
-		var up := world_normal
-		var forward := Vector3.FORWARD
-		# Avoid parallel vectors.
-		if absf(up.dot(forward)) > 0.99:
-			forward = Vector3.RIGHT
-		_cursor_mesh.look_at(_cursor_mesh.global_position + up, forward)
-		_cursor_mesh.rotate_object_local(Vector3.RIGHT, deg_to_rad(90))
-	
+
+	# Position cube centered at hit point.
+	_cursor_mesh.global_position = world_position
+
 	# Color based on state.
 	var mat: StandardMaterial3D = _cursor_mesh.material_override
 	if mat:
@@ -396,6 +396,92 @@ func _add_line_segment(p1: Vector3, p2: Vector3, right: Vector3, forward: Vector
 func _set_aim_line_visible(visible: bool) -> void:
 	if _aim_line_mesh:
 		_aim_line_mesh.visible = visible
+
+#endregion
+
+
+#region Aim Plane Visual
+
+func _create_aim_plane_visual() -> void:
+	_aim_plane_mesh = MeshInstance3D.new()
+	_aim_plane_mesh.name = "AimPlaneVisual"
+	_aim_plane_mesh.top_level = true
+	_aim_plane_mesh.visible = false
+
+	# Squashed cube instead of flat plane to avoid z-fighting.
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(aim_plane_size, aim_plane_size, 0.05)
+	_aim_plane_mesh.mesh = mesh
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = aim_plane_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.disable_receive_shadows = true
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	mat.render_priority = 1
+	_aim_plane_mesh.material_override = mat
+	_aim_plane_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+	add_child(_aim_plane_mesh)
+
+
+func _update_aim_plane() -> void:
+	if not _aim_plane_mesh:
+		return
+
+	var is_aim_pressed := Input.is_action_pressed(aim_action)
+
+	if not is_aim_pressed or not has_hit or not aim_line_origin or not _space_state:
+		_set_aim_plane_visible(false)
+		return
+
+	# Raycast from player toward cursor to find obstacles in firing line.
+	var start_pos := aim_line_origin.global_position + Vector3.UP * aim_line_height
+	var direction := (world_position - start_pos).normalized()
+	var distance := start_pos.distance_to(world_position) + 5.0  # Extend past target to ensure hit.
+	var end_pos := start_pos + direction * distance
+
+	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, collision_mask)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	query.exclude = [aim_line_origin.get_rid()]
+
+	var result := _space_state.intersect_ray(query)
+
+	if result.is_empty():
+		_set_aim_plane_visible(false)
+		return
+
+	var hit_pos: Vector3 = result.position
+	var hit_normal: Vector3 = result.normal
+
+	_set_aim_plane_visible(true)
+
+	# Update material color.
+	var mat: StandardMaterial3D = _aim_plane_mesh.material_override
+	if mat:
+		mat.albedo_color = aim_plane_color
+
+	# Position at hit point.
+	_aim_plane_mesh.global_position = hit_pos
+
+	# Orient plane to face along the surface normal.
+	# QuadMesh faces -Z, so we set Z to -normal.
+	if hit_normal.length_squared() > 0.001:
+		var normal := hit_normal.normalized()
+		var up := Vector3.UP
+		if absf(normal.dot(up)) > 0.99:
+			up = Vector3.FORWARD
+		var right := up.cross(normal).normalized()
+		up = normal.cross(right).normalized()
+		_aim_plane_mesh.global_basis = Basis(right, up, normal)
+
+
+func _set_aim_plane_visible(visible: bool) -> void:
+	if _aim_plane_mesh:
+		_aim_plane_mesh.visible = visible
 
 #endregion
 

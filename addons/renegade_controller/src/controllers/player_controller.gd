@@ -22,12 +22,7 @@ var _first_person_active: bool = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _first_person_active:
-		_look_delta = event.relative
-
-
-func _physics_process(_delta: float) -> void:
-	# Reset look delta each physics frame (consumed by character).
-	_look_delta = Vector2.ZERO
+		_look_delta += event.relative
 
 
 func get_movement() -> Vector2:
@@ -56,8 +51,11 @@ func is_action_just_released(action: String) -> bool:
 	return Input.is_action_just_released(action)
 
 
+## Returns accumulated mouse delta and clears it.
 func get_look_delta() -> Vector2:
-	return _look_delta
+	var delta := _look_delta
+	_look_delta = Vector2.ZERO
+	return delta
 
 
 func is_player() -> bool:

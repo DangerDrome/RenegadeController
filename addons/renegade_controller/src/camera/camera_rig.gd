@@ -192,14 +192,14 @@ func _update_third_person(delta: float) -> void:
 
 #region First Person Update
 
-func _update_first_person(delta: float) -> void:
+func _update_first_person(_delta: float) -> void:
 	if not current_preset:
 		return
 	global_position = target.global_position + current_preset.head_offset
 	if player_controller:
 		var look := player_controller.get_look_delta()
-		_fp_yaw -= look.x * current_preset.mouse_sensitivity * delta * 10.0
-		_fp_pitch -= look.y * current_preset.mouse_sensitivity * delta * 10.0
+		_fp_yaw -= look.x * current_preset.mouse_sensitivity * 0.001
+		_fp_pitch -= look.y * current_preset.mouse_sensitivity * 0.001
 		_fp_pitch = clampf(_fp_pitch, deg_to_rad(current_preset.min_pitch), deg_to_rad(current_preset.max_pitch))
 	pivot.rotation.y = _fp_yaw
 	spring_arm.rotation.x = _fp_pitch
