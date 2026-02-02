@@ -10,6 +10,9 @@ var character: RenegadeCharacter
 var camera_rig: CameraRig
 var cursor: Cursor3D
 var zone_manager: CameraZoneManager
+var inventory: Inventory
+var equipment_manager: EquipmentManager
+var weapon_manager: WeaponManager
 
 
 func _ready() -> void:
@@ -117,6 +120,57 @@ func _update_text() -> void:
 		lines.append("[b]Camera Zone[/b]")
 		lines.append("  Active: [color=cyan]%s[/color]" % zone_name)
 		lines.append("  Zones Overlapping: %d" % zone_manager._active_zones.size())
+		lines.append("")
+	
+	# Inventory state.
+	if inventory:
+		var total_items := 0
+		var occupied_slots := 0
+		for slot in inventory.slots:
+			if not slot.is_empty():
+				occupied_slots += 1
+				total_items += slot.quantity
+		lines.append("[b]Inventory[/b]")
+		lines.append("  Slots: %d / %d" % [occupied_slots, inventory.max_slots])
+		lines.append("  Total Items: %d" % total_items)
+		# Show first few items.
+		var shown := 0
+		for slot in inventory.slots:
+			if not slot.is_empty() and shown < 5:
+				var type_color := _get_item_type_color(slot.item.item_type)
+				if slot.quantity > 1:
+					lines.append("  [color=%s]%s[/color] x%d" % [type_color, slot.item.display_name, slot.quantity])
+				else:
+					lines.append("  [color=%s]%s[/color]" % [type_color, slot.item.display_name])
+				shown += 1
+		if occupied_slots > 5:
+			lines.append("  [color=gray]... +%d more[/color]" % (occupied_slots - 5))
+		lines.append("")
+	
+	# Equipment state.
+	if equipment_manager:
+		lines.append("[b]Equipment[/b]")
+		for slot_name in equipment_manager.equipped:
+			var item := equipment_manager.equipped[slot_name] as ItemDefinition
+			var active_marker := ""
+			if slot_name == equipment_manager.get_active_weapon_slot():
+				active_marker = " [color=yellow]*[/color]"
+			if item:
+				lines.append("  %s: [color=orange]%s[/color]%s" % [String(slot_name).capitalize(), item.display_name, active_marker])
+			else:
+				lines.append("  %s: [color=gray]empty[/color]%s" % [String(slot_name).capitalize(), active_marker])
+		lines.append("")
+	
+	# Weapon state.
+	if weapon_manager:
+		lines.append("[b]Weapon[/b]")
+		if weapon_manager.current_weapon:
+			lines.append("  Active: [color=orange]%s[/color]" % weapon_manager.current_weapon.display_name)
+			lines.append("  Ammo: %d / %d" % [weapon_manager.ammo_in_magazine, weapon_manager.current_weapon.magazine_size])
+			lines.append("  State: %s" % _get_weapon_state_string(weapon_manager.state))
+		else:
+			lines.append("  Active: [color=gray]none[/color]")
+		lines.append("")
 	
 	# FPS.
 	lines.append("")
@@ -127,3 +181,29 @@ func _update_text() -> void:
 
 func _fmt_vec3(v: Vector3) -> String:
 	return "(%.1f, %.1f, %.1f)" % [v.x, v.y, v.z]
+
+
+func _get_item_type_color(type: ItemDefinition.ItemType) -> String:
+	match type:
+		ItemDefinition.ItemType.WEAPON:
+			return "orange"
+		ItemDefinition.ItemType.GEAR:
+			return "cyan"
+		ItemDefinition.ItemType.CONSUMABLE:
+			return "green"
+		ItemDefinition.ItemType.KEY_ITEM:
+			return "yellow"
+	return "white"
+
+
+func _get_weapon_state_string(state: WeaponManager.State) -> String:
+	match state:
+		WeaponManager.State.IDLE:
+			return "[color=green]Idle[/color]"
+		WeaponManager.State.SWITCHING:
+			return "[color=yellow]Switching[/color]"
+		WeaponManager.State.FIRING:
+			return "[color=red]Firing[/color]"
+		WeaponManager.State.RELOADING:
+			return "[color=yellow]Reloading[/color]"
+	return "Unknown"

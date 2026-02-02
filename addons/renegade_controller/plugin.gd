@@ -1,19 +1,14 @@
 @tool
 extends EditorPlugin
-
 var _camera_zone_inspector: EditorInspectorPlugin
 var _selection: EditorSelection
-
-
 func _enter_tree() -> void:
 	# Track selection to update camera zone colors.
 	_selection = get_editor_interface().get_selection()
 	_selection.selection_changed.connect(_on_selection_changed)
-
 	# Inspector plugins.
 	_camera_zone_inspector = preload("src/editor/camera_zone_inspector.gd").new()
 	add_inspector_plugin(_camera_zone_inspector)
-
 	# Controllers
 	add_custom_type("PlayerController", "Node", preload("src/controllers/player_controller.gd"), null)
 	add_custom_type("AIController", "Node", preload("src/controllers/ai_controller.gd"), null)
@@ -31,18 +26,21 @@ func _enter_tree() -> void:
 	add_custom_type("CameraZone", "Area3D", preload("src/zones/camera_zone.gd"), null)
 	add_custom_type("FirstPersonZone", "Area3D", preload("src/zones/first_person_zone.gd"), null)
 	add_custom_type("CameraZoneManager", "Node", preload("src/zones/camera_zone_manager.gd"), null)
-
-
+	
+	# Inventory
+	add_custom_type("Inventory", "Node", preload("src/inventory/inventory.gd"), null)
+	add_custom_type("EquipmentManager", "Node", preload("src/inventory/equipment_manager.gd"), null)
+	add_custom_type("WeaponManager", "Node3D", preload("src/inventory/weapon_manager.gd"), null)
+	add_custom_type("WorldPickup", "Area3D", preload("src/inventory/world_pickup.gd"), null)
+	add_custom_type("LootDropper", "Node", preload("src/inventory/loot_dropper.gd"), null)
 func _exit_tree() -> void:
 	# Disconnect selection signal.
 	if _selection and _selection.selection_changed.is_connected(_on_selection_changed):
 		_selection.selection_changed.disconnect(_on_selection_changed)
-
 	# Inspector plugins.
 	if _camera_zone_inspector:
 		remove_inspector_plugin(_camera_zone_inspector)
 		_camera_zone_inspector = null
-
 	remove_custom_type("PlayerController")
 	remove_custom_type("AIController")
 	remove_custom_type("RenegadeCharacter")
@@ -51,24 +49,22 @@ func _exit_tree() -> void:
 	remove_custom_type("CameraZone")
 	remove_custom_type("FirstPersonZone")
 	remove_custom_type("CameraZoneManager")
-
-
+	remove_custom_type("Inventory")
+	remove_custom_type("EquipmentManager")
+	remove_custom_type("WeaponManager")
+	remove_custom_type("WorldPickup")
+	remove_custom_type("LootDropper")
 func _on_selection_changed() -> void:
 	var selected := _selection.get_selected_nodes()
-
 	# Find all camera zones in the current scene.
 	var root := get_editor_interface().get_edited_scene_root()
 	if not root:
 		return
-
 	var zones := _find_camera_zones(root)
-
 	# Update each zone's selection state.
 	for zone in zones:
 		var is_selected := _is_zone_or_child_selected(zone, selected)
 		zone.set_editor_selected(is_selected)
-
-
 func _find_camera_zones(node: Node) -> Array[Node]:
 	var result: Array[Node] = []
 	if node is CameraZone:
@@ -76,8 +72,6 @@ func _find_camera_zones(node: Node) -> Array[Node]:
 	for child in node.get_children():
 		result.append_array(_find_camera_zones(child))
 	return result
-
-
 func _is_zone_or_child_selected(zone: CameraZone, selected: Array[Node]) -> bool:
 	# Check if zone itself is selected.
 	if zone in selected:
