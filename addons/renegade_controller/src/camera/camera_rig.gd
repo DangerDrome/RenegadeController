@@ -11,6 +11,22 @@ class_name CameraRig extends Node3D
 ## Reference to the player controller (for first-person mouse input).
 @export var player_controller: PlayerController
 
+@export_group("Zoom")
+## Minimum zoom distance (closest to player).
+@export var min_zoom: float = 2.0
+## Maximum zoom distance (furthest from player).
+@export var max_zoom: float = 15.0
+## Zoom step per scroll wheel tick.
+@export var zoom_step: float = 0.5
+## Zoom smoothing speed.
+@export var zoom_speed: float = 10.0
+## Minimum FOV for marker mode zoom (zoomed in).
+@export var min_fov: float = 30.0
+## Maximum FOV for marker mode zoom (zoomed out).
+@export var max_fov: float = 90.0
+## FOV step per scroll wheel tick.
+@export var fov_step: float = 5.0
+
 ## Emitted when the camera finishes transitioning to a new preset.
 signal preset_changed(preset: CameraPreset)
 ## Emitted when entering or exiting first-person mode.
@@ -27,6 +43,8 @@ var _locked_direction: Vector3 = Vector3.ZERO  # Locked world-space direction du
 var _last_input: Vector2 = Vector2.ZERO  # Previous frame's input for change detection.
 var _camera_marker: Marker3D  # Optional fixed camera position.
 var _look_at_node: Node3D  # Optional look-at target (any Node3D).
+var _target_zoom: float = 5.0  # Target spring arm length for smooth zoom.
+var _target_fov: float = 75.0  # Target FOV for marker mode zoom.
 
 ## Assigned in _ready — NOT @onready because hierarchy may need building first.
 var pivot: Node3D
@@ -44,6 +62,8 @@ func _ready() -> void:
 	
 	if default_preset:
 		current_preset = default_preset
+		_target_zoom = default_preset.spring_length
+		_target_fov = default_preset.fov
 		_apply_preset_instant(default_preset)
 
 
@@ -54,6 +74,28 @@ func _physics_process(delta: float) -> void:
 		_update_first_person(delta)
 	else:
 		_update_third_person(delta)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _first_person_active or is_transitioning:
+		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			# Use FOV zoom for marker mode, distance zoom for standard third-person.
+			var is_marker_mode := _camera_marker and is_instance_valid(_camera_marker)
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+				if is_marker_mode:
+					_target_fov = clampf(_target_fov - fov_step, min_fov, max_fov)
+				else:
+					_target_zoom = clampf(_target_zoom - zoom_step, min_zoom, max_zoom)
+				get_viewport().set_input_as_handled()
+			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				if is_marker_mode:
+					_target_fov = clampf(_target_fov + fov_step, min_fov, max_fov)
+				else:
+					_target_zoom = clampf(_target_zoom + zoom_step, min_zoom, max_zoom)
+				get_viewport().set_input_as_handled()
 
 
 #region Public API
@@ -192,6 +234,13 @@ func _update_third_person(delta: float) -> void:
 	# Always follow position smoothly (even during transitions).
 	var target_pos := target.global_position + active_preset.offset
 	global_position = global_position.lerp(target_pos, 1.0 - exp(-active_preset.follow_speed * delta))
+
+	# Smooth zoom interpolation (always runs, even during transitions).
+	var is_zooming := absf(spring_arm.spring_length - _target_zoom) > 0.01
+	if is_zooming:
+		spring_arm.spring_length = lerpf(spring_arm.spring_length, _target_zoom, 1.0 - exp(-zoom_speed * delta))
+		spring_arm.reset_physics_interpolation()
+
 	# Don't touch rotation during transitions — let the tween drive it.
 	if is_transitioning:
 		return
@@ -199,11 +248,25 @@ func _update_third_person(delta: float) -> void:
 		var target_yaw := target.global_rotation.y + deg_to_rad(current_preset.yaw_offset)
 		pivot.rotation.y = lerp_angle(pivot.rotation.y, target_yaw, 1.0 - exp(-current_preset.rotation_speed * delta))
 
+	# Only adjust camera look-at when actively zooming to keep character centered.
+	# Otherwise let the spring arm control orientation (no lag).
+	if is_zooming:
+		var look_point := target.global_position + Vector3.UP * 1.0
+		var dir := (look_point - camera.global_position).normalized()
+		if dir.length_squared() > 0.001:
+			var target_basis := Basis.looking_at(dir, Vector3.UP)
+			camera.global_basis = camera.global_basis.slerp(target_basis, 1.0 - exp(-zoom_speed * delta))
+
 
 func _update_marker_camera(delta: float) -> void:
 	# Stay at marker position.
 	var marker_pos := _camera_marker.global_position
 	global_position = global_position.lerp(marker_pos, 1.0 - exp(-current_preset.follow_speed * delta))
+
+	# Smooth FOV zoom interpolation for marker mode.
+	if absf(camera.fov - _target_fov) > 0.1:
+		camera.fov = lerpf(camera.fov, _target_fov, 1.0 - exp(-zoom_speed * delta))
+		camera.reset_physics_interpolation()
 
 	# Don't touch rotation during transitions.
 	if is_transitioning:
@@ -224,6 +287,7 @@ func _update_marker_camera(delta: float) -> void:
 		return
 	var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
 	camera.look_at(look_target, up)
+	camera.reset_physics_interpolation()
 
 #endregion
 
@@ -281,6 +345,8 @@ func _world_direction(input: Vector2) -> Vector3:
 func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType, from_fixed: bool = false) -> void:
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
+	# Update target zoom to match preset (user can still override with scroll wheel).
+	_target_zoom = preset.spring_length
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
@@ -311,6 +377,8 @@ func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.
 func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
+	# Update target zoom to match preset.
+	_target_zoom = preset.spring_length
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
@@ -329,6 +397,8 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
 	# Transition to a fixed marker position.
 	spring_arm.collision_mask = 0
+	# Reset FOV target to preset default for marker mode.
+	_target_fov = preset.fov
 	# Collapse spring arm and reset rotations since camera.look_at() will handle orientation.
 	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
@@ -374,6 +444,11 @@ func _on_transition_complete(preset: CameraPreset, is_fp: bool) -> void:
 	elif not _first_person_active and player_controller and player_controller.cursor:
 		# Re-enable cursor after third-person to third-person transition.
 		player_controller.cursor.set_active(true)
+	# Reset physics interpolation to prevent flash frame after transition.
+	reset_physics_interpolation()
+	pivot.reset_physics_interpolation()
+	spring_arm.reset_physics_interpolation()
+	camera.reset_physics_interpolation()
 	preset_changed.emit(preset)
 
 
@@ -391,6 +466,7 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 			player_controller.set_first_person(true)
 		first_person_changed.emit(true)
 	else:
+		_target_zoom = preset.spring_length
 		spring_arm.spring_length = preset.spring_length
 		spring_arm.rotation.x = deg_to_rad(preset.pitch)
 		spring_arm.collision_mask = 1 if preset.use_collision else 0
@@ -401,6 +477,11 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 		if player_controller:
 			player_controller.set_first_person(false)
 		first_person_changed.emit(false)
+	# Reset physics interpolation to prevent flash frame.
+	reset_physics_interpolation()
+	pivot.reset_physics_interpolation()
+	spring_arm.reset_physics_interpolation()
+	camera.reset_physics_interpolation()
 	preset_changed.emit(preset)
 
 
