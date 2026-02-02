@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://sgw3fuxtc582"]
 
 [ext_resource type="Script" uid="uid://b62axs1cohnn6" path="res://addons/renegade_controller/demo/demo_scene.gd" id="1"]
-[ext_resource type="Script" uid="uid://qnhun6oksmtm" path="res://addons/renegade_controller/src/character/character_body.gd" id="2"]
+[ext_resource type="Script" uid="uid://ck4mn6jm36511" path="res://addons/renegade_controller/src/character/character_body.gd" id="2"]
 [ext_resource type="Script" uid="uid://blmp3gov4afut" path="res://addons/renegade_controller/src/controllers/player_controller.gd" id="3"]
-[ext_resource type="Script" uid="uid://dmq0yr8jpil8c" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="4"]
+[ext_resource type="Script" uid="uid://ci3lf582eb6f4" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="4"]
 [ext_resource type="Script" uid="uid://kf5sip8wymyh" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="5"]
 [ext_resource type="Script" uid="uid://bpabgpdksoyhb" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="6"]
 [ext_resource type="Script" uid="uid://by7iy60qgqp5s" path="res://addons/renegade_controller/src/zones/camera_zone.gd" id="7"]
@@ -222,6 +222,8 @@ transform = Transform3D(0.8660248, -0.3535548, 0.3535535, 0, 0.7071055, 0.707108
 light_color = Color(1, 0.95, 0.85, 1)
 light_energy = 2.0
 shadow_enabled = true
+shadow_bias = 5.0
+shadow_normal_bias = 1.5
 directional_shadow_mode = 1
 
 [node name="NavRegion" type="NavigationRegion3D" parent="." unique_id=2138951272]
@@ -613,7 +615,7 @@ material_override = SubResource("22")
 mesh = SubResource("21")
 
 [node name="Nose" type="MeshInstance3D" parent="PatrolNPC/Mesh" unique_id=1909316221]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, -0.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0.21953154)
 material_override = SubResource("24")
 mesh = SubResource("23")
 

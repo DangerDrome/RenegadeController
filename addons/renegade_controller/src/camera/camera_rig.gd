@@ -18,6 +18,7 @@ signal first_person_changed(enabled: bool)
 
 var current_preset: CameraPreset
 var is_transitioning: bool = false
+var _transition_target: CameraPreset  # Preset we're transitioning TO.
 var _first_person_active: bool = false
 var _fp_yaw: float = 0.0
 var _fp_pitch: float = 0.0
@@ -62,6 +63,10 @@ func transition_to(preset: CameraPreset) -> void:
 	if _active_tween and _active_tween.is_valid():
 		_active_tween.kill()
 	is_transitioning = true
+	_transition_target = preset
+	# Disable cursor during camera transitions.
+	if player_controller and player_controller.cursor:
+		player_controller.cursor.set_active(false)
 	_active_tween = create_tween()
 	_active_tween.set_parallel(true)
 	var dur := preset.transition_duration
@@ -74,6 +79,15 @@ func transition_to(preset: CameraPreset) -> void:
 	else:
 		_transition_third_person(preset, dur, trans, ease, was_fixed)
 	_active_tween.chain().tween_callback(_on_transition_complete.bind(preset, entering_first_person))
+	# Force immediate position update toward new target to prevent flash.
+	if target and not entering_first_person:
+		var target_pos := target.global_position + preset.offset
+		global_position = global_position.lerp(target_pos, 0.3)
+	# Prevent physics interpolation from showing old camera state.
+	reset_physics_interpolation()
+	pivot.reset_physics_interpolation()
+	spring_arm.reset_physics_interpolation()
+	camera.reset_physics_interpolation()
 
 
 func apply_instant(preset: CameraPreset) -> void:
@@ -110,9 +124,11 @@ func calculate_move_direction(input: Vector2) -> Vector3:
 func _update_third_person(delta: float) -> void:
 	if not current_preset:
 		return
+	# Use the transition target preset during transitions for smooth position follow.
+	var active_preset := _transition_target if is_transitioning and _transition_target else current_preset
 	# Always follow position smoothly (even during transitions).
-	var target_pos := target.global_position + current_preset.offset
-	global_position = global_position.lerp(target_pos, 1.0 - exp(-current_preset.follow_speed * delta))
+	var target_pos := target.global_position + active_preset.offset
+	global_position = global_position.lerp(target_pos, 1.0 - exp(-active_preset.follow_speed * delta))
 	# Don't touch rotation during transitions — let the tween drive it.
 	if is_transitioning:
 		return
@@ -174,6 +190,8 @@ func _world_direction(input: Vector2) -> Vector3:
 #region Transitions
 
 func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType, from_fixed: bool = false) -> void:
+	# Disable collision during transition to prevent camera snapping.
+	spring_arm.collision_mask = 0
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
@@ -185,7 +203,8 @@ func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.Tra
 		# Tween yaw toward the player's current facing so it doesn't snap.
 		var target_yaw := target.global_rotation.y if target else 0.0
 		_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur).set_trans(trans).set_ease(ease_t)
-	spring_arm.collision_mask = 1 if preset.use_collision else 0
+	# Re-enable collision at end of transition via callback (chained after all parallel tweens).
+	_active_tween.chain().tween_callback(func(): spring_arm.collision_mask = 1 if preset.use_collision else 0)
 
 
 func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
@@ -199,6 +218,8 @@ func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.
 
 
 func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
+	# Disable collision during transition to prevent camera snapping.
+	spring_arm.collision_mask = 0
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
@@ -208,7 +229,8 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 	else:
 		var target_yaw := target.global_rotation.y if target else 0.0
 		_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur).set_trans(trans).set_ease(ease_t)
-	spring_arm.collision_mask = 1 if preset.use_collision else 0
+	# Re-enable collision at end of transition.
+	_active_tween.chain().tween_callback(func(): spring_arm.collision_mask = 1 if preset.use_collision else 0)
 
 #endregion
 
@@ -218,12 +240,16 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 func _on_transition_complete(preset: CameraPreset, is_fp: bool) -> void:
 	current_preset = preset
 	is_transitioning = false
+	_transition_target = null
 	_active_tween = null
 	if is_fp != _first_person_active:
 		_first_person_active = is_fp
 		if player_controller:
 			player_controller.set_first_person(is_fp)
 		first_person_changed.emit(is_fp)
+	elif not _first_person_active and player_controller and player_controller.cursor:
+		# Re-enable cursor after third-person to third-person transition.
+		player_controller.cursor.set_active(true)
 	preset_changed.emit(preset)
 
 
