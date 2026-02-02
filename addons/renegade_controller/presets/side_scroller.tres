@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="CameraPreset" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_controller/src/camera/camera_preset.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+preset_name = "Side Scroller"
+is_first_person = false
+head_offset = Vector3(0, 1.7, 0)
+offset = Vector3(0, 1.5, 0)
+spring_length = 12.0
+use_collision = false
+yaw_offset = 0.0
+pitch = 0.0
+fixed_rotation = true
+fixed_yaw = 90.0
+follow_speed = 6.0
+rotation_speed = 6.0
+transition_duration = 0.8
+transition_type = 4
+ease_type = 1
+fov = 55.0
+input_mode = "FIXED_AXIS"
+fixed_forward = Vector3(0, 0, -1)
+fixed_right = Vector3(1, 0, 0)
+mouse_sensitivity = 0.15
+min_pitch = -80.0
+max_pitch = 80.0
