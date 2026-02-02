@@ -2,9 +2,14 @@
 extends EditorPlugin
 
 var _camera_zone_inspector: EditorInspectorPlugin
+var _selection: EditorSelection
 
 
 func _enter_tree() -> void:
+	# Track selection to update camera zone colors.
+	_selection = get_editor_interface().get_selection()
+	_selection.selection_changed.connect(_on_selection_changed)
+
 	# Inspector plugins.
 	_camera_zone_inspector = preload("src/editor/camera_zone_inspector.gd").new()
 	add_inspector_plugin(_camera_zone_inspector)
@@ -29,6 +34,10 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	# Disconnect selection signal.
+	if _selection and _selection.selection_changed.is_connected(_on_selection_changed):
+		_selection.selection_changed.disconnect(_on_selection_changed)
+
 	# Inspector plugins.
 	if _camera_zone_inspector:
 		remove_inspector_plugin(_camera_zone_inspector)
@@ -42,3 +51,44 @@ func _exit_tree() -> void:
 	remove_custom_type("CameraZone")
 	remove_custom_type("FirstPersonZone")
 	remove_custom_type("CameraZoneManager")
+
+
+func _on_selection_changed() -> void:
+	var selected := _selection.get_selected_nodes()
+
+	# Find all camera zones in the current scene.
+	var root := get_editor_interface().get_edited_scene_root()
+	if not root:
+		return
+
+	var zones := _find_camera_zones(root)
+
+	# Update each zone's selection state.
+	for zone in zones:
+		var is_selected := _is_zone_or_child_selected(zone, selected)
+		zone.set_editor_selected(is_selected)
+
+
+func _find_camera_zones(node: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	if node is CameraZone:
+		result.append(node)
+	for child in node.get_children():
+		result.append_array(_find_camera_zones(child))
+	return result
+
+
+func _is_zone_or_child_selected(zone: CameraZone, selected: Array[Node]) -> bool:
+	# Check if zone itself is selected.
+	if zone in selected:
+		return true
+	# Check if camera marker is selected.
+	if zone.camera_marker and zone.camera_marker in selected:
+		return true
+	# Check if look-at marker is selected.
+	if zone.look_at_marker and zone.look_at_marker in selected:
+		return true
+	# Check if look-at target is selected.
+	if zone.look_at_target and zone.look_at_target in selected:
+		return true
+	return false

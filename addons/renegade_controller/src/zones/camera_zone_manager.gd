@@ -55,6 +55,17 @@ func _discover_zones() -> void:
 	for node in zones:
 		if node is CameraZone:
 			register_zone(node)
+			# Check if player is already inside this zone.
+			_check_zone_overlap(node)
+
+
+func _check_zone_overlap(zone: CameraZone) -> void:
+	# Check if any player bodies are already overlapping this zone.
+	var bodies := zone.get_overlapping_bodies()
+	for body in bodies:
+		if body.is_in_group("player"):
+			_on_zone_entered(zone)
+			break
 
 #endregion
 

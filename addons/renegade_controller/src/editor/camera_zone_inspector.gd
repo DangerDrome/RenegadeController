@@ -68,8 +68,9 @@ class CameraPreviewControl extends VBoxContainer:
 		_subviewport.transparent_bg = false
 		add_child(_subviewport)
 
-		# Create preview camera.
+		# Create preview camera (exclude layer 2 to hide camera body/lens).
 		_preview_camera = Camera3D.new()
+		_preview_camera.cull_mask = 1  # Only layer 1.
 		_subviewport.add_child(_preview_camera)
 
 		# Create TextureRect to display the viewport with proper aspect ratio.
@@ -95,9 +96,13 @@ class CameraPreviewControl extends VBoxContainer:
 	func _update_preview() -> void:
 		if not is_instance_valid(_zone) or not is_instance_valid(_preview_camera):
 			return
+		if not _preview_camera.is_inside_tree():
+			return
 
 		var marker := _zone.camera_marker
 		if not marker or not is_instance_valid(marker):
+			return
+		if not marker.is_inside_tree():
 			return
 
 		# Position the camera at the marker.
@@ -105,7 +110,7 @@ class CameraPreviewControl extends VBoxContainer:
 
 		# Look at the target if available.
 		var look_node := _zone.get_look_at_node()
-		if look_node and is_instance_valid(look_node):
+		if look_node and is_instance_valid(look_node) and look_node.is_inside_tree():
 			var look_pos := look_node.global_position
 			var cam_pos := _preview_camera.global_position
 			var dir := (look_pos - cam_pos).normalized()

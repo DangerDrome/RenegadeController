@@ -53,8 +53,11 @@ signal zone_exited(zone: CameraZone)
 var _debug_label: Label3D
 
 
-var _frustum_mesh: MeshInstance3D
+var _frustum_mesh: MeshInstance3D  # Lines only.
+var _body_mesh: MeshInstance3D  # Camera body and lens (layer 2, hidden from preview).
+var _target_mesh: MeshInstance3D  # Target crosshair (layer 1, visible in preview).
 var _collision_shape: CollisionShape3D
+var _is_editor_selected: bool = false
 
 
 ## Returns the effective look-at node: look_at_target if set, otherwise look_at_marker.
@@ -64,6 +67,13 @@ func get_look_at_node() -> Node3D:
 	if look_at_marker and is_instance_valid(look_at_marker):
 		return look_at_marker
 	return null
+
+
+## Called by the editor plugin when selection changes.
+func set_editor_selected(selected: bool) -> void:
+	if _is_editor_selected != selected:
+		_is_editor_selected = selected
+		_update_camera_preview()
 
 
 func _ready() -> void:
@@ -172,11 +182,26 @@ func _update_debug_label() -> void:
 
 
 func _create_camera_preview() -> void:
-	# Create camera frustum visualization mesh.
+	# Create mesh for camera body/lens (layer 2, hidden from preview camera).
+	_body_mesh = MeshInstance3D.new()
+	_body_mesh.name = "CameraBody"
+	_body_mesh.mesh = ImmediateMesh.new()
+	_body_mesh.layers = 2  # Layer 2 only.
+	add_child(_body_mesh)
+
+	# Create mesh for lines/frustum (layer 2, hidden from preview).
 	_frustum_mesh = MeshInstance3D.new()
 	_frustum_mesh.name = "CameraFrustum"
 	_frustum_mesh.mesh = ImmediateMesh.new()
+	_frustum_mesh.layers = 2  # Layer 2 only.
 	add_child(_frustum_mesh)
+
+	# Create mesh for target crosshair (layer 1, visible in preview).
+	_target_mesh = MeshInstance3D.new()
+	_target_mesh.name = "TargetCrosshair"
+	_target_mesh.mesh = ImmediateMesh.new()
+	_target_mesh.layers = 1  # Layer 1 only.
+	add_child(_target_mesh)
 
 	_update_camera_preview()
 
@@ -187,9 +212,17 @@ func _update_camera_preview() -> void:
 
 	if not _frustum_mesh or not _frustum_mesh.mesh is ImmediateMesh:
 		return
+	if not _body_mesh or not _body_mesh.mesh is ImmediateMesh:
+		return
+	if not _target_mesh or not _target_mesh.mesh is ImmediateMesh:
+		return
 
-	var im: ImmediateMesh = _frustum_mesh.mesh
-	im.clear_surfaces()
+	var im_lines: ImmediateMesh = _frustum_mesh.mesh
+	var im_body: ImmediateMesh = _body_mesh.mesh
+	var im_target: ImmediateMesh = _target_mesh.mesh
+	im_lines.clear_surfaces()
+	im_body.clear_surfaces()
+	im_target.clear_surfaces()
 
 	if not camera_marker or not is_instance_valid(camera_marker):
 		return
@@ -252,35 +285,78 @@ func _update_camera_preview() -> void:
 		var offset := right * cos(angle) * lens_base_radius + up_vec * sin(angle) * lens_base_radius
 		cone_points.append(cone_base + offset)
 
-	# === Surface 0: Semi-transparent faces ===
-	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	# === BODY MESH: Camera body and lens (layer 2, hidden from preview) ===
+	im_body.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	# Camera body faces (6 faces, 2 triangles each).
-	# Front face.
-	_add_tri(im, bf_tl, bf_tr, bf_br)
-	_add_tri(im, bf_tl, bf_br, bf_bl)
-	# Back face.
-	_add_tri(im, bb_tr, bb_tl, bb_bl)
-	_add_tri(im, bb_tr, bb_bl, bb_br)
-	# Top face.
-	_add_tri(im, bb_tl, bb_tr, bf_tr)
-	_add_tri(im, bb_tl, bf_tr, bf_tl)
-	# Bottom face.
-	_add_tri(im, bf_bl, bf_br, bb_br)
-	_add_tri(im, bf_bl, bb_br, bb_bl)
-	# Left face.
-	_add_tri(im, bb_tl, bf_tl, bf_bl)
-	_add_tri(im, bb_tl, bf_bl, bb_bl)
-	# Right face.
-	_add_tri(im, bf_tr, bb_tr, bb_br)
-	_add_tri(im, bf_tr, bb_br, bf_br)
+	_add_tri(im_body, bf_tl, bf_tr, bf_br)
+	_add_tri(im_body, bf_tl, bf_br, bf_bl)
+	_add_tri(im_body, bb_tr, bb_tl, bb_bl)
+	_add_tri(im_body, bb_tr, bb_bl, bb_br)
+	_add_tri(im_body, bb_tl, bb_tr, bf_tr)
+	_add_tri(im_body, bb_tl, bf_tr, bf_tl)
+	_add_tri(im_body, bf_bl, bf_br, bb_br)
+	_add_tri(im_body, bf_bl, bb_br, bb_bl)
+	_add_tri(im_body, bb_tl, bf_tl, bf_bl)
+	_add_tri(im_body, bb_tl, bf_bl, bb_bl)
+	_add_tri(im_body, bf_tr, bb_tr, bb_br)
+	_add_tri(im_body, bf_tr, bb_br, bf_br)
 
 	# Lens cone triangles.
 	for i in lens_segments:
 		var next := (i + 1) % lens_segments
-		_add_tri(im, cone_tip, cone_points[i], cone_points[next])
+		_add_tri(im_body, cone_tip, cone_points[i], cone_points[next])
 
-	# === Frustum calculations (needed for arrow position) ===
+	im_body.surface_end()
+
+	# Body wireframe.
+	im_body.surface_begin(Mesh.PRIMITIVE_LINES)
+	_add_line(im_body, bf_tl, bf_tr)
+	_add_line(im_body, bf_tr, bf_br)
+	_add_line(im_body, bf_br, bf_bl)
+	_add_line(im_body, bf_bl, bf_tl)
+	_add_line(im_body, bb_tl, bb_tr)
+	_add_line(im_body, bb_tr, bb_br)
+	_add_line(im_body, bb_br, bb_bl)
+	_add_line(im_body, bb_bl, bb_tl)
+	_add_line(im_body, bf_tl, bb_tl)
+	_add_line(im_body, bf_tr, bb_tr)
+	_add_line(im_body, bf_bl, bb_bl)
+	_add_line(im_body, bf_br, bb_br)
+	for i in lens_segments:
+		_add_line(im_body, cone_points[i], cone_points[(i + 1) % lens_segments])
+	for i in lens_segments:
+		_add_line(im_body, cone_points[i], cone_tip)
+	im_body.surface_end()
+
+	# Colors based on selection state.
+	var face_color: Color
+	var line_color: Color
+	if _is_editor_selected:
+		face_color = Color(0.2, 0.8, 1.0, 0.1)
+		line_color = Color(0.2, 0.8, 1.0, 0.9)
+	else:
+		face_color = Color(0.0, 0.0, 0.0, 0.1)
+		line_color = Color(0.0, 0.0, 0.0, 0.9)
+
+	# Body materials.
+	var body_face_mat := StandardMaterial3D.new()
+	body_face_mat.albedo_color = face_color
+	body_face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	body_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	body_face_mat.cull_mode = BaseMaterial3D.CULL_BACK
+	body_face_mat.no_depth_test = true
+	im_body.surface_set_material(0, body_face_mat)
+
+	var body_line_mat := StandardMaterial3D.new()
+	body_line_mat.albedo_color = line_color
+	body_line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	body_line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	body_line_mat.no_depth_test = true
+	im_body.surface_set_material(1, body_line_mat)
+
+	# === FRUSTUM MESH: Lines only (layer 1, visible in preview) ===
+	# === Frustum calculations ===
 	var near_dist := 0.3
 	var far_dist := 1.55
 	var aspect := 16.0 / 9.0
@@ -306,7 +382,7 @@ func _update_camera_preview() -> void:
 	var f_bl := far_center - up_vec * far_h - right * far_w
 	var f_br := far_center - up_vec * far_h + right * far_w
 
-	# === Up triangle (filled) at top of far plane ===
+	# Up triangle.
 	var arrow_base := (f_tl + f_tr) * 0.5 + up_vec * 0.05
 	var arrow_height := 0.1
 	var arrow_width := 0.15
@@ -314,87 +390,82 @@ func _update_camera_preview() -> void:
 	var arrow_left := arrow_base - right * arrow_width
 	var arrow_right_pt := arrow_base + right * arrow_width
 
-	_add_tri(im, arrow_left, arrow_tip, arrow_right_pt)
-
-	# === Look-at target cube (filled) ===
+	# Filled triangles for arrow and look-at cube.
+	im_lines.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_tri(im_lines, arrow_left, arrow_tip, arrow_right_pt)
 	if look_node:
 		var look_pos := look_node.global_position
-		_add_filled_cube(im, look_pos, 0.15, cam_basis)
+		_add_filled_cube(im_lines, look_pos, 0.15, cam_basis)
+	im_lines.surface_end()
 
-	im.surface_end()
-
-	# === Surface 1: Wireframe lines ===
-	im.surface_begin(Mesh.PRIMITIVE_LINES)
-
-	# Camera body wireframe.
-	# Front face.
-	_add_line(im, bf_tl, bf_tr)
-	_add_line(im, bf_tr, bf_br)
-	_add_line(im, bf_br, bf_bl)
-	_add_line(im, bf_bl, bf_tl)
-	# Back face.
-	_add_line(im, bb_tl, bb_tr)
-	_add_line(im, bb_tr, bb_br)
-	_add_line(im, bb_br, bb_bl)
-	_add_line(im, bb_bl, bb_tl)
-	# Connecting edges.
-	_add_line(im, bf_tl, bb_tl)
-	_add_line(im, bf_tr, bb_tr)
-	_add_line(im, bf_bl, bb_bl)
-	_add_line(im, bf_br, bb_br)
-
-	# Lens cone wireframe.
-	for i in lens_segments:
-		_add_line(im, cone_points[i], cone_points[(i + 1) % lens_segments])
-	for i in lens_segments:
-		_add_line(im, cone_points[i], cone_tip)
+	# Wireframe lines.
+	im_lines.surface_begin(Mesh.PRIMITIVE_LINES)
 
 	# Near rectangle.
-	_add_line(im, n_tl, n_tr)
-	_add_line(im, n_tr, n_br)
-	_add_line(im, n_br, n_bl)
-	_add_line(im, n_bl, n_tl)
+	_add_line(im_lines, n_tl, n_tr)
+	_add_line(im_lines, n_tr, n_br)
+	_add_line(im_lines, n_br, n_bl)
+	_add_line(im_lines, n_bl, n_tl)
 
 	# Far rectangle.
-	_add_line(im, f_tl, f_tr)
-	_add_line(im, f_tr, f_br)
-	_add_line(im, f_br, f_bl)
-	_add_line(im, f_bl, f_tl)
+	_add_line(im_lines, f_tl, f_tr)
+	_add_line(im_lines, f_tr, f_br)
+	_add_line(im_lines, f_br, f_bl)
+	_add_line(im_lines, f_bl, f_tl)
 
 	# Connecting lines from near to far (dashed).
-	_add_dashed_line(im, n_tl, f_tl)
-	_add_dashed_line(im, n_tr, f_tr)
-	_add_dashed_line(im, n_bl, f_bl)
-	_add_dashed_line(im, n_br, f_br)
+	_add_dashed_line(im_lines, n_tl, f_tl)
+	_add_dashed_line(im_lines, n_tr, f_tr)
+	_add_dashed_line(im_lines, n_bl, f_bl)
+	_add_dashed_line(im_lines, n_br, f_br)
 
-	# === Up triangle wireframe ===
-	_add_line(im, arrow_left, arrow_tip)
-	_add_line(im, arrow_tip, arrow_right_pt)
-	_add_line(im, arrow_right_pt, arrow_left)
+	# Up triangle wireframe.
+	_add_line(im_lines, arrow_left, arrow_tip)
+	_add_line(im_lines, arrow_tip, arrow_right_pt)
+	_add_line(im_lines, arrow_right_pt, arrow_left)
 
-	# === Look-at target line and cube wireframe ===
+	# Look-at target line and cube wireframe.
 	if look_node:
 		var look_pos := look_node.global_position
-		_add_line(im, cam_pos, look_pos)
-		_add_wireframe_cube(im, look_pos, 0.15, cam_basis)
+		_add_line(im_lines, cam_pos, look_pos)
+		_add_wireframe_cube(im_lines, look_pos, 0.15, cam_basis)
 
-	im.surface_end()
+	im_lines.surface_end()
 
-	# Set materials after surfaces are created.
-	var face_mat := StandardMaterial3D.new()
-	face_mat.albedo_color = Color(0.2, 0.8, 1.0, 0.1)
-	face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	face_mat.cull_mode = BaseMaterial3D.CULL_BACK
-	face_mat.no_depth_test = true
-	im.surface_set_material(0, face_mat)
+	# Frustum materials (use same colors as body).
+	var line_face_mat := StandardMaterial3D.new()
+	line_face_mat.albedo_color = Color(face_color.r, face_color.g, face_color.b, 0.3)
+	line_face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	line_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	line_face_mat.cull_mode = BaseMaterial3D.CULL_BACK
+	line_face_mat.no_depth_test = true
+	im_lines.surface_set_material(0, line_face_mat)
 
 	var line_mat := StandardMaterial3D.new()
-	line_mat.albedo_color = Color(0.2, 0.8, 1.0, 0.9)
+	line_mat.albedo_color = line_color
 	line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	line_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	line_mat.no_depth_test = true
-	im.surface_set_material(1, line_mat)
+	im_lines.surface_set_material(1, line_mat)
+
+	# === TARGET CROSSHAIR (layer 1, visible in preview) ===
+	if look_node:
+		var look_pos := look_node.global_position
+		var cross_size := 0.1
+
+		im_target.surface_begin(Mesh.PRIMITIVE_LINES)
+		# Horizontal line.
+		_add_line(im_target, look_pos - right * cross_size, look_pos + right * cross_size)
+		# Vertical line.
+		_add_line(im_target, look_pos - up_vec * cross_size, look_pos + up_vec * cross_size)
+		im_target.surface_end()
+
+		# White material for crosshair.
+		var cross_mat := StandardMaterial3D.new()
+		cross_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
+		cross_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		cross_mat.no_depth_test = true
+		im_target.surface_set_material(0, cross_mat)
 
 
 func _add_line(im: ImmediateMesh, start: Vector3, end: Vector3) -> void:

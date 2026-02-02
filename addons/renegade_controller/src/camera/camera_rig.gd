@@ -209,7 +209,7 @@ func _update_marker_camera(delta: float) -> void:
 	if is_transitioning:
 		return
 
-	# Look at look_at_marker or player.
+	# Look at look_at_node or player.
 	var look_target: Vector3
 	if _look_at_node and is_instance_valid(_look_at_node):
 		look_target = _look_at_node.global_position
@@ -218,12 +218,12 @@ func _update_marker_camera(delta: float) -> void:
 	else:
 		return
 
-	var dir := (look_target - global_position).normalized()
-	var target_yaw := atan2(dir.x, dir.z)
-	var target_pitch := asin(-dir.y)
-
-	pivot.rotation.y = lerp_angle(pivot.rotation.y, target_yaw, 1.0 - exp(-current_preset.rotation_speed * delta))
-	spring_arm.rotation.x = lerp_angle(spring_arm.rotation.x, target_pitch, 1.0 - exp(-current_preset.rotation_speed * delta))
+	# Just use look_at on the camera directly.
+	var dir := (look_target - camera.global_position).normalized()
+	if dir.length_squared() < 0.001:
+		return
+	var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
+	camera.look_at(look_target, up)
 
 #endregion
 
@@ -284,6 +284,8 @@ func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.Tra
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
+	# Reset camera local rotation (may have been set by marker mode's look_at).
+	_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
 	if preset.fixed_rotation:
 		# Entering a fixed-rotation zone: tween to the fixed yaw.
 		_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur).set_trans(trans).set_ease(ease_t)
@@ -312,6 +314,8 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
+	# Reset camera local rotation (may have been set by marker mode's look_at).
+	_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
 	# Tween yaw back to player facing (or fixed yaw) so it doesn't snap.
 	if preset.fixed_rotation:
 		_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur).set_trans(trans).set_ease(ease_t)
@@ -325,30 +329,32 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
 	# Transition to a fixed marker position.
 	spring_arm.collision_mask = 0
-	# Collapse spring arm since we're positioning the rig directly.
+	# Collapse spring arm and reset rotations since camera.look_at() will handle orientation.
 	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(spring_arm, "rotation:x", 0.0, dur).set_trans(trans).set_ease(ease_t)
+	_active_tween.tween_property(spring_arm, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
+	_active_tween.tween_property(pivot, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
 
 	# Tween rig to marker position.
 	var marker_pos := _camera_marker.global_position
 	_active_tween.tween_property(self, "global_position", marker_pos, dur).set_trans(trans).set_ease(ease_t)
 
-	# Calculate target rotation to look at look_at_marker or player.
+	# Calculate target rotation to look at look_at_node or player.
 	var look_target: Vector3
-	if _look_at_node:
+	if _look_at_node and is_instance_valid(_look_at_node):
 		look_target = _look_at_node.global_position
 	elif target:
 		look_target = target.global_position + Vector3.UP * 1.0
 	else:
 		look_target = marker_pos + _camera_marker.global_basis.z * -1.0
 
+	# Calculate the target transform for the camera.
 	var dir := (look_target - marker_pos).normalized()
-	var target_yaw := atan2(dir.x, dir.z)
-	var target_pitch := asin(-dir.y)
-
-	_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(spring_arm, "rotation:x", target_pitch, dur).set_trans(trans).set_ease(ease_t)
+	if dir.length_squared() < 0.001:
+		return
+	var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
+	var target_basis := Basis.looking_at(look_target - marker_pos, up)
+	_active_tween.tween_property(camera, "global_basis", target_basis, dur).set_trans(trans).set_ease(ease_t)
 
 #endregion
 
