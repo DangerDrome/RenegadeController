@@ -5,9 +5,9 @@ extends Node3D
 
 @onready var player: RenegadeCharacter = $Player
 @onready var player_ctrl: PlayerController = $Player/PlayerController
-@onready var cam_rig: CameraRig = $CameraRig
-@onready var cursor_3d: Cursor3D = $Cursor3D
-@onready var zone_mgr: CameraZoneManager = $CameraZoneManager
+@onready var cam_rig: CameraRig = $CameraSystem/CameraRig
+@onready var cursor_3d: Cursor3D = $CameraSystem/Cursor3D
+@onready var zone_mgr: CameraZoneManager = $CameraSystem/CameraZoneManager
 @onready var debug: CanvasLayer = $DebugOverlay
 @onready var npc: RenegadeCharacter = $PatrolNPC
 @onready var ai_ctrl: AIController = $PatrolNPC/AIController

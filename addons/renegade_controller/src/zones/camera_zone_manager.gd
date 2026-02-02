@@ -99,7 +99,7 @@ func _resolve_active_camera() -> void:
 	if best != _current_zone:
 		_current_zone = best
 		if best.camera_preset:
-			camera_rig.transition_to(best.camera_preset)
+			camera_rig.transition_to(best.camera_preset, best.camera_marker, best.get_look_at_node())
 		active_zone_changed.emit(best)
 
 #endregion
