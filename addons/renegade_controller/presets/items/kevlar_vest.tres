@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="GearDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/gear_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"kevlar"
+display_name = "Kevlar Vest"
+description = "Standard police body armor. Reduces damage taken."
+max_stack_size = 1
+is_unique = false
+item_type = 1
+slot_restrictions = [&"armor"]
+armor_value = 25.0
+damage_reduction = 0.2
+speed_modifier = 0.0
+stealth_modifier = 0.0

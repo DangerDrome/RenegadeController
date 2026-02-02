@@ -31,6 +31,7 @@ func _enter_tree() -> void:
 	add_custom_type("Inventory", "Node", preload("src/inventory/inventory.gd"), null)
 	add_custom_type("EquipmentManager", "Node", preload("src/inventory/equipment_manager.gd"), null)
 	add_custom_type("WeaponManager", "Node3D", preload("src/inventory/weapon_manager.gd"), null)
+	add_custom_type("ItemSlots", "Node3D", preload("src/inventory/item_slots.gd"), null)
 	add_custom_type("WorldPickup", "Area3D", preload("src/inventory/world_pickup.gd"), null)
 	add_custom_type("LootDropper", "Node", preload("src/inventory/loot_dropper.gd"), null)
 func _exit_tree() -> void:
@@ -52,6 +53,7 @@ func _exit_tree() -> void:
 	remove_custom_type("Inventory")
 	remove_custom_type("EquipmentManager")
 	remove_custom_type("WeaponManager")
+	remove_custom_type("ItemSlots")
 	remove_custom_type("WorldPickup")
 	remove_custom_type("LootDropper")
 func _on_selection_changed() -> void:

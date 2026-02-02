@@ -13,6 +13,7 @@ var zone_manager: CameraZoneManager
 var inventory: Inventory
 var equipment_manager: EquipmentManager
 var weapon_manager: WeaponManager
+var item_slots: ItemSlots
 
 
 func _ready() -> void:
@@ -145,6 +146,17 @@ func _update_text() -> void:
 				shown += 1
 		if occupied_slots > 5:
 			lines.append("  [color=gray]... +%d more[/color]" % (occupied_slots - 5))
+		lines.append("")
+
+	# Item slots (belt) state.
+	if item_slots:
+		var belt_occupied := item_slots.get_occupied_slot_count()
+		var belt_total := item_slots.slot_count
+		lines.append("[b]Belt Slots[/b]")
+		if belt_occupied >= belt_total:
+			lines.append("  Slots: [color=red]%d / %d (FULL)[/color]" % [belt_occupied, belt_total])
+		else:
+			lines.append("  Slots: %d / %d" % [belt_occupied, belt_total])
 		lines.append("")
 	
 	# Equipment state.

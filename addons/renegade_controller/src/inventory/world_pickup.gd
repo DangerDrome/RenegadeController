@@ -1,39 +1,150 @@
+@tool
 ## A world pickup that integrates with the Cursor3D interactable system.
 ## Add to "interactable" group automatically. Click to pick up (or walk-to-then-pickup).
+## Use @tool to preview in editor — change item property to see visual update.
 class_name WorldPickup extends Area3D
 
 signal picked_up(item: ItemDefinition, quantity: int)
 
 @export_group("Item Data")
-@export var item: ItemDefinition
-@export var quantity: int = 1
+@export var item: ItemDefinition:
+	set(value):
+		item = value
+		_update_visuals()
+@export var quantity: int = 1:
+	set(value):
+		quantity = value
+		_update_label()
 
 @export_group("Visuals")
 @export var bob_height: float = 0.1
 @export var rotation_speed: float = 1.0
 @export var highlight_color: Color = Color(1.0, 1.0, 0.5, 1.0)
+@export var mesh_size: Vector3 = Vector3(0.3, 0.3, 0.3):
+	set(value):
+		mesh_size = value
+		_update_visuals()
 
 var _mesh: MeshInstance3D
+var _label: Label3D
+var _collision: CollisionShape3D
 var _original_y: float
 var _time: float = 0.0
 var _original_material: Material
+var _is_ready: bool = false
 
 
 func _ready() -> void:
-	add_to_group("interactable")
+	_is_ready = true
+	_ensure_children()
+	_update_visuals()
 
-	# Find or create the mesh child.
-	_mesh = _find_or_create_mesh()
-	_original_y = global_position.y
-
-	if _mesh:
-		_original_material = _mesh.get_surface_override_material(0)
+	if not Engine.is_editor_hint():
+		add_to_group("interactable")
+		_original_y = global_position.y
 
 
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+
 	_time += delta
 	global_position.y = _original_y + sin(_time * 2.0) * bob_height
 	rotate_y(rotation_speed * delta)
+
+
+func _ensure_children() -> void:
+	# Find or create collision shape.
+	_collision = _find_child_of_type("CollisionShape3D") as CollisionShape3D
+	if not _collision:
+		_collision = CollisionShape3D.new()
+		_collision.name = "CollisionShape3D"
+		var shape := SphereShape3D.new()
+		shape.radius = 0.5
+		_collision.shape = shape
+		add_child(_collision)
+		if Engine.is_editor_hint():
+			_collision.owner = get_tree().edited_scene_root
+
+	# Find or create mesh.
+	_mesh = _find_child_of_type("MeshInstance3D") as MeshInstance3D
+	if not _mesh:
+		_mesh = MeshInstance3D.new()
+		_mesh.name = "Mesh"
+		add_child(_mesh)
+		if Engine.is_editor_hint():
+			_mesh.owner = get_tree().edited_scene_root
+
+	# Find or create label.
+	_label = _find_child_of_type("Label3D") as Label3D
+	if not _label:
+		_label = Label3D.new()
+		_label.name = "Label"
+		_label.position = Vector3(0, 0.5, 0)
+		_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_label.font_size = 18
+		_label.outline_size = 6
+		_label.modulate = Color(1, 1, 1, 0.9)
+		add_child(_label)
+		if Engine.is_editor_hint():
+			_label.owner = get_tree().edited_scene_root
+
+
+func _find_child_of_type(type_name: String) -> Node:
+	for child in get_children():
+		if child.get_class() == type_name:
+			return child
+	return null
+
+
+func _update_visuals() -> void:
+	if not _is_ready:
+		return
+
+	_ensure_children()
+
+	# Update mesh.
+	if _mesh:
+		var box := BoxMesh.new()
+		box.size = mesh_size
+		_mesh.mesh = box
+
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = _get_item_color()
+		_mesh.set_surface_override_material(0, mat)
+		_original_material = mat
+
+	# Update label.
+	_update_label()
+
+
+func _update_label() -> void:
+	if not _label:
+		return
+
+	if item:
+		if quantity > 1:
+			_label.text = "%s x%d" % [item.display_name, quantity]
+		else:
+			_label.text = item.display_name
+	else:
+		_label.text = "[No Item]"
+
+
+func _get_item_color() -> Color:
+	if not item:
+		return Color(0.5, 0.5, 0.5)
+
+	match item.item_type:
+		ItemDefinition.ItemType.WEAPON:
+			return Color(0.9, 0.5, 0.2)  # Orange
+		ItemDefinition.ItemType.GEAR:
+			return Color(0.3, 0.7, 0.9)  # Cyan
+		ItemDefinition.ItemType.CONSUMABLE:
+			return Color(0.2, 0.8, 0.3)  # Green
+		ItemDefinition.ItemType.KEY_ITEM:
+			return Color(0.9, 0.9, 0.2)  # Yellow
+	return Color(0.5, 0.5, 0.5)
 
 
 ## Cursor3D callback — mouse hovering over this pickup.
@@ -54,6 +165,11 @@ func on_cursor_exit() -> void:
 
 ## Cursor3D callback — player clicked / arrived at this pickup.
 func on_interact(interactor: Node) -> void:
+	var slots := _find_item_slots(interactor)
+	if slots and not slots.has_free_slot():
+		push_warning("WorldPickup: No free slots on %s" % interactor.name)
+		return
+
 	var inv := _find_inventory(interactor)
 	if not inv:
 		push_warning("WorldPickup: No inventory found on interactor %s" % interactor.name)
@@ -61,7 +177,13 @@ func on_interact(interactor: Node) -> void:
 
 	var remainder := inv.add_item(item, quantity)
 	if remainder < quantity:
-		picked_up.emit(item, quantity - remainder)
+		var picked_qty := quantity - remainder
+		picked_up.emit(item, picked_qty)
+
+		# Attach visual to player slots.
+		if slots:
+			slots.attach_item(item, picked_qty)
+
 		if remainder <= 0:
 			queue_free()
 		else:
@@ -87,24 +209,19 @@ func _find_inventory(node: Node) -> Inventory:
 	return null
 
 
-func _find_or_create_mesh() -> MeshInstance3D:
-	# Use existing MeshInstance3D child if present.
-	for child in get_children():
-		if child is MeshInstance3D:
-			return child
-
-	# Otherwise create one from the item's world_mesh.
-	if item and item.world_mesh:
-		var mesh_instance := MeshInstance3D.new()
-		mesh_instance.mesh = item.world_mesh
-		add_child(mesh_instance)
-		return mesh_instance
-
-	# Fallback: a small sphere so the pickup is visible.
-	var mesh_instance := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.2
-	sphere.height = 0.4
-	mesh_instance.mesh = sphere
-	add_child(mesh_instance)
-	return mesh_instance
+func _find_item_slots(node: Node) -> ItemSlots:
+	# Search for ItemSlots node by name in node and its children.
+	if node.has_node("ItemSlots"):
+		return node.get_node("ItemSlots") as ItemSlots
+	# Check children (e.g., Player/Mesh/ItemSlots).
+	for child in node.get_children():
+		if child.has_node("ItemSlots"):
+			return child.get_node("ItemSlots") as ItemSlots
+	# Walk up to parent.
+	if node.get_parent():
+		if node.get_parent().has_node("ItemSlots"):
+			return node.get_parent().get_node("ItemSlots") as ItemSlots
+		for child in node.get_parent().get_children():
+			if child.has_node("ItemSlots"):
+				return child.get_node("ItemSlots") as ItemSlots
+	return null

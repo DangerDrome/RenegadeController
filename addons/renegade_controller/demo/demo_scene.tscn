@@ -10,6 +10,12 @@
 [ext_resource type="Script" uid="uid://df4pcmicyts02" path="res://addons/renegade_controller/demo/demo_interactable.gd" id="8"]
 [ext_resource type="Script" uid="uid://c26s0tyrrfy1t" path="res://addons/renegade_controller/demo/npc_patrol.gd" id="9"]
 [ext_resource type="Script" uid="uid://cwuo8snupeisn" path="res://addons/renegade_controller/demo/debug_overlay.gd" id="10"]
+[ext_resource type="PackedScene" path="res://addons/renegade_controller/presets/world_pickup.tscn" id="11"]
+[ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/pistol.tres" id="12"]
+[ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/shotgun.tres" id="13"]
+[ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/medkit.tres" id="14"]
+[ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/kevlar_vest.tres" id="15"]
+[ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/security_keycard.tres" id="16"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
 sky_top_color = Color(0.3, 0.5, 0.8, 1)
@@ -286,6 +292,29 @@ modulate = Color(1, 1, 1, 0.8)
 text = "Chest"
 font_size = 24
 outline_size = 8
+
+[node name="Pickups" type="Node3D" parent="."]
+
+[node name="Pistol" parent="Pickups" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.5, 0)
+item = ExtResource("12")
+
+[node name="Shotgun" parent="Pickups" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, -3)
+item = ExtResource("13")
+
+[node name="Medkit" parent="Pickups" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.5, 3)
+item = ExtResource("14")
+quantity = 2
+
+[node name="KevlarVest" parent="Pickups" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 5)
+item = ExtResource("15")
+
+[node name="SecurityKeycard" parent="Pickups" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
+item = ExtResource("16")
 
 [node name="DebugOverlay" type="CanvasLayer" parent="." unique_id=1861926931]
 layer = 100

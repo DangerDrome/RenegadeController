@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/weapon_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pistol"
+display_name = "M1911 Pistol"
+description = "Standard issue sidearm. Reliable and accurate."
+max_stack_size = 1
+is_unique = false
+item_type = 0
+slot_restrictions = [&"primary", &"secondary"]
+damage = 15.0
+fire_rate = 0.2
+magazine_size = 8
+reload_time = 1.2
+effective_range = 30.0
+animation_set = &"pistol"
+fire_mode = 0

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ConsumableDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/consumable_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"medkit"
+display_name = "First Aid Kit"
+description = "Restores 50 health. Every cop needs one."
+max_stack_size = 5
+is_unique = false
+item_type = 2
+heal_amount = 50
+stamina_restore = 0
+effect_duration = 0.0
