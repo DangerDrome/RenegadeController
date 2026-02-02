@@ -25,7 +25,7 @@ class_name CameraZone extends Area3D
 
 @export_group("Camera Marker")
 ## Optional marker to define fixed camera position. If set, overrides preset offset.
-## If not assigned, will auto-discover child node named "CameraMarker".
+## If not assigned, will auto-discover child node named "Camera".
 @export var camera_marker: Marker3D:
 	set(value):
 		camera_marker = value
@@ -38,7 +38,7 @@ class_name CameraZone extends Area3D
 		look_at_target = value
 		_update_camera_preview()
 
-## Default look-at marker (auto-discovered as child of CameraMarker).
+## Default look-at marker (auto-discovered as child named "Camera_target").
 ## Only used if look_at_target is not set.
 var look_at_marker: Marker3D:
 	set(value):
@@ -103,18 +103,18 @@ func _ready() -> void:
 func _auto_discover_markers() -> void:
 	# Auto-discover camera marker if not assigned.
 	if not camera_marker:
-		var cam_node := get_node_or_null("CameraMarker")
+		var cam_node := get_node_or_null("Camera")
 		if cam_node is Marker3D:
 			camera_marker = cam_node
 
 	# Auto-discover look-at marker if not assigned.
 	# First check as sibling, then as child of camera_marker.
 	if not look_at_marker:
-		var look_node := get_node_or_null("LookAtMarker")
+		var look_node := get_node_or_null("Camera_target")
 		if look_node is Marker3D:
 			look_at_marker = look_node
 		elif camera_marker:
-			var child_look := camera_marker.get_node_or_null("LookAtMarker")
+			var child_look := camera_marker.get_node_or_null("Camera_target")
 			if child_look is Marker3D:
 				look_at_marker = child_look
 
@@ -129,7 +129,7 @@ func _setup_collision_shape() -> void:
 	# Create one if not found.
 	if not _collision_shape:
 		_collision_shape = CollisionShape3D.new()
-		_collision_shape.name = "CollisionShape3D"
+		_collision_shape.name = "Camera_volume"
 		add_child(_collision_shape)
 
 	# Ensure it has a BoxShape3D.

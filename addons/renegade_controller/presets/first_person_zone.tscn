@@ -10,4 +10,4 @@ zone_priority = 0
 revert_on_exit = true
 zone_size = Vector3(10, 5, 10)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="Camera_volume" type="CollisionShape3D" parent="."]
