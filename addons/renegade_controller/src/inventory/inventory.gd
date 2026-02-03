@@ -2,9 +2,13 @@
 ## Manages a fixed array of InventorySlots with stack-aware add/remove.
 class_name Inventory extends Node
 
+## Emitted when an item is added. Connect to update UI (HUD, inventory screen).
 signal item_added(item: ItemDefinition, slot_index: int, quantity: int)
+## Emitted when an item is removed. Connect to update UI.
 signal item_removed(item: ItemDefinition, slot_index: int, quantity: int)
+## Emitted when any slot's contents change. Connect for slot-specific UI updates.
 signal slot_changed(slot_index: int)
+## Emitted when inventory cannot accept more items. Connect for player feedback (sound, message).
 signal inventory_full
 
 @export_group("Configuration")

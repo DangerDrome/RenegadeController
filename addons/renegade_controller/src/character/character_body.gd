@@ -237,7 +237,7 @@ func _on_move_to_requested(position: Vector3) -> void:
 func _on_interact_requested(target: Node3D) -> void:
 	if not target:
 		return
-	if global_position.distance_to(target.global_position) <= interact_distance:
+	if global_position.distance_squared_to(target.global_position) <= interact_distance * interact_distance:
 		ready_to_interact.emit(target)
 		return
 	_start_navigation(target.global_position, target, interact_distance)

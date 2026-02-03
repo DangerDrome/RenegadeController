@@ -4,6 +4,7 @@
 ## Use @tool to preview in editor — change item property to see visual update.
 class_name WorldPickup extends Area3D
 
+## Emitted when item is picked up by a player. Connect for pickup sound, particle effect, or quest tracking.
 signal picked_up(item: ItemDefinition, quantity: int)
 
 @export_group("Item Data")
@@ -110,7 +111,7 @@ func _update_visuals() -> void:
 		_mesh.mesh = box
 
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = _get_item_color()
+		mat.albedo_color = item.get_display_color() if item else ItemDefinition.get_default_color()
 		_mesh.set_surface_override_material(0, mat)
 		_original_material = mat
 
@@ -129,22 +130,6 @@ func _update_label() -> void:
 			_label.text = item.display_name
 	else:
 		_label.text = "[No Item]"
-
-
-func _get_item_color() -> Color:
-	if not item:
-		return Color(0.5, 0.5, 0.5)
-
-	match item.item_type:
-		ItemDefinition.ItemType.WEAPON:
-			return Color(0.9, 0.5, 0.2)  # Orange
-		ItemDefinition.ItemType.GEAR:
-			return Color(0.3, 0.7, 0.9)  # Cyan
-		ItemDefinition.ItemType.CONSUMABLE:
-			return Color(0.2, 0.8, 0.3)  # Green
-		ItemDefinition.ItemType.KEY_ITEM:
-			return Color(0.9, 0.9, 0.2)  # Yellow
-	return Color(0.5, 0.5, 0.5)
 
 
 ## Cursor3D callback — mouse hovering over this pickup.

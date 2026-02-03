@@ -1,3 +1,4 @@
+@tool
 ## Consumable item definition — heals, buffs, etc.
 class_name ConsumableDefinition extends ItemDefinition
 

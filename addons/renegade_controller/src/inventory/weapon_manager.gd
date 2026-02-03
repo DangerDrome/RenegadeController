@@ -2,9 +2,13 @@
 ## Attach as a child of RenegadeCharacter, assign a weapon_holder Node3D.
 class_name WeaponManager extends Node3D
 
+## Emitted when weapon switch is complete and weapon is ready to fire. Connect for HUD state updates.
 signal weapon_ready
+## Emitted when the weapon fires. Connect to trigger muzzle flash, sound, and HUD ammo update.
 signal weapon_fired
+## Emitted when reload begins. Connect to show reload indicator or play reload animation.
 signal reload_started
+## Emitted when reload completes. Connect to update HUD ammo counter and hide reload indicator.
 signal reload_finished
 
 enum State { IDLE, SWITCHING, FIRING, RELOADING }

@@ -1,3 +1,4 @@
+@tool
 ## Gear/armor item definition — equippable to body slots.
 class_name GearDefinition extends ItemDefinition
 

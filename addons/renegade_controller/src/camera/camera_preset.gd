@@ -43,8 +43,10 @@ class_name CameraPreset extends Resource
 @export_group("Transition")
 ## Duration of the transition to this preset in seconds.
 @export_range(0.05, 3.0, 0.05) var transition_duration: float = 0.5
-@export var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC
-@export var ease_type: Tween.EaseType = Tween.EASE_IN_OUT
+## Curve for transitioning INTO this preset. If not set, uses CameraSystem's curve or default.
+@export var transition_curve_in: Curve
+## Curve for transitioning OUT OF this preset. If not set, uses CameraSystem's curve or default.
+@export var transition_curve_out: Curve
 
 @export_group("FOV")
 @export_range(30.0, 120.0, 0.5) var fov: float = 70.0

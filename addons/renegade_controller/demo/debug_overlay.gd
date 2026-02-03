@@ -14,7 +14,7 @@ var inventory: Inventory
 var equipment_manager: EquipmentManager
 var weapon_manager: WeaponManager
 var item_slots: ItemSlots
-var modifier_stack: CameraModifierStack
+var instructions_panel: Control  ## Optional reference to controls/instructions panel to toggle with F3.
 
 
 func _ready() -> void:
@@ -26,6 +26,8 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug"):
 		_visible = not _visible
 		_panel.visible = _visible
+		if instructions_panel:
+			instructions_panel.visible = _visible
 
 
 func _process(_delta: float) -> void:
@@ -102,26 +104,6 @@ func _update_text() -> void:
 		lines.append("  First Person: %s" % str(is_fp))
 		lines.append("  Transitioning: %s" % str(camera_rig.is_transitioning))
 		lines.append("")
-
-	# Camera FX state (always show).
-	lines.append("[b]Camera FX[/b]")
-	if modifier_stack:
-		lines.append("  Modifiers: %d" % modifier_stack.modifiers.size())
-		var shake := modifier_stack.get_shake()
-		if shake:
-			var bar := _make_bar(shake.trauma, 10)
-			lines.append("  Trauma: %s [color=cyan]%.2f[/color]" % [bar, shake.trauma])
-		else:
-			lines.append("  Trauma: [color=gray]no shake modifier[/color]")
-		var fov_off := modifier_stack.get_current_fov_offset()
-		lines.append("  FOV Offset: [color=cyan]%+.1f[/color]" % fov_off)
-		var pos_off := modifier_stack.get_current_position_offset()
-		lines.append("  Pos Offset: [color=cyan]%s[/color]" % _fmt_vec3(pos_off))
-		var rot_off := modifier_stack.get_current_rotation_offset()
-		lines.append("  Rot Offset: [color=cyan]%s[/color]" % _fmt_vec3(rot_off))
-	else:
-		lines.append("  [color=red]NOT CONNECTED[/color]")
-	lines.append("")
 
 	# Cursor state.
 	if cursor:

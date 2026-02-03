@@ -6,7 +6,15 @@
       "mcp__serena__find_symbol",
       "mcp__serena__activate_project",
       "Bash(grep:*)",
-      "mcp__serena__think_about_whether_you_are_done"
+      "mcp__serena__think_about_whether_you_are_done",
+      "Bash(/bin/rm:*)",
+      "Bash(/bin/ls:*)",
+      "WebSearch",
+      "WebFetch(domain:godotshaders.com)",
+      "WebFetch(domain:docs.godotengine.org)",
+      "Bash(wc:*)",
+      "mcp__serena__list_dir",
+      "Bash(test:*)"
     ]
   },
   "outputStyle": "default"

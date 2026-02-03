@@ -36,6 +36,14 @@ This is a plugin for the "Renegade Cop" game — a gritty 80s third-person shoot
 - Sprint multiplier
 - Jump (spacebar)
 
+### Camera Handlers (Composition Pattern)
+CameraRig uses RefCounted handler objects for focused responsibilities:
+- `CameraCollisionHandler` — Camera collision detection + player mesh fade when camera gets too close
+- `CameraAutoFramer` — Auto-zoom based on nearby geometry (raycasts around player)
+- `CameraIdleEffects` — Movement-based zoom (walk/sprint/idle states)
+
+These handlers are configured via CameraRig @export properties and updated each frame.
+
 ### Inventory System
 - `Inventory` — Container holding InventorySlots. Emits signals on item changes.
 - `InventorySlot` — Single slot with item reference and quantity.
@@ -69,17 +77,16 @@ addons/renegade_controller/
 │   ├── side_scroller.tres              # 2.5D side-scroller camera
 │   ├── top_down.tres                   # Top-down camera
 │   ├── first_person.tres               # First-person camera
-│   ├── items/                          # Item definition resources
-│   │   ├── pistol.tres
-│   │   ├── shotgun.tres
-│   │   ├── medkit.tres
-│   │   ├── kevlar_vest.tres
-│   │   └── security_keycard.tres
-│   ├── idle_shake.tres                 # Idle shake modifier preset
-│   └── modifiers/                      # Camera modifier presets
-│       ├── default_shake.tres
-│       ├── default_zoom.tres
-│       └── default_framing.tres
+│   ├── camera_system.tscn              # CameraSystem scene template
+│   ├── player.tscn                     # Player character template
+│   ├── npc.tscn                        # NPC character template
+│   ├── world_pickup.tscn               # Pickup template
+│   └── items/                          # Item definition resources
+│       ├── pistol.tres
+│       ├── shotgun.tres
+│       ├── medkit.tres
+│       ├── kevlar_vest.tres
+│       └── security_keycard.tres
 └── src/
     ├── controllers/
     │   ├── controller_interface.gd     # Base class (virtual input API)
@@ -93,14 +100,7 @@ addons/renegade_controller/
     │   ├── camera_system.gd            # Root wrapper with Camera3D templates
     │   ├── camera_collision.gd         # Collision detection + player fade
     │   ├── camera_auto_frame.gd        # Auto-zoom based on nearby geometry
-    │   ├── camera_idle_effects.gd      # Idle zoom (shake moved to IdleShakeModifier)
-    │   └── modifiers/                  # Camera effect modifiers
-    │       ├── camera_modifier.gd      # Abstract base class for modifiers
-    │       ├── camera_modifier_stack.gd # Manages and applies modifier stack
-    │       ├── shake_modifier.gd       # Trauma-based camera shake
-    │       ├── zoom_modifier.gd        # FOV pulse with attack/sustain/decay
-    │       ├── framing_modifier.gd     # Smooth position offset via spring
-    │       └── idle_shake_modifier.gd  # Subtle camera sway when idle
+    │   └── camera_idle_effects.gd      # Movement-based zoom (walk/sprint/idle)
     ├── cursor/
     │   └── cursor_3d.gd                # 3D mouse cursor + interactable detection
     ├── zones/
@@ -125,11 +125,8 @@ addons/renegade_controller/
     │   ├── inventory_grid_ui.gd        # Grid inventory display
     │   ├── inventory_slot_ui.gd        # Single slot widget
     │   └── item_info_panel.gd          # Item tooltip/info panel
-    ├── editor/                         # Editor plugins
-    │   └── camera_zone_inspector.gd    # Custom inspector for zones
-    └── utils/                          # Utility classes
-        ├── math_utils.gd               # Frame-rate independent damping functions
-        └── camera_gizmo.gd             # Editor gizmo drawing for camera previews
+    └── editor/                         # Editor plugins
+        └── camera_zone_inspector.gd    # Custom inspector for zones
 ```
 
 ## CRITICAL PATTERNS — Read Before Editing
@@ -163,9 +160,6 @@ CameraRig checks for `has_node("Pivot")` in `_ready()`. If missing, it calls `_b
 
 ### Zone collision
 Camera zones use `collision_mask = 1` (default physics layer). Player must be on collision layer 1 and in the `"player"` group.
-
-### CameraModifierStack sits between SpringArm3D and Camera3D
-Modifiers are Resources with alpha blending — they ease in/out automatically via `alpha_in_time` and `alpha_out_time`. The stack processes modifiers in priority order (lower = first). All offsets are additive (position, rotation degrees, FOV). `CameraModifier` base class uses `@abstract` annotation — subclasses MUST implement `get_position_offset`, `get_rotation_offset`, `get_fov_offset`. ShakeModifier uses trauma system: `intensity = trauma^trauma_power`, sampled via Perlin noise.
 
 ### CameraSystem → CameraRig → Handler property propagation
 CameraSystem exposes settings that propagate to CameraRig, which in turn propagates to handler objects (`_auto_framer`, `_idle_effects`, `_collision_handler`). All CameraRig @export properties that need to update handlers MUST use setters:

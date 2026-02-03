@@ -3,8 +3,11 @@
 ## Add this node as a child containing Marker3D slot positions, or let it find them automatically.
 class_name ItemSlots extends Node3D
 
+## Emitted when an item visual is attached to a slot. Connect for UI feedback or sound.
 signal slot_filled(slot_index: int, item: ItemDefinition)
+## Emitted when a slot's item visual is removed. Connect for UI updates.
 signal slot_cleared(slot_index: int)
+## Emitted when all visual slots are occupied. Connect for "inventory full" feedback.
 signal slots_full
 
 @export var item_scale: float = 0.15
@@ -93,7 +96,7 @@ func attach_item(item: ItemDefinition, _quantity: int = 1) -> int:
 	mesh.mesh = box
 
 	var mat := StandardMaterial3D.new()
-	var color := _get_item_color(item)
+	var color := item.get_display_color() if item else ItemDefinition.get_default_color()
 	mat.albedo_color = color
 	mat.emission_enabled = true
 	mat.emission = color * 0.3
@@ -162,17 +165,3 @@ func get_all_items() -> Array[ItemDefinition]:
 	return result
 
 
-func _get_item_color(item: ItemDefinition) -> Color:
-	if not item:
-		return Color(0.5, 0.5, 0.5)
-
-	match item.item_type:
-		ItemDefinition.ItemType.WEAPON:
-			return Color(0.9, 0.5, 0.2)  # Orange
-		ItemDefinition.ItemType.GEAR:
-			return Color(0.3, 0.7, 0.9)  # Cyan
-		ItemDefinition.ItemType.CONSUMABLE:
-			return Color(0.2, 0.8, 0.3)  # Green
-		ItemDefinition.ItemType.KEY_ITEM:
-			return Color(0.9, 0.9, 0.2)  # Yellow
-	return Color(0.5, 0.5, 0.5)

@@ -2,8 +2,11 @@
 ## Pairs with Inventory for storage and WeaponManager for weapon instantiation.
 class_name EquipmentManager extends Node
 
+## Emitted when an item is equipped to a slot. Connect to update equipment UI or play equip sound.
 signal item_equipped(item: ItemDefinition, slot: StringName)
+## Emitted when an item is unequipped from a slot. Connect to update equipment UI or return item to inventory display.
 signal item_unequipped(item: ItemDefinition, slot: StringName)
+## Emitted when the active weapon changes (switch or equip). Connect to update HUD weapon display.
 signal active_weapon_changed(weapon: WeaponDefinition)
 
 @export_group("References")

@@ -1,7 +1,0 @@
-[gd_resource type="Resource" script_class="ShakeModifier" format=3 uid="uid://bjau5bpsv4d6l"]
-
-[ext_resource type="Script" uid="uid://cnrxw57bmf81v" path="res://addons/renegade_controller/src/camera/modifiers/shake_modifier.gd" id="1"]
-
-[resource]
-script = ExtResource("1")
-influence = 0.0

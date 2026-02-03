@@ -131,38 +131,67 @@ class_name CameraSystem extends Node3D
 #endregion
 
 
-#region Idle Effects
-@export_group("Idle Effects")
-## Enable zoom out when player stops moving.
-@export var idle_zoom_enabled: bool = true:
+#region Movement Zoom
+@export_group("Movement Zoom")
+## Enable dynamic zoom based on movement speed.
+@export var movement_zoom_enabled: bool = true:
 	set(value):
-		idle_zoom_enabled = value
+		movement_zoom_enabled = value
 		if _camera_rig:
-			_camera_rig.idle_zoom_enabled = value
-## How much to zoom out when idle (negative = further from player).
-@export var idle_zoom_amount: float = -4.0:
+			_camera_rig.movement_zoom_enabled = value
+## How much to zoom out when walking (negative = further from player).
+@export var walk_zoom_amount: float = -2.0:
+	set(value):
+		walk_zoom_amount = value
+		if _camera_rig:
+			_camera_rig.walk_zoom_amount = value
+## How much to zoom out when sprinting (negative = further from player).
+@export var sprint_zoom_amount: float = -4.0:
+	set(value):
+		sprint_zoom_amount = value
+		if _camera_rig:
+			_camera_rig.sprint_zoom_amount = value
+## How much to zoom in when idle (positive = closer to player).
+@export var idle_zoom_amount: float = 0.0:
 	set(value):
 		idle_zoom_amount = value
 		if _camera_rig:
 			_camera_rig.idle_zoom_amount = value
-## Seconds to wait after stopping before starting idle zoom.
-@export var idle_zoom_delay: float = 0.1:
+## How long to wait after stopping before applying idle zoom.
+@export var idle_zoom_delay: float = 0.5:
 	set(value):
 		idle_zoom_delay = value
 		if _camera_rig:
 			_camera_rig.idle_zoom_delay = value
-## How fast to zoom out when idle (lower = slower, more cinematic).
-@export var idle_zoom_speed: float = 0.3:
+## How fast to transition between zoom levels.
+@export var movement_zoom_speed: float = 3.0:
 	set(value):
-		idle_zoom_speed = value
+		movement_zoom_speed = value
 		if _camera_rig:
-			_camera_rig.idle_zoom_speed = value
-## Idle shake modifier for subtle camera sway when player is idle.
-@export var idle_shake_modifier: IdleShakeModifier:
+			_camera_rig.movement_zoom_speed = value
+#endregion
+
+
+#region Aim Zoom
+@export_group("Aim Zoom")
+## Enable zoom out when aiming.
+@export var aim_zoom_enabled: bool = true:
 	set(value):
-		idle_shake_modifier = value
+		aim_zoom_enabled = value
 		if _camera_rig:
-			_camera_rig.idle_shake_modifier = value
+			_camera_rig.aim_zoom_enabled = value
+## How much to zoom out when aiming (negative = further from player).
+@export var aim_zoom_amount: float = -2.0:
+	set(value):
+		aim_zoom_amount = value
+		if _camera_rig:
+			_camera_rig.aim_zoom_amount = value
+## How fast to zoom in/out when aiming.
+@export var aim_zoom_speed: float = 8.0:
+	set(value):
+		aim_zoom_speed = value
+		if _camera_rig:
+			_camera_rig.aim_zoom_speed = value
 #endregion
 
 
@@ -213,29 +242,6 @@ class_name CameraSystem extends Node3D
 #endregion
 
 
-#region Lens & DOF
-@export_group("Lens & DOF")
-## Enable depth of field blur.
-@export var dof_enabled: bool = false:
-	set(value):
-		dof_enabled = value
-		if _camera_rig:
-			_camera_rig.dof_enabled = value
-## Focus distance from camera. Set to 0 to auto-focus on player.
-@export var focus_distance: float = 0.0:
-	set(value):
-		focus_distance = value
-		if _camera_rig:
-			_camera_rig.focus_distance = value
-## DOF blur amount (0 = sharp, 1 = very blurry).
-@export_range(0.0, 1.0) var dof_blur_amount: float = 0.1:
-	set(value):
-		dof_blur_amount = value
-		if _camera_rig:
-			_camera_rig.dof_blur_amount = value
-#endregion
-
-
 #region Transitions
 @export_group("Transitions")
 ## Global multiplier for transition speed. Higher = faster transitions.
@@ -244,6 +250,20 @@ class_name CameraSystem extends Node3D
 		transition_speed_mult = value
 		if _camera_rig:
 			_camera_rig.transition_speed_mult = value
+## Curve for transitioning INTO zones/presets. X=time(0-1), Y=progress(0-1).
+## Edit in inspector to add control points. If not set, uses default ease-out exponential.
+@export var transition_curve_in: Curve:
+	set(value):
+		transition_curve_in = value
+		if _camera_rig:
+			_camera_rig.transition_curve_in = value
+## Curve for transitioning OUT OF zones/presets. X=time(0-1), Y=progress(0-1).
+## Edit in inspector to add control points. If not set, uses default ease-out exponential.
+@export var transition_curve_out: Curve:
+	set(value):
+		transition_curve_out = value
+		if _camera_rig:
+			_camera_rig.transition_curve_out = value
 ## Percentage through transition when cursor should be re-enabled (0.0-1.0).
 ## Lower = cursor comes back sooner during transitions.
 @export_range(0.0, 1.0) var cursor_reenable_percent: float = 0.5:
@@ -271,27 +291,6 @@ class_name CameraSystem extends Node3D
 #endregion
 
 
-#region Camera Modifiers
-@export_group("Camera Modifiers")
-## Shake modifier for camera trauma/impact effects.
-@export var shake_modifier: ShakeModifier:
-	set(value):
-		shake_modifier = value
-		_update_stack_modifiers()
-## Zoom modifier for FOV pulse effects.
-@export var zoom_modifier: ZoomModifier:
-	set(value):
-		zoom_modifier = value
-		_update_stack_modifiers()
-## Framing modifier for position offset effects.
-@export var framing_modifier: FramingModifier:
-	set(value):
-		framing_modifier = value
-		_update_stack_modifiers()
-#endregion
-
-
-var _modifier_stack: CameraModifierStack
 var _camera_rig: CameraRig
 var _cursor: Cursor3D
 
@@ -310,13 +309,9 @@ func _ready() -> void:
 	# Find cursor for panning.
 	_cursor = get_node_or_null("Cursor3D") as Cursor3D
 
-	# Find the camera rig and modifier stack.
+	# Find the camera rig.
 	_camera_rig = get_node_or_null("CameraRig") as CameraRig
 	if _camera_rig:
-		if _camera_rig.modifier_stack:
-			_modifier_stack = _camera_rig.modifier_stack
-			_update_stack_modifiers()
-
 		# Push all exported values down to the rig.
 		_sync_all_to_rig()
 
@@ -357,13 +352,18 @@ func _sync_all_to_rig() -> void:
 	_camera_rig.auto_frame_ray_count = auto_frame_ray_count
 	_camera_rig.auto_frame_mask = auto_frame_mask
 
-	# Idle Effects.
-	_camera_rig.idle_zoom_enabled = idle_zoom_enabled
+	# Movement Zoom.
+	_camera_rig.movement_zoom_enabled = movement_zoom_enabled
+	_camera_rig.walk_zoom_amount = walk_zoom_amount
+	_camera_rig.sprint_zoom_amount = sprint_zoom_amount
 	_camera_rig.idle_zoom_amount = idle_zoom_amount
 	_camera_rig.idle_zoom_delay = idle_zoom_delay
-	_camera_rig.idle_zoom_speed = idle_zoom_speed
-	if idle_shake_modifier:
-		_camera_rig.idle_shake_modifier = idle_shake_modifier
+	_camera_rig.movement_zoom_speed = movement_zoom_speed
+
+	# Aim Zoom.
+	_camera_rig.aim_zoom_enabled = aim_zoom_enabled
+	_camera_rig.aim_zoom_amount = aim_zoom_amount
+	_camera_rig.aim_zoom_speed = aim_zoom_speed
 
 	# Collision.
 	_camera_rig.marker_collision_enabled = collision_enabled
@@ -374,13 +374,10 @@ func _sync_all_to_rig() -> void:
 	_camera_rig.player_fade_distance = player_fade_distance
 	_camera_rig.player_hide_distance = player_hide_distance
 
-	# DOF.
-	_camera_rig.dof_enabled = dof_enabled
-	_camera_rig.focus_distance = focus_distance
-	_camera_rig.dof_blur_amount = dof_blur_amount
-
 	# Transitions.
 	_camera_rig.transition_speed_mult = transition_speed_mult
+	_camera_rig.transition_curve_in = transition_curve_in
+	_camera_rig.transition_curve_out = transition_curve_out
 	_camera_rig.cursor_reenable_percent = cursor_reenable_percent
 
 	# Debug.
@@ -395,14 +392,6 @@ func _apply_default_camera() -> void:
 	if third_person_camera.fov > 0:
 		_camera_rig._target_fov = third_person_camera.fov
 	_camera_rig.apply_template_camera()
-
-
-func _update_stack_modifiers() -> void:
-	if not _modifier_stack:
-		return
-	_modifier_stack.shake_modifier = shake_modifier
-	_modifier_stack.zoom_modifier = zoom_modifier
-	_modifier_stack.framing_modifier = framing_modifier
 
 
 #region Cursor Panning

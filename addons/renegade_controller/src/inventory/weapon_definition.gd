@@ -1,3 +1,4 @@
+@tool
 ## Weapon item definition with combat stats and animation references.
 class_name WeaponDefinition extends ItemDefinition
 

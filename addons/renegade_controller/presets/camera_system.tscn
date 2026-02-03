@@ -5,10 +5,6 @@
 [ext_resource type="Script" uid="uid://kf5sip8wymyh" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="3"]
 [ext_resource type="Script" uid="uid://bpabgpdksoyhb" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="4"]
 [ext_resource type="Resource" uid="uid://b5xvmbvm1o0xp" path="res://addons/renegade_controller/presets/third_person.tres" id="5"]
-[ext_resource type="Script" uid="uid://btqyg8ilelcv1" path="res://addons/renegade_controller/src/camera/modifiers/camera_modifier_stack.gd" id="6"]
-[ext_resource type="Resource" uid="uid://bjau5bpsv4d6l" path="res://addons/renegade_controller/presets/modifiers/default_shake.tres" id="7"]
-[ext_resource type="Resource" uid="uid://cx4yijl0ua8cf" path="res://addons/renegade_controller/presets/modifiers/default_zoom.tres" id="8"]
-[ext_resource type="Resource" uid="uid://bbfk5l0a3vhe1" path="res://addons/renegade_controller/presets/modifiers/default_framing.tres" id="9"]
 [ext_resource type="Script" uid="uid://dngamilx5u6gw" path="res://addons/renegade_controller/src/camera/camera_preset.gd" id="10_62340"]
 
 [sub_resource type="Resource" id="Resource_f8pt8"]
@@ -20,12 +16,9 @@ script = ExtResource("1")
 default_preset = ExtResource("5")
 third_person_camera = NodePath("ThirdPersonCamera")
 first_person_camera = NodePath("FirstPersonCamera")
-shake_modifier = ExtResource("7")
-zoom_modifier = ExtResource("8")
-framing_modifier = ExtResource("9")
 
 [node name="ThirdPersonCamera" type="Camera3D" parent="." unique_id=1167155369]
-transform = Transform3D(1, 0, 0, 0, 0.9659259, 0.25881898, 0, -0.25881898, 0.9659259, 0, 16.15537, 16.561241)
+transform = Transform3D(1, 0, 0, 0, 0.9659259, 0.25881898, 0, -0.25881898, 0.9659259, 0, 26.603142, 29.535603)
 fov = 10.0
 
 [node name="FirstPersonCamera" type="Camera3D" parent="." unique_id=958740059]
@@ -40,10 +33,7 @@ script = ExtResource("2")
 spring_length = 5.0
 margin = 0.2
 
-[node name="CameraModifierStack" type="Node3D" parent="CameraRig/Pivot/SpringArm3D" unique_id=2086402432]
-script = ExtResource("6")
-
-[node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D/CameraModifierStack" unique_id=298327191]
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D" unique_id=298327191]
 current = true
 
 [node name="Cursor3D" type="Node3D" parent="." unique_id=2083170300]

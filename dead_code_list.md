@@ -182,9 +182,70 @@ Verified:
 
 | Item | Location | Lines | Risk | Action |
 |------|----------|-------|------|--------|
-| `first_person_zone.gd` | `src/zones/` | 37 | Safe | Delete entire file |
-| `loot_entry.gd` | `src/inventory/` | 7 | Safe | Merge into loot_table.gd |
-| Debug prints | `camera_rig.gd` | ~20 | Safe | Remove all |
+| ~~`first_person_zone.gd`~~ | `src/zones/` | 37 | ~~Safe~~ | **KEEP** — Has mesh hiding logic |
+| ~~`loot_entry.gd`~~ | `src/inventory/` | 7 | ~~Safe~~ | **KEEP** — Required by Godot resource system |
+| Debug prints | `camera_rig.gd` | ~20 | Safe | Now gated behind flag |
 | Redundant init | `camera_rig.gd:124-125` | 2 | Safe | Remove defaults |
 
 **Total dead code:** ~66 lines across 2 files to delete + ~20 lines to remove inline
+
+---
+
+## Updated Dead Code (2026-02-03)
+
+### Files Safe to Remove
+
+#### 1. `math_utils.gd` — UNUSED
+**Path:** `src/utils/math_utils.gd`
+**Lines:** 48
+
+This file defines a `MathUtils` class with helper functions for exponential damping, but **no file in the codebase references it**. The damping is done inline throughout `camera_rig.gd` and other files.
+
+**Action:** Delete or integrate into codebase.
+
+---
+
+#### 2. `camera_gizmo.gd` — UNUSED
+**Path:** `src/utils/camera_gizmo.gd`
+**Lines:** 359
+
+This file defines a `CameraGizmo` class for drawing camera preview gizmos, but **no file in the codebase references it**. The gizmo drawing is done inline in `camera_zone.gd`.
+
+**Action:** Delete or refactor camera_zone.gd to use it.
+
+---
+
+#### 3. `rail_camera_preview.gd.uid` — ORPHANED
+**Path:** `src/editor/rail_camera_preview.gd.uid`
+
+The corresponding `.gd` file was deleted when the rails feature was removed, but the `.uid` file remains.
+
+**Action:** Delete this orphaned file.
+
+---
+
+### Unused Inventory Methods
+
+**File:** `inventory.gd`
+
+| Method | Lines | Status |
+|--------|-------|--------|
+| `swap_slots()` | ~10 | Never called |
+| `find_item()` | ~8 | Never called |
+| `get_items_of_type()` | ~10 | Never called |
+| `get_empty_slot_count()` | ~5 | Never called |
+
+**Action:** Either remove or document as public API for game integration.
+
+---
+
+### Updated Summary
+
+| Item | Location | Lines | Risk | Action |
+|------|----------|-------|------|--------|
+| `math_utils.gd` | `src/utils/` | 48 | **Safe** | **DELETE** — Never used |
+| `camera_gizmo.gd` | `src/utils/` | 359 | **Safe** | **DELETE** — Never used |
+| `rail_camera_preview.gd.uid` | `src/editor/` | 1 | **Safe** | **DELETE** — Orphaned |
+| Unused inventory methods | `inventory.gd` | ~33 | Low | Keep or document |
+
+**Total unused code:** 407 lines in utility files + 1 orphaned UID

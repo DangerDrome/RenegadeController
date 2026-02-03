@@ -189,12 +189,12 @@ func _do_raycast() -> void:
 	if not camera or not camera.is_inside_tree():
 		has_hit = false
 		return
-	
+
 	var viewport := camera.get_viewport()
 	if not viewport:
 		has_hit = false
 		return
-	
+
 	var mouse_pos := viewport.get_mouse_position()
 	var from := camera.project_ray_origin(mouse_pos)
 	var direction := camera.project_ray_normal(mouse_pos)

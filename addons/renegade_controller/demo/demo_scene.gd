@@ -10,6 +10,7 @@ extends Node3D
 @onready var cursor_3d: Cursor3D = $CameraSystem/Cursor3D
 @onready var zone_mgr: CameraZoneManager = $CameraSystem/CameraZoneManager
 @onready var debug: CanvasLayer = $DebugOverlay
+@onready var instructions: RichTextLabel = $InstructionsLayer/Instructions
 @onready var npc: RenegadeCharacter = $PatrolNPC
 @onready var ai_ctrl: AIController = $PatrolNPC/AIController
 @onready var patrol: Node = $PatrolNPC/PatrolBehavior
@@ -19,11 +20,6 @@ var player_inventory: Inventory
 var player_equipment: EquipmentManager
 var player_weapons: WeaponManager
 var player_item_slots: ItemSlots
-
-# Camera modifier references (fetched from CameraSystem).
-var shake_modifier: ShakeModifier
-var zoom_modifier: ZoomModifier
-var framing_modifier: FramingModifier
 
 
 func _ready() -> void:
@@ -62,9 +58,6 @@ func _ready() -> void:
 	# Create inventory system nodes.
 	_setup_inventory_system()
 
-	# Setup camera modifier stack.
-	_setup_camera_modifiers()
-
 	# Debug overlay.
 	debug.character = player
 	debug.camera_rig = cam_rig
@@ -74,7 +67,7 @@ func _ready() -> void:
 	debug.equipment_manager = player_equipment
 	debug.weapon_manager = player_weapons
 	debug.item_slots = player_item_slots
-	debug.modifier_stack = cam_rig.modifier_stack
+	debug.instructions_panel = instructions
 
 	# Interaction signal.
 	player.ready_to_interact.connect(_on_interact)
@@ -109,43 +102,6 @@ func _setup_inventory_system() -> void:
 	# Wire equipment manager references.
 	player_equipment.inventory = player_inventory
 	player_equipment.weapon_manager = player_weapons
-
-
-func _setup_camera_modifiers() -> void:
-	if not cam_system:
-		push_warning("CameraSystem not found")
-		return
-
-	# Get modifier references from CameraSystem.
-	shake_modifier = cam_system.shake_modifier
-	zoom_modifier = cam_system.zoom_modifier
-	framing_modifier = cam_system.framing_modifier
-
-	# Connect player signals for camera FX.
-	player.landed.connect(_on_player_landed)
-	player.aim_started.connect(_on_player_aim_started)
-	player.aim_ended.connect(_on_player_aim_ended)
-
-
-func _on_player_landed(fall_velocity: float) -> void:
-	if shake_modifier:
-		# Scale trauma by fall velocity (6 m/s = small, 15+ m/s = max).
-		var trauma := remap(fall_velocity, 6.0, 15.0, 0.1, 0.6)
-		trauma = clampf(trauma, 0.0, 0.6)
-		shake_modifier.add_trauma(trauma)
-
-
-func _on_player_aim_started() -> void:
-	if zoom_modifier:
-		zoom_modifier.trigger()
-	if framing_modifier:
-		# Simple fixed offset for over-shoulder aiming.
-		framing_modifier.set_offset(Vector3(0.3, 0.1, 0.0))
-
-
-func _on_player_aim_ended() -> void:
-	if framing_modifier:
-		framing_modifier.clear()
 
 
 func _on_interact(target: Node3D) -> void:

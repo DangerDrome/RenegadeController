@@ -99,36 +99,51 @@ const COLLISION_OFFSET_THRESHOLD := 0.01
 		if _auto_framer:
 			_auto_framer.collision_mask = value
 
-@export_group("Idle Zoom")
-## Enable zoom out when player stops moving.
-@export var idle_zoom_enabled: bool = true:
+@export_group("Movement Zoom")
+## Enable dynamic zoom based on movement speed.
+@export var movement_zoom_enabled: bool = true:
 	set(value):
-		idle_zoom_enabled = value
+		movement_zoom_enabled = value
 		if _idle_effects:
 			_idle_effects.zoom_enabled = value
-## How much to zoom out when idle (negative = further from player).
-@export var idle_zoom_amount: float = -4.0:
+## How much to zoom out when walking (negative = further from player).
+@export var walk_zoom_amount: float = -2.0:
+	set(value):
+		walk_zoom_amount = value
+		if _idle_effects:
+			_idle_effects.walk_zoom_amount = value
+## How much to zoom out when sprinting (negative = further from player).
+@export var sprint_zoom_amount: float = -4.0:
+	set(value):
+		sprint_zoom_amount = value
+		if _idle_effects:
+			_idle_effects.sprint_zoom_amount = value
+## How much to zoom in when idle (positive = closer to player).
+@export var idle_zoom_amount: float = 0.0:
 	set(value):
 		idle_zoom_amount = value
 		if _idle_effects:
-			_idle_effects.zoom_amount = value
-## Seconds to wait after stopping before starting to zoom out.
-@export var idle_zoom_delay: float = 0.1:
+			_idle_effects.idle_zoom_amount = value
+## How long to wait after stopping before applying idle zoom.
+@export var idle_zoom_delay: float = 0.5:
 	set(value):
 		idle_zoom_delay = value
 		if _idle_effects:
-			_idle_effects.zoom_delay = value
-## How fast to zoom out when idle (lower = slower, more cinematic).
-@export var idle_zoom_speed: float = 0.3:
+			_idle_effects.idle_zoom_delay = value
+## How fast to transition between zoom levels.
+@export var movement_zoom_speed: float = 3.0:
 	set(value):
-		idle_zoom_speed = value
+		movement_zoom_speed = value
 		if _idle_effects:
 			_idle_effects.zoom_speed = value
 
-@export_group("Idle Shake")
-## Idle shake modifier for subtle camera sway when player is idle.
-## If not set, a default modifier is created automatically.
-@export var idle_shake_modifier: IdleShakeModifier
+@export_group("Aim Zoom")
+## Enable zoom out when aiming.
+@export var aim_zoom_enabled: bool = true
+## How much to zoom out when aiming (negative = further from player).
+@export var aim_zoom_amount: float = -2.0
+## How fast to zoom in/out when aiming.
+@export var aim_zoom_speed: float = 8.0
 
 @export_group("Collision")
 ## Enable collision for marker/zone cameras (pulls camera closer when blocked).
@@ -170,25 +185,13 @@ const COLLISION_OFFSET_THRESHOLD := 0.01
 		if _collision_handler:
 			_collision_handler.player_hide_distance = value
 
-@export_group("Lens & DOF")
-## Enable depth of field blur.
-@export var dof_enabled: bool = false
-## Focus distance from camera. Set to 0 to auto-focus on player.
-@export var focus_distance: float = 0.0
-## DOF blur amount (0 = sharp, 1 = very blurry).
-@export_range(0.0, 1.0) var dof_blur_amount: float = 0.1
-## Near blur transition distance.
-@export var dof_near_transition: float = 1.0
-## Far blur transition distance.
-@export var dof_far_transition: float = 5.0
-
 @export_group("Transitions")
 ## Global multiplier for transition speed. Higher = faster transitions.
 @export var transition_speed_mult: float = 1.0
-## Override transition curve type (set to -1 to use preset values).
-@export var transition_type_override: Tween.TransitionType = Tween.TRANS_EXPO
-## Override ease type (set to -1 to use preset values).
-@export var ease_type_override: Tween.EaseType = Tween.EASE_OUT
+## Curve for transitioning INTO a zone/preset (entering). X=time(0-1), Y=progress(0-1).
+@export var transition_curve_in: Curve
+## Curve for transitioning OUT OF a zone/preset (exiting). X=time(0-1), Y=progress(0-1).
+@export var transition_curve_out: Curve
 ## Percentage through transition when cursor should be re-enabled (0.0-1.0).
 @export_range(0.0, 1.0) var cursor_reenable_percent: float = 0.5
 
@@ -200,6 +203,7 @@ signal first_person_changed(enabled: bool)
 var current_preset: CameraPreset
 var is_transitioning: bool = false
 var _transition_target: CameraPreset  # Preset we're transitioning TO.
+var _transition_is_entering: bool = true  # True = entering zone (IN curve), False = exiting (OUT curve).
 var _first_person_active: bool = false
 var _fp_yaw: float = 0.0
 var _fp_pitch: float = 0.0
@@ -220,7 +224,8 @@ var _marker_base_distance: float = 0.0  # Initial distance from marker to look t
 var _cursor_reenabled_early: bool = false  # Track if cursor was re-enabled before transition end.
 var _current_zoom: float = 0.0  # Current zoom offset (smoothly interpolates toward _target_zoom).
 var _auto_frame_zoom: float = 0.0  # Current auto-framing zoom offset (from CameraAutoFramer).
-var _idle_zoom: float = 0.0  # Current idle zoom offset (from CameraIdleEffects).
+var _movement_zoom: float = 0.0  # Current movement zoom offset (from CameraIdleEffects).
+var _aim_zoom: float = 0.0  # Current aim zoom offset (smoothly interpolates when aiming).
 
 ## Template camera defining third-person view (set by CameraSystem).
 var template_camera: Camera3D
@@ -232,7 +237,6 @@ var _camera_system: CameraSystem
 ## Assigned in _ready — NOT @onready because hierarchy may need building first.
 var pivot: Node3D
 var spring_arm: SpringArm3D
-var modifier_stack: CameraModifierStack
 var camera: Camera3D
 
 ## Composition modules for focused responsibilities.
@@ -258,9 +262,7 @@ func _ready() -> void:
 
 	pivot = $Pivot
 	spring_arm = $Pivot/SpringArm3D
-	modifier_stack = $Pivot/SpringArm3D/CameraModifierStack
-	camera = $Pivot/SpringArm3D/CameraModifierStack/Camera3D
-	modifier_stack.camera = camera
+	camera = $Pivot/SpringArm3D/Camera3D
 
 	# Get parent CameraSystem for cursor panning.
 	var parent := get_parent()
@@ -281,12 +283,7 @@ func _ready() -> void:
 	)
 
 	_idle_effects = CameraIdleEffects.new()
-	_idle_effects.configure(idle_zoom_enabled, idle_zoom_amount, idle_zoom_delay, idle_zoom_speed)
-
-	# Create default idle shake modifier if none assigned.
-	if not idle_shake_modifier:
-		idle_shake_modifier = IdleShakeModifier.new()
-	modifier_stack.add_modifier(idle_shake_modifier)
+	_idle_effects.configure(movement_zoom_enabled, walk_zoom_amount, sprint_zoom_amount, idle_zoom_amount, idle_zoom_delay, movement_zoom_speed)
 
 	# Initialize debug visualization.
 	_setup_debug_visualization()
@@ -301,20 +298,19 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not target:
 		return
+
 	# Update auto-framing and idle effects via composition modules.
 	_auto_frame_zoom = _auto_framer.update(delta, target, target_frame_offset, get_world_3d())
-	var is_idle := _idle_effects.update(delta, target)
-	_idle_zoom = _idle_effects.get_zoom_offset()
+	_idle_effects.update(delta, target)
+	_movement_zoom = _idle_effects.get_zoom_offset()
 
-	# Update idle shake modifier with current idle state.
-	if idle_shake_modifier:
-		idle_shake_modifier.update_idle(delta, is_idle and _idle_effects.is_idle_active())
+	# Update aim zoom - check if target has is_aiming property.
+	_update_aim_zoom(delta)
 
 	if _first_person_active:
 		_update_first_person(delta)
 	else:
 		_update_third_person(delta)
-	_update_dof()
 
 	# Update debug visualization.
 	_update_debug_visualization()
@@ -383,16 +379,14 @@ func transition_to_template(preset: CameraPreset, cam_template: Camera3D = null,
 	_active_tween = create_tween()
 	_active_tween.set_parallel(true)
 	var dur := preset.transition_duration / transition_speed_mult
-	var trans := transition_type_override
-	var ease := ease_type_override
 	if entering_first_person:
-		_transition_to_first_person(preset, dur, trans, ease)
+		_transition_to_first_person(preset, dur)
 	elif _camera_marker:
-		_transition_to_marker(preset, dur, trans, ease)
+		_transition_to_marker(preset, dur)
 	elif was_first_person:
-		_transition_from_first_person(preset, dur, trans, ease)
+		_transition_from_first_person(preset, dur)
 	else:
-		_transition_third_person(preset, dur, trans, ease, was_fixed)
+		_transition_third_person(preset, dur, was_fixed)
 	_active_tween.chain().tween_callback(_on_transition_complete.bind(preset, entering_first_person))
 	# Force immediate position update toward new target to prevent flash.
 	if target and not entering_first_person and not _camera_marker:
@@ -402,13 +396,9 @@ func transition_to_template(preset: CameraPreset, cam_template: Camera3D = null,
 
 
 ## Transition method for zone cameras (accepts Camera3D or any Node3D as position template).
-func transition_to(preset: CameraPreset, camera_marker: Node3D = null, look_at_node: Node3D = null) -> void:
-	print("[CameraRig] transition_to() called:")
-	print("  - preset: %s" % (preset.preset_name if preset else "NULL"))
-	print("  - camera_marker: %s" % (camera_marker.name if camera_marker else "NULL"))
-	print("  - look_at_node: %s" % (look_at_node.name if look_at_node else "NULL"))
-	print("  - target: %s" % (target.name if target else "NULL"))
-
+## is_entering: true = entering zone (uses IN curve), false = exiting (uses OUT curve).
+func transition_to(preset: CameraPreset, camera_marker: Node3D = null, look_at_node: Node3D = null, is_entering: bool = true) -> void:
+	_transition_is_entering = is_entering
 	_camera_marker = camera_marker
 	_look_at_node = look_at_node
 
@@ -416,10 +406,8 @@ func transition_to(preset: CameraPreset, camera_marker: Node3D = null, look_at_n
 	# Otherwise, calculate offset manually and use default template.
 	var cam_template: Camera3D = camera_marker as Camera3D if camera_marker is Camera3D else null
 	if cam_template:
-		print("  - Using Camera3D template")
 		transition_to_template(preset, cam_template, look_at_node)
 	else:
-		print("  - Using Node3D marker (not Camera3D)")
 		# Non-Camera3D marker: calculate offset before calling template transition.
 		if camera_marker and target:
 			_marker_offset = camera_marker.global_position - target.global_position
@@ -428,7 +416,6 @@ func transition_to(preset: CameraPreset, camera_marker: Node3D = null, look_at_n
 		transition_to_template(preset, null, look_at_node)
 
 	_camera_marker = camera_marker  # Restore marker after template call.
-	print("  - After transition: _look_at_node = %s" % (_look_at_node.name if _look_at_node else "NULL"))
 
 
 func apply_instant(preset: CameraPreset) -> void:
@@ -437,20 +424,16 @@ func apply_instant(preset: CameraPreset) -> void:
 
 ## Reset camera to the default preset using the template camera.
 ## Always targets the player for smooth orbit transitions.
+## This is an EXIT transition (uses OUT curve).
 func reset_to_default() -> void:
-	print("[CameraRig] reset_to_default() called:")
-	print("  - target: %s" % (target.name if target else "NULL"))
-	print("  - template_camera: %s" % (template_camera.name if template_camera else "NULL"))
-	print("  - default_preset: %s" % (default_preset.preset_name if default_preset else "NULL"))
-
 	_position_follow_only = false
+	_transition_is_entering = false  # Exiting zone = OUT curve.
 	if not default_preset:
 		push_warning("CameraRig.reset_to_default: No default_preset set!")
 		return
 
 	# Use player as look-at target for smooth orbit transition back to default.
 	var look_at: Node3D = target if target and is_instance_valid(target) else null
-	print("  - look_at will be: %s" % (look_at.name if look_at else "NULL"))
 
 	if template_camera and is_instance_valid(template_camera):
 		transition_to_template(default_preset, template_camera, look_at)
@@ -596,6 +579,24 @@ func _has_input_direction_changed(new_input: Vector2, old_input: Vector2) -> boo
 #endregion
 
 
+#region Aim Zoom
+
+func _update_aim_zoom(delta: float) -> void:
+	if not aim_zoom_enabled:
+		_aim_zoom = lerpf(_aim_zoom, 0.0, 1.0 - exp(-aim_zoom_speed * delta))
+		return
+
+	# Check if target has is_aiming property (RenegadeCharacter).
+	var is_aiming := false
+	if target and "is_aiming" in target:
+		is_aiming = target.is_aiming
+
+	var target_aim_zoom := aim_zoom_amount if is_aiming else 0.0
+	_aim_zoom = lerpf(_aim_zoom, target_aim_zoom, 1.0 - exp(-aim_zoom_speed * delta))
+
+#endregion
+
+
 #region Third Person Update
 
 func _update_third_person(delta: float) -> void:
@@ -615,8 +616,11 @@ func _update_third_person(delta: float) -> void:
 	global_position = global_position.lerp(target_pos, 1.0 - exp(-active_preset.follow_speed * delta))
 
 	# Smooth zoom interpolation (always runs, even during transitions).
-	# For spring arm: subtract auto_frame_zoom and idle_zoom (positive = closer = shorter arm).
-	var effective_zoom := _target_zoom - _auto_frame_zoom - _idle_zoom
+	# For spring arm: subtract dynamic zoom offset (positive = closer = shorter arm).
+	# Compose auto-frame and idle zoom by taking whichever pushes camera further out.
+	# Aim zoom is additive on top (intentional player action always applies).
+	var dynamic_zoom_offset := minf(_auto_frame_zoom, _movement_zoom)
+	var effective_zoom := _target_zoom - dynamic_zoom_offset - _aim_zoom
 	effective_zoom = clampf(effective_zoom, min_zoom, max_zoom)
 	var is_zooming := absf(spring_arm.spring_length - effective_zoom) > ZOOM_THRESHOLD
 	if is_zooming:
@@ -664,16 +668,22 @@ func _update_marker_camera(delta: float) -> void:
 		zoom_target = _look_at_node.global_position if _look_at_node != target else player_center
 
 	# Apply zoom offset along the direction toward the look target.
-	# Combines manual scroll zoom + auto-framing zoom + idle zoom.
-	var total_zoom := _current_zoom + _auto_frame_zoom + _idle_zoom
+	# Compose auto-frame and idle zoom - whichever pushes camera further out wins.
+	# Aim zoom is additive on top (intentional player action always applies).
+	var dynamic_zoom_offset := minf(_auto_frame_zoom, _movement_zoom)
+	var total_zoom := _current_zoom + dynamic_zoom_offset + _aim_zoom
 	var target_pos := base_pos
-	if absf(total_zoom) > ZOOM_THRESHOLD and not is_transitioning:
+	if absf(total_zoom) > ZOOM_THRESHOLD:
 		var zoom_dir := (zoom_target - base_pos).normalized()
 		target_pos = base_pos + zoom_dir * total_zoom
 
 	if is_transitioning and active_preset and active_preset.follow_target:
 		# TWEEN MODE: Interpolate from start to current target using tween progress.
+		# Apply dynamic zoom to the transition endpoint so auto-frame works during transitions.
 		var current_end := target.global_position + _marker_offset
+		if absf(total_zoom) > ZOOM_THRESHOLD:
+			var zoom_dir := (zoom_target - current_end).normalized()
+			current_end = current_end + zoom_dir * total_zoom
 		global_position = _transition_start_pos.lerp(current_end, _transition_progress)
 	elif not is_transitioning:
 		# After transition: smoothly lerp position to track.
@@ -733,7 +743,7 @@ func _update_marker_camera(delta: float) -> void:
 			player_controller.cursor.set_active(true)
 			_cursor_reenabled_early = true
 
-	# Idle shake is now handled by IdleShakeModifier via the modifier stack.
+	# Idle effects are handled by _idle_effects composition module.
 	camera.reset_physics_interpolation()
 
 #endregion
@@ -800,61 +810,91 @@ func _world_direction(input: Vector2) -> Vector3:
 
 #region Transitions
 
-func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType, from_fixed: bool = false) -> void:
+## Apply transition curve to a PropertyTweener.
+## Priority: 1) CameraRig's curve, 2) preset's curve, 3) default ease-out expo.
+func _apply_curve(tweener: PropertyTweener) -> PropertyTweener:
+	var curve := _get_active_curve()
+	if curve:
+		# Ensure curve starts at 0 and ends at 1 to avoid jolts.
+		return tweener.from_current().set_custom_interpolator(func(t: float) -> float:
+			return curve.sample_baked(t)
+		)
+	return tweener.from_current().set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+
+
+## Get the active transition curve based on direction (entering vs exiting).
+## Priority: 1) CameraRig's in/out curve, 2) preset's in/out curve, 3) null (use default).
+func _get_active_curve() -> Curve:
+	if _transition_is_entering:
+		# Entering a zone - use IN curves.
+		if transition_curve_in:
+			return transition_curve_in
+		if _transition_target and _transition_target.transition_curve_in:
+			return _transition_target.transition_curve_in
+	else:
+		# Exiting a zone - use OUT curves.
+		if transition_curve_out:
+			return transition_curve_out
+		if _transition_target and _transition_target.transition_curve_out:
+			return _transition_target.transition_curve_out
+	return null
+
+
+func _transition_third_person(preset: CameraPreset, dur: float, from_fixed: bool = false) -> void:
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
 	# Update target zoom to match preset (user can still override with scroll wheel).
 	_target_zoom = preset.spring_length
-	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur))
+	_apply_curve(_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur))
+	_apply_curve(_active_tween.tween_property(camera, "fov", preset.fov, dur))
 	# Reset camera local rotation (may have been set by marker mode's look_at).
-	_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur))
 	if preset.fixed_rotation:
 		# Entering a fixed-rotation zone: tween to the fixed yaw.
-		_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur).set_trans(trans).set_ease(ease_t)
+		_apply_curve(_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur))
 	elif from_fixed:
 		# Exiting a fixed-rotation zone back to free-follow:
 		# Tween yaw toward the player's current facing so it doesn't snap.
 		var target_yaw := target.global_rotation.y if target else 0.0
-		_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur).set_trans(trans).set_ease(ease_t)
+		_apply_curve(_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur))
 	# Re-enable collision at end of transition via callback (chained after all parallel tweens).
 	_active_tween.chain().tween_callback(func(): spring_arm.collision_mask = 1 if preset.use_collision else 0)
 
 
-func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
+func _transition_to_first_person(preset: CameraPreset, dur: float) -> void:
 	_fp_yaw = pivot.rotation.y
 	_fp_pitch = spring_arm.rotation.x
 	# Use first_person_template position if available.
 	var head_offset := first_person_template.position if first_person_template else preset.head_offset
 	var head_pos := target.global_position + head_offset
-	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(self, "global_position", head_pos, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur))
+	_apply_curve(_active_tween.tween_property(self, "global_position", head_pos, dur))
+	_apply_curve(_active_tween.tween_property(camera, "fov", preset.fov, dur))
 	spring_arm.collision_mask = 0
 
 
-func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
+func _transition_from_first_person(preset: CameraPreset, dur: float) -> void:
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
 	# Update target zoom to match preset.
 	_target_zoom = preset.spring_length
-	_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur).set_trans(trans).set_ease(ease_t)
-	_active_tween.tween_property(camera, "fov", preset.fov, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(spring_arm, "spring_length", preset.spring_length, dur))
+	_apply_curve(_active_tween.tween_property(spring_arm, "rotation:x", deg_to_rad(preset.pitch), dur))
+	_apply_curve(_active_tween.tween_property(camera, "fov", preset.fov, dur))
 	# Reset camera local rotation (may have been set by marker mode's look_at).
-	_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(camera, "rotation", Vector3.ZERO, dur))
 	# Tween yaw back to player facing (or fixed yaw) so it doesn't snap.
 	if preset.fixed_rotation:
-		_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur).set_trans(trans).set_ease(ease_t)
+		_apply_curve(_active_tween.tween_property(pivot, "rotation:y", deg_to_rad(preset.fixed_yaw), dur))
 	else:
 		var target_yaw := target.global_rotation.y if target else 0.0
-		_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur).set_trans(trans).set_ease(ease_t)
+		_apply_curve(_active_tween.tween_property(pivot, "rotation:y", target_yaw, dur))
 	# Re-enable collision at end of transition.
 	_active_tween.chain().tween_callback(func(): spring_arm.collision_mask = 1 if preset.use_collision else 0)
 
 
-func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
+func _transition_to_marker(preset: CameraPreset, dur: float) -> void:
 	# Transition to a marker/template position (fixed or follow mode).
 	spring_arm.collision_mask = 0
 	# Use template camera's FOV if available, otherwise use preset.
@@ -877,65 +917,20 @@ func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.Transi
 	global_position = camera_world_pos
 
 	# Tween FOV.
-	_active_tween.tween_property(camera, "fov", marker_fov, dur).set_trans(trans).set_ease(ease_t)
+	_apply_curve(_active_tween.tween_property(camera, "fov", marker_fov, dur))
 
 	if preset.follow_target and target:
 		# FOLLOW MODE: Camera moves from current position to target position.
 		_transition_start_pos = camera_world_pos
 		_transition_progress = 0.0
 		# TWEEN MODE: Time-based transition.
-		_active_tween.tween_property(self, "_transition_progress", 1.0, dur).set_trans(trans).set_ease(ease_t)
+		_apply_curve(_active_tween.tween_property(self, "_transition_progress", 1.0, dur))
 		# Note: position is updated in _update_marker_camera using _transition_progress
 	else:
 		# FIXED MODE: Tween position to fixed marker location.
 		# Rotation is handled by slerp in _update_marker_camera to track player movement.
 		var target_pos := _camera_marker.global_position
-		_active_tween.tween_property(self, "global_position", target_pos, dur).set_trans(trans).set_ease(ease_t)
-
-#endregion
-
-
-#region DOF
-
-func _update_dof() -> void:
-	if not camera:
-		return
-
-	if not dof_enabled:
-		camera.attributes = null
-		return
-
-	# Create or get camera attributes.
-	if not camera.attributes or not camera.attributes is CameraAttributesPractical:
-		camera.attributes = CameraAttributesPractical.new()
-
-	var attrs := camera.attributes as CameraAttributesPractical
-
-	# Calculate focus distance (auto-focus on player if set to 0).
-	var actual_focus := focus_distance
-	if actual_focus <= 0.0 and target:
-		actual_focus = camera.global_position.distance_to(target.global_position + target_frame_offset)
-
-	# Apply DOF settings.
-	attrs.dof_blur_far_enabled = true
-	attrs.dof_blur_far_distance = actual_focus
-	attrs.dof_blur_far_transition = dof_far_transition
-	attrs.dof_blur_near_enabled = true
-	attrs.dof_blur_near_distance = maxf(actual_focus - dof_near_transition, 0.1)
-	attrs.dof_blur_near_transition = dof_near_transition
-	attrs.dof_blur_amount = dof_blur_amount
-
-
-## Set focus distance at runtime (0 = auto-focus on player).
-func set_focus_distance(distance: float) -> void:
-	focus_distance = distance
-
-
-## Enable or disable DOF at runtime.
-func set_dof_enabled(enabled: bool) -> void:
-	dof_enabled = enabled
-	if not enabled and camera:
-		camera.attributes = null
+		_apply_curve(_active_tween.tween_property(self, "global_position", target_pos, dur))
 
 #endregion
 
@@ -1003,7 +998,6 @@ func _apply_preset_instant_for_marker(preset: CameraPreset, marker_distance: flo
 	spring_arm.transform = Transform3D.IDENTITY
 	spring_arm.spring_length = 0.0
 	spring_arm.collision_mask = 0
-	modifier_stack.transform = Transform3D.IDENTITY
 	camera.transform = Transform3D.IDENTITY
 	camera.fov = preset.fov
 	_first_person_active = false
@@ -1036,13 +1030,9 @@ func _build_hierarchy() -> void:
 	spring_arm.collision_mask = 1
 	spring_arm.margin = 0.2
 	pivot.add_child(spring_arm)
-	modifier_stack = CameraModifierStack.new()
-	modifier_stack.name = "CameraModifierStack"
-	spring_arm.add_child(modifier_stack)
 	camera = Camera3D.new()
 	camera.name = "Camera3D"
-	modifier_stack.add_child(camera)
-	modifier_stack.camera = camera
+	spring_arm.add_child(camera)
 
 #endregion
 

@@ -19,7 +19,6 @@ func _enter_tree() -> void:
 	# Camera
 	add_custom_type("CameraSystem", "Node3D", preload("src/camera/camera_system.gd"), null)
 	add_custom_type("CameraRig", "Node3D", preload("src/camera/camera_rig.gd"), null)
-	add_custom_type("CameraModifierStack", "Node3D", preload("src/camera/modifiers/camera_modifier_stack.gd"), null)
 
 	# Cursor
 	add_custom_type("Cursor3D", "Node3D", preload("src/cursor/cursor_3d.gd"), null)
@@ -49,7 +48,6 @@ func _exit_tree() -> void:
 	remove_custom_type("RenegadeCharacter")
 	remove_custom_type("CameraSystem")
 	remove_custom_type("CameraRig")
-	remove_custom_type("CameraModifierStack")
 	remove_custom_type("Cursor3D")
 	remove_custom_type("CameraZone")
 	remove_custom_type("FirstPersonZone")

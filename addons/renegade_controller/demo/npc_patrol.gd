@@ -46,9 +46,9 @@ func _do_patrol() -> void:
 		return
 	
 	var target := patrol_points[current_index]
-	var dist := character.global_position.distance_to(target)
-	
-	if dist <= _arrival_threshold:
+	var dist_sq := character.global_position.distance_squared_to(target)
+
+	if dist_sq <= _arrival_threshold * _arrival_threshold:
 		# Arrived at waypoint.
 		ai_controller.stop()
 		state = State.WAITING
