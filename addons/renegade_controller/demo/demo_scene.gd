@@ -34,9 +34,9 @@ func _ready() -> void:
 	player.camera_rig = cam_rig
 	player.visual_root = $Player/Mesh
 
-	# Camera wiring.
-	cam_rig.target = player
-	cam_rig.player_controller = player_ctrl
+	# Camera wiring - configure through CameraSystem (bubbles down to CameraRig).
+	cam_system.target = player
+	cam_system.player_controller = player_ctrl
 
 	# Zone manager.
 	zone_mgr.camera_rig = cam_rig
@@ -55,7 +55,7 @@ func _ready() -> void:
 
 	# Cursor needs the camera — wait one frame for CameraRig to initialize.
 	await get_tree().process_frame
-	cursor_3d.camera = cam_rig.get_camera()
+	cursor_3d.camera = cam_system.get_camera()
 	cursor_3d.aim_line_origin = player
 	player_ctrl.cursor = cursor_3d
 

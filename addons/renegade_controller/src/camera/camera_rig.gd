@@ -4,8 +4,32 @@
 ## Handles third-person, side-scroller, top-down, and first-person modes.
 class_name CameraRig extends Node3D
 
+#region Constants
+## Dot product threshold for input direction change detection (~45 degrees).
+const INPUT_DIRECTION_THRESHOLD := 0.7
+## Squared velocity threshold to consider the player "moving".
+const VELOCITY_MOVING_THRESHOLD := 0.1
+## Minimum direction vector length for look_at operations.
+const LOOK_DIRECTION_THRESHOLD := 0.001
+## When direction Y component exceeds this, use alternate up vector.
+const UP_VECTOR_THRESHOLD := 0.9
+## Minimum squared input magnitude to register movement.
+const INPUT_DEADZONE_SQ := 0.01
+## Minimum difference to trigger zoom interpolation.
+const ZOOM_THRESHOLD := 0.01
+## Minimum FOV difference to trigger FOV interpolation.
+const FOV_THRESHOLD := 0.1
+## Minimum collision offset to apply position adjustment.
+const COLLISION_OFFSET_THRESHOLD := 0.01
+#endregion
+
 ## The character this camera follows.
-@export var target: CharacterBody3D
+@export var target: CharacterBody3D:
+	set(value):
+		if target != value:
+			target = value
+			if _collision_handler:
+				_collision_handler.invalidate_mesh_cache()
 ## The default camera preset used when no zone overrides are active.
 @export var default_preset: CameraPreset
 ## Reference to the player controller (for first-person mouse input).
@@ -33,57 +57,118 @@ class_name CameraRig extends Node3D
 
 @export_group("Auto Framing")
 ## Enable automatic zoom based on nearby geometry (zoom in when open, out when near objects).
-@export var auto_frame_enabled: bool = true
+@export var auto_frame_enabled: bool = true:
+	set(value):
+		auto_frame_enabled = value
+		if _auto_framer:
+			_auto_framer.enabled = value
 ## Distance to check for nearby objects.
-@export var auto_frame_distance: float = 5.0
+@export var auto_frame_distance: float = 5.0:
+	set(value):
+		auto_frame_distance = value
+		if _auto_framer:
+			_auto_framer.check_distance = value
 ## Zoom offset when area is completely open (positive = closer to player).
-@export var auto_frame_zoom_in: float = 2.0
+@export var auto_frame_zoom_in: float = 2.0:
+	set(value):
+		auto_frame_zoom_in = value
+		if _auto_framer:
+			_auto_framer.zoom_in = value
 ## Zoom offset when near objects (negative = further from player).
-@export var auto_frame_zoom_out: float = -12.0
+@export var auto_frame_zoom_out: float = -12.0:
+	set(value):
+		auto_frame_zoom_out = value
+		if _auto_framer:
+			_auto_framer.zoom_out = value
 ## How fast the auto-framing adjusts.
-@export var auto_frame_speed: float = 3.0
+@export var auto_frame_speed: float = 3.0:
+	set(value):
+		auto_frame_speed = value
+		if _auto_framer:
+			_auto_framer.speed = value
 ## Number of rays to cast for detecting nearby geometry.
-@export var auto_frame_ray_count: int = 8
+@export var auto_frame_ray_count: int = 8:
+	set(value):
+		auto_frame_ray_count = value
+		if _auto_framer:
+			_auto_framer.ray_count = value
 ## Collision mask for auto-framing detection.
-@export_flags_3d_physics var auto_frame_mask: int = 1
+@export_flags_3d_physics var auto_frame_mask: int = 1:
+	set(value):
+		auto_frame_mask = value
+		if _auto_framer:
+			_auto_framer.collision_mask = value
 
 @export_group("Idle Zoom")
 ## Enable zoom out when player stops moving.
-@export var idle_zoom_enabled: bool = true
+@export var idle_zoom_enabled: bool = true:
+	set(value):
+		idle_zoom_enabled = value
+		if _idle_effects:
+			_idle_effects.zoom_enabled = value
 ## How much to zoom out when idle (negative = further from player).
-@export var idle_zoom_amount: float = -4.0
+@export var idle_zoom_amount: float = -4.0:
+	set(value):
+		idle_zoom_amount = value
+		if _idle_effects:
+			_idle_effects.zoom_amount = value
 ## Seconds to wait after stopping before starting to zoom out.
-@export var idle_zoom_delay: float = 0.1
+@export var idle_zoom_delay: float = 0.1:
+	set(value):
+		idle_zoom_delay = value
+		if _idle_effects:
+			_idle_effects.zoom_delay = value
 ## How fast to zoom out when idle (lower = slower, more cinematic).
-@export var idle_zoom_speed: float = 0.3
+@export var idle_zoom_speed: float = 0.3:
+	set(value):
+		idle_zoom_speed = value
+		if _idle_effects:
+			_idle_effects.zoom_speed = value
 
 @export_group("Idle Shake")
-## Enable subtle camera sway when player is idle.
-@export var idle_shake_enabled: bool = true
-## Maximum position offset for idle shake (very subtle).
-@export var idle_shake_amount: Vector3 = Vector3(0.02, 0.015, 0.01)
-## Maximum rotation offset in degrees for idle shake (pitch, yaw, roll).
-@export var idle_shake_rotation: Vector3 = Vector3(0.3, 0.5, 0.2)
-## Frequency of the idle shake oscillation (lower = slower, more gentle).
-@export var idle_shake_frequency: float = 0.3
-## How fast idle shake fades in/out.
-@export var idle_shake_fade_speed: float = 1.0
+## Idle shake modifier for subtle camera sway when player is idle.
+## If not set, a default modifier is created automatically.
+@export var idle_shake_modifier: IdleShakeModifier
 
 @export_group("Collision")
 ## Enable collision for marker/zone cameras (pulls camera closer when blocked).
 @export var marker_collision_enabled: bool = true
 ## Collision mask for camera blocking geometry.
-@export_flags_3d_physics var camera_collision_mask: int = 1
+@export_flags_3d_physics var camera_collision_mask: int = 1:
+	set(value):
+		camera_collision_mask = value
+		if _collision_handler:
+			_collision_handler.collision_mask = value
 ## Margin from collision surface.
-@export var collision_margin: float = 0.3
+@export var collision_margin: float = 0.3:
+	set(value):
+		collision_margin = value
+		if _collision_handler:
+			_collision_handler.collision_margin = value
 ## How fast the camera pulls in when blocked.
-@export var collision_speed: float = 15.0
+@export var collision_speed: float = 15.0:
+	set(value):
+		collision_speed = value
+		if _collision_handler:
+			_collision_handler.collision_speed = value
 ## Minimum distance camera can get to player during collision.
-@export var min_camera_distance: float = 1.5
+@export var min_camera_distance: float = 1.5:
+	set(value):
+		min_camera_distance = value
+		if _collision_handler:
+			_collision_handler.min_camera_distance = value
 ## Distance at which the player model starts fading out.
-@export var player_fade_distance: float = 2.0
+@export var player_fade_distance: float = 2.0:
+	set(value):
+		player_fade_distance = value
+		if _collision_handler:
+			_collision_handler.player_fade_distance = value
 ## Hide player when camera is closer than this distance.
-@export var player_hide_distance: float = 1.0
+@export var player_hide_distance: float = 1.0:
+	set(value):
+		player_hide_distance = value
+		if _collision_handler:
+			_collision_handler.player_hide_distance = value
 
 @export_group("Lens & DOF")
 ## Enable depth of field blur.
@@ -104,6 +189,8 @@ class_name CameraRig extends Node3D
 @export var transition_type_override: Tween.TransitionType = Tween.TRANS_EXPO
 ## Override ease type (set to -1 to use preset values).
 @export var ease_type_override: Tween.EaseType = Tween.EASE_OUT
+## Percentage through transition when cursor should be re-enabled (0.0-1.0).
+@export_range(0.0, 1.0) var cursor_reenable_percent: float = 0.5
 
 ## Emitted when the camera finishes transitioning to a new preset.
 signal preset_changed(preset: CameraPreset)
@@ -119,7 +206,7 @@ var _fp_pitch: float = 0.0
 var _active_tween: Tween
 var _locked_direction: Vector3 = Vector3.ZERO  # Locked world-space direction during transitions.
 var _last_input: Vector2 = Vector2.ZERO  # Previous frame's input for change detection.
-var _camera_marker: Marker3D  # Optional fixed camera position (from zone).
+var _camera_marker: Node3D  # Optional fixed camera position (Camera3D template or Marker3D from zone).
 var _look_at_node: Node3D  # Optional look-at target (any Node3D).
 var _target_zoom: float = 5.0  # Target spring arm length for smooth zoom.
 var _target_fov: float = 50.0  # Target FOV for marker mode zoom (50mm default).
@@ -130,21 +217,17 @@ var _transition_progress: float = 0.0  # 0 to 1 progress through transition.
 var _position_follow_only: bool = false  # When true, follow position but keep marker's rotation.
 var _collision_offset: float = 0.0  # Current collision pull-in distance (0 = no collision).
 var _marker_base_distance: float = 0.0  # Initial distance from marker to look target (for zoom).
+var _cursor_reenabled_early: bool = false  # Track if cursor was re-enabled before transition end.
 var _current_zoom: float = 0.0  # Current zoom offset (smoothly interpolates toward _target_zoom).
-var _auto_frame_zoom: float = 0.0  # Current auto-framing zoom offset.
-var _idle_time: float = 0.0  # How long the player has been idle.
-var _idle_zoom: float = 0.0  # Current idle zoom offset.
-var _idle_zoom_progress: float = 0.0  # 0 to 1 progress for ease-in-out.
-var _idle_zoom_start: float = 0.0  # Zoom value when idle started (for easing from current position).
-var _idle_shake_time: float = 0.0  # Time accumulator for idle shake oscillation.
-var _idle_shake_alpha: float = 0.0  # Current fade amount for idle shake (0 = none, 1 = full).
-var _idle_shake_offset: Vector3 = Vector3.ZERO  # Current idle shake position offset.
-var _idle_shake_rot_offset: Vector3 = Vector3.ZERO  # Current idle shake rotation offset (degrees).
+var _auto_frame_zoom: float = 0.0  # Current auto-framing zoom offset (from CameraAutoFramer).
+var _idle_zoom: float = 0.0  # Current idle zoom offset (from CameraIdleEffects).
 
-## Default camera marker (set by CameraSystem for editor-adjustable positioning).
-var default_camera_marker: Marker3D
-## First-person camera marker (set by CameraSystem for editor-adjustable head position).
-var first_person_marker: Marker3D
+## Template camera defining third-person view (set by CameraSystem).
+var template_camera: Camera3D
+## Template camera for first-person view (set by CameraSystem).
+var first_person_template: Camera3D
+## Reference to parent CameraSystem (for cursor panning).
+var _camera_system: CameraSystem
 
 ## Assigned in _ready — NOT @onready because hierarchy may need building first.
 var pivot: Node3D
@@ -152,16 +235,61 @@ var spring_arm: SpringArm3D
 var modifier_stack: CameraModifierStack
 var camera: Camera3D
 
+## Composition modules for focused responsibilities.
+var _collision_handler: CameraCollisionHandler
+var _auto_framer: CameraAutoFramer
+var _idle_effects: CameraIdleEffects
+
+## Debug visualization.
+@export_group("Debug")
+## Enable debug visualization (spheres for target/look-at, line to look target).
+@export var debug_draw_enabled: bool = false
+## Print debug info every frame during transitions (very spammy - use sparingly).
+@export var debug_print_transitions: bool = false
+var _debug_mesh: MeshInstance3D
+var _debug_material: StandardMaterial3D
+var _debug_target_sphere: MeshInstance3D
+var _debug_lookat_sphere: MeshInstance3D
+
 
 func _ready() -> void:
 	if not has_node("Pivot"):
 		_build_hierarchy()
-	
+
 	pivot = $Pivot
 	spring_arm = $Pivot/SpringArm3D
 	modifier_stack = $Pivot/SpringArm3D/CameraModifierStack
 	camera = $Pivot/SpringArm3D/CameraModifierStack/Camera3D
 	modifier_stack.camera = camera
+
+	# Get parent CameraSystem for cursor panning.
+	var parent := get_parent()
+	if parent is CameraSystem:
+		_camera_system = parent
+
+	# Initialize composition modules.
+	_collision_handler = CameraCollisionHandler.new()
+	_collision_handler.configure(
+		camera_collision_mask, collision_margin, collision_speed,
+		min_camera_distance, player_fade_distance, player_hide_distance
+	)
+
+	_auto_framer = CameraAutoFramer.new()
+	_auto_framer.configure(
+		auto_frame_enabled, auto_frame_distance, auto_frame_zoom_in,
+		auto_frame_zoom_out, auto_frame_speed, auto_frame_ray_count, auto_frame_mask
+	)
+
+	_idle_effects = CameraIdleEffects.new()
+	_idle_effects.configure(idle_zoom_enabled, idle_zoom_amount, idle_zoom_delay, idle_zoom_speed)
+
+	# Create default idle shake modifier if none assigned.
+	if not idle_shake_modifier:
+		idle_shake_modifier = IdleShakeModifier.new()
+	modifier_stack.add_modifier(idle_shake_modifier)
+
+	# Initialize debug visualization.
+	_setup_debug_visualization()
 
 	if default_preset:
 		current_preset = default_preset
@@ -173,14 +301,23 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if not target:
 		return
-	# Update auto-framing and idle zoom (affects zoom in both modes).
-	_update_auto_framing(delta)
-	_update_idle_zoom(delta)
+	# Update auto-framing and idle effects via composition modules.
+	_auto_frame_zoom = _auto_framer.update(delta, target, target_frame_offset, get_world_3d())
+	var is_idle := _idle_effects.update(delta, target)
+	_idle_zoom = _idle_effects.get_zoom_offset()
+
+	# Update idle shake modifier with current idle state.
+	if idle_shake_modifier:
+		idle_shake_modifier.update_idle(delta, is_idle and _idle_effects.is_idle_active())
+
 	if _first_person_active:
 		_update_first_person(delta)
 	else:
 		_update_third_person(delta)
 	_update_dof()
+
+	# Update debug visualization.
+	_update_debug_visualization()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -211,39 +348,35 @@ func _unhandled_input(event: InputEvent) -> void:
 
 #region Public API
 
-func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at_node: Node3D = null) -> void:
-	# Debug: Log transition details.
-	if camera_marker:
-		print("CameraRig.transition_to: Using marker at ", camera_marker.global_position)
-	else:
-		print("CameraRig.transition_to: No marker, using preset values (offset=", preset.offset if preset else "null", ")")
-
-	if preset == current_preset and not is_transitioning and camera_marker == _camera_marker:
-		print("CameraRig.transition_to: Early return - already at this state")
+## Transition to a preset with optional Camera3D template for position.
+func transition_to_template(preset: CameraPreset, cam_template: Camera3D = null, look_at_node: Node3D = null) -> void:
+	# Convert Camera3D to position marker for internal use.
+	var marker_node: Node3D = cam_template if cam_template else template_camera
+	if preset == current_preset and not is_transitioning and marker_node == _camera_marker:
 		return
-	_camera_marker = camera_marker
+	_camera_marker = marker_node
 	_look_at_node = look_at_node
-	# Calculate offset as difference between marker's global position and player's global position.
-	# This ensures the camera starts at marker's exact world position when follow_target is true.
-	if camera_marker and target:
-		# When returning to the default marker, use the stored startup offset for consistency.
-		if camera_marker == default_camera_marker and _default_follow_offset != Vector3.ZERO:
+
+	# Calculate offset from template camera position.
+	if marker_node and target:
+		if marker_node == template_camera and _default_follow_offset != Vector3.ZERO:
 			_marker_offset = _default_follow_offset
-			print("CameraRig.transition_to: Using stored _default_follow_offset=", _default_follow_offset)
 		else:
-			_marker_offset = camera_marker.global_position - target.global_position
-	elif camera_marker:
-		_marker_offset = camera_marker.global_position
+			_marker_offset = marker_node.global_position - target.global_position
+	elif marker_node:
+		_marker_offset = marker_node.global_position
+
 	var was_first_person := _first_person_active
 	var was_fixed := current_preset and current_preset.fixed_rotation
 	var entering_first_person := preset.is_first_person
 	if _active_tween and _active_tween.is_valid():
 		_active_tween.kill()
 	# Lock current movement direction before transition starts.
-	if _last_input.length_squared() > 0.01 and current_preset:
+	if _last_input.length_squared() > INPUT_DEADZONE_SQ and current_preset:
 		_locked_direction = _calculate_raw_direction(_last_input)
 	is_transitioning = true
 	_transition_target = preset
+	_cursor_reenabled_early = false
 	# Disable cursor during camera transitions.
 	if player_controller and player_controller.cursor:
 		player_controller.cursor.set_active(false)
@@ -255,7 +388,6 @@ func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at
 	if entering_first_person:
 		_transition_to_first_person(preset, dur, trans, ease)
 	elif _camera_marker:
-		# Marker mode takes priority - use marker position regardless of previous mode.
 		_transition_to_marker(preset, dur, trans, ease)
 	elif was_first_person:
 		_transition_from_first_person(preset, dur, trans, ease)
@@ -266,119 +398,111 @@ func transition_to(preset: CameraPreset, camera_marker: Marker3D = null, look_at
 	if target and not entering_first_person and not _camera_marker:
 		var target_pos := target.global_position + preset.offset
 		global_position = global_position.lerp(target_pos, 0.3)
-	# Prevent physics interpolation from showing old camera state.
-	reset_physics_interpolation()
-	pivot.reset_physics_interpolation()
-	spring_arm.reset_physics_interpolation()
-	camera.reset_physics_interpolation()
+	_reset_all_interpolation()
+
+
+## Transition method for zone cameras (accepts Camera3D or any Node3D as position template).
+func transition_to(preset: CameraPreset, camera_marker: Node3D = null, look_at_node: Node3D = null) -> void:
+	print("[CameraRig] transition_to() called:")
+	print("  - preset: %s" % (preset.preset_name if preset else "NULL"))
+	print("  - camera_marker: %s" % (camera_marker.name if camera_marker else "NULL"))
+	print("  - look_at_node: %s" % (look_at_node.name if look_at_node else "NULL"))
+	print("  - target: %s" % (target.name if target else "NULL"))
+
+	_camera_marker = camera_marker
+	_look_at_node = look_at_node
+
+	# If camera_marker is a Camera3D, pass it directly to transition_to_template.
+	# Otherwise, calculate offset manually and use default template.
+	var cam_template: Camera3D = camera_marker as Camera3D if camera_marker is Camera3D else null
+	if cam_template:
+		print("  - Using Camera3D template")
+		transition_to_template(preset, cam_template, look_at_node)
+	else:
+		print("  - Using Node3D marker (not Camera3D)")
+		# Non-Camera3D marker: calculate offset before calling template transition.
+		if camera_marker and target:
+			_marker_offset = camera_marker.global_position - target.global_position
+		elif camera_marker:
+			_marker_offset = camera_marker.global_position
+		transition_to_template(preset, null, look_at_node)
+
+	_camera_marker = camera_marker  # Restore marker after template call.
+	print("  - After transition: _look_at_node = %s" % (_look_at_node.name if _look_at_node else "NULL"))
 
 
 func apply_instant(preset: CameraPreset) -> void:
 	_apply_preset_instant(preset)
 
 
-## Reset camera to the default preset, using the default_camera_marker if set.
+## Reset camera to the default preset using the template camera.
+## Always targets the player for smooth orbit transitions.
 func reset_to_default() -> void:
-	print("CameraRig.reset_to_default: Called")
-	_position_follow_only = false  # Reset to normal follow behavior.
+	print("[CameraRig] reset_to_default() called:")
+	print("  - target: %s" % (target.name if target else "NULL"))
+	print("  - template_camera: %s" % (template_camera.name if template_camera else "NULL"))
+	print("  - default_preset: %s" % (default_preset.preset_name if default_preset else "NULL"))
+
+	_position_follow_only = false
 	if not default_preset:
 		push_warning("CameraRig.reset_to_default: No default_preset set!")
 		return
 
-	# Try multiple ways to find the marker.
-	var marker: Marker3D = null
-	var found_via := "none"
+	# Use player as look-at target for smooth orbit transition back to default.
+	var look_at: Node3D = target if target and is_instance_valid(target) else null
+	print("  - look_at will be: %s" % (look_at.name if look_at else "NULL"))
 
-	# Method 1: Use stored default_camera_marker.
-	if default_camera_marker and is_instance_valid(default_camera_marker):
-		marker = default_camera_marker
-		found_via = "stored default_camera_marker"
-
-	# Method 2: Get from parent CameraSystem.
-	if not marker:
-		var parent := get_parent()
-		print("CameraRig.reset_to_default: Parent is ", parent, " (is CameraSystem: ", parent is CameraSystem, ")")
-		if parent is CameraSystem and parent.third_person_camera:
-			marker = parent.third_person_camera
-			found_via = "parent.third_person_camera"
-		elif parent:
-			# Method 3: Search sibling nodes for ThirdPersonCamera.
-			var sibling := parent.get_node_or_null("ThirdPersonCamera")
-			if sibling is Marker3D:
-				marker = sibling
-				found_via = "sibling ThirdPersonCamera"
-
-	print("CameraRig.reset_to_default: Marker found via '", found_via, "', marker=", marker)
-
-	# Update stored reference.
-	if marker and is_instance_valid(marker):
-		default_camera_marker = marker
-		# Get look_at_target from DefaultCameraMarker (supports cursor_look_at).
-		var look_at: Node3D = null
-		if marker is DefaultCameraMarker:
-			look_at = marker.get_look_at_target()
-		transition_to(default_preset, marker, look_at)
+	if template_camera and is_instance_valid(template_camera):
+		transition_to_template(default_preset, template_camera, look_at)
 	else:
-		push_warning("CameraRig.reset_to_default: No marker found, using preset values only!")
-		transition_to(default_preset, null, null)
+		push_warning("CameraRig.reset_to_default: No template camera, using preset values only!")
+		transition_to_template(default_preset, null, look_at)
 
 
-## Apply the default camera marker immediately (called by CameraSystem after setting markers).
-## Works exactly like zone cameras - camera at marker position, looks at player.
-func apply_default_marker() -> void:
-	if not default_camera_marker:
+## Apply the template camera immediately (called by CameraSystem on startup).
+func apply_template_camera() -> void:
+	if not template_camera:
 		return
 
-	# Use marker mode - exactly like zone cameras.
-	_camera_marker = default_camera_marker
+	_camera_marker = template_camera
+	_look_at_node = null  # Always look at player; cursor panning handled by CameraSystem.
 
-	# Get look_at_target from DefaultCameraMarker (supports cursor_look_at).
-	if default_camera_marker is DefaultCameraMarker:
-		_look_at_node = default_camera_marker.get_look_at_target()
-	else:
-		_look_at_node = null
-
-	# Calculate and STORE the initial offset from player at startup.
-	# This offset is reused when returning from zones to maintain consistent follow behavior.
+	# Store initial offset from player for consistent follow behavior.
 	if target:
-		_default_follow_offset = default_camera_marker.global_position - target.global_position
-		_marker_offset = _default_follow_offset
+		_default_follow_offset = template_camera.global_position - target.global_position
 	else:
-		_default_follow_offset = default_camera_marker.global_position
-		_marker_offset = _default_follow_offset
-	# Use marker's FOV if set, otherwise fall back to preset.
-	if default_camera_marker is DefaultCameraMarker and default_camera_marker.fov > 0:
-		_target_fov = default_camera_marker.fov
-	else:
-		_target_fov = default_preset.fov if default_preset else 50.0
-	# Reset zoom offset for marker mode.
+		_default_follow_offset = template_camera.global_position
+	_marker_offset = _default_follow_offset
+
+	# Use FOV from template camera.
+	_target_fov = template_camera.fov if template_camera.fov > 0 else (default_preset.fov if default_preset else 50.0)
+
+	# Reset zoom offset for template mode.
 	_target_zoom = 0.0
 	_current_zoom = 0.0
-	print("apply_default_marker: Stored _default_follow_offset=", _default_follow_offset)
 
-	# Apply preset for marker mode.
+	# Apply preset for template mode.
 	if default_preset:
 		_apply_preset_instant_for_marker(default_preset, 0.0)
 
-	# Set camera position and rotation immediately to match preview.
-	if _camera_marker:
-		# Use follow mode position if enabled, otherwise fixed marker position.
-		if default_preset and default_preset.follow_target and target:
-			global_position = target.global_position + _marker_offset
-		else:
-			global_position = _camera_marker.global_position
+	# Set camera position and rotation immediately.
+	if default_preset and default_preset.follow_target and target:
+		global_position = target.global_position + _marker_offset
+	else:
+		global_position = template_camera.global_position
 
-		# Rotation: always start looking at the player (cursor panning only when aiming).
-		if default_preset and default_preset.follow_target and target:
-			var look_target := target.global_position + target_frame_offset
-			var dir := look_target - camera.global_position
-			if dir.length_squared() > 0.001:
-				var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
-				camera.look_at(look_target, up)
-		else:
-			camera.global_basis = _camera_marker.global_basis
-		reset_physics_interpolation()
-		camera.reset_physics_interpolation()
+	# Look at player on startup.
+	if default_preset and default_preset.follow_target and target:
+		var look_target := target.global_position + target_frame_offset
+		var dir := look_target - camera.global_position
+		if dir.length_squared() > LOOK_DIRECTION_THRESHOLD:
+			var up := Vector3.FORWARD if absf(dir.normalized().y) > UP_VECTOR_THRESHOLD else Vector3.UP
+			camera.look_at(look_target, up)
+	else:
+		camera.global_basis = template_camera.global_basis
+
+	reset_physics_interpolation()
+	camera.reset_physics_interpolation()
 
 
 func get_camera() -> Camera3D:
@@ -407,13 +531,13 @@ func calculate_move_direction(input: Vector2) -> Vector3:
 	_last_input = input
 
 	# No input: clear lock and return zero.
-	if input.length_squared() < 0.01:
+	if input.length_squared() < INPUT_DEADZONE_SQ:
 		_locked_direction = Vector3.ZERO
 		return Vector3.ZERO
 
 	# During transitions: use locked direction if we have one and input hasn't changed.
 	if is_transitioning:
-		if _locked_direction.length_squared() > 0.01 and not input_changed:
+		if _locked_direction.length_squared() > INPUT_DEADZONE_SQ and not input_changed:
 			return _locked_direction
 		# Lock current direction if starting to move or input changed.
 		_locked_direction = _calculate_raw_direction(input)
@@ -437,19 +561,34 @@ func _calculate_raw_direction(input: Vector2) -> Vector3:
 
 func _has_input_direction_changed(new_input: Vector2, old_input: Vector2) -> bool:
 	# Check if input direction changed (ignoring magnitude).
-	var old_has_input := old_input.length_squared() > 0.01
-	var new_has_input := new_input.length_squared() > 0.01
+	var old_has_input := old_input.length_squared() > INPUT_DEADZONE_SQ
+	var new_has_input := new_input.length_squared() > INPUT_DEADZONE_SQ
 
 	# Started or stopped moving.
 	if old_has_input != new_has_input:
 		return true
 
-	# Both have input: check if direction changed significantly.
+	# Both have input: check for key combination changes.
 	if old_has_input and new_has_input:
-		var old_dir := old_input.normalized()
-		var new_dir := new_input.normalized()
-		# Threshold for direction change (about 45 degrees).
-		if old_dir.dot(new_dir) < 0.7:
+		# Check if which keys are pressed changed (not just the angle).
+		# If a new axis became active or an axis was released, that's a key change.
+		var old_has_x := absf(old_input.x) > 0.1
+		var new_has_x := absf(new_input.x) > 0.1
+		var old_has_y := absf(old_input.y) > 0.1
+		var new_has_y := absf(new_input.y) > 0.1
+
+		# New key pressed (axis wasn't active before, now is).
+		if (new_has_x and not old_has_x) or (new_has_y and not old_has_y):
+			return true
+
+		# Key released (axis was active, now isn't).
+		if (old_has_x and not new_has_x) or (old_has_y and not new_has_y):
+			return true
+
+		# Check if direction on same axis flipped (e.g., left to right).
+		if old_has_x and new_has_x and signf(old_input.x) != signf(new_input.x):
+			return true
+		if old_has_y and new_has_y and signf(old_input.y) != signf(new_input.y):
 			return true
 
 	return false
@@ -479,7 +618,7 @@ func _update_third_person(delta: float) -> void:
 	# For spring arm: subtract auto_frame_zoom and idle_zoom (positive = closer = shorter arm).
 	var effective_zoom := _target_zoom - _auto_frame_zoom - _idle_zoom
 	effective_zoom = clampf(effective_zoom, min_zoom, max_zoom)
-	var is_zooming := absf(spring_arm.spring_length - effective_zoom) > 0.01
+	var is_zooming := absf(spring_arm.spring_length - effective_zoom) > ZOOM_THRESHOLD
 	if is_zooming:
 		spring_arm.spring_length = lerpf(spring_arm.spring_length, effective_zoom, 1.0 - exp(-zoom_speed * delta))
 		spring_arm.reset_physics_interpolation()
@@ -496,7 +635,7 @@ func _update_third_person(delta: float) -> void:
 	if is_zooming:
 		var look_point := target.global_position + target_frame_offset
 		var dir := (look_point - camera.global_position).normalized()
-		if dir.length_squared() > 0.001:
+		if dir.length_squared() > LOOK_DIRECTION_THRESHOLD:
 			var target_basis := Basis.looking_at(dir, Vector3.UP)
 			camera.global_basis = camera.global_basis.slerp(target_basis, 1.0 - exp(-zoom_speed * delta))
 
@@ -528,66 +667,73 @@ func _update_marker_camera(delta: float) -> void:
 	# Combines manual scroll zoom + auto-framing zoom + idle zoom.
 	var total_zoom := _current_zoom + _auto_frame_zoom + _idle_zoom
 	var target_pos := base_pos
-	if absf(total_zoom) > 0.01 and not is_transitioning:
+	if absf(total_zoom) > ZOOM_THRESHOLD and not is_transitioning:
 		var zoom_dir := (zoom_target - base_pos).normalized()
 		target_pos = base_pos + zoom_dir * total_zoom
 
 	if is_transitioning and active_preset and active_preset.follow_target:
-		# During follow-mode transitions: interpolate from start to current target using progress.
-		# This ensures we always track the player, even if they move during the transition.
-		global_position = _transition_start_pos.lerp(base_pos, _transition_progress)
+		# TWEEN MODE: Interpolate from start to current target using tween progress.
+		var current_end := target.global_position + _marker_offset
+		global_position = _transition_start_pos.lerp(current_end, _transition_progress)
 	elif not is_transitioning:
-		# After transition: smoothly lerp position to track the player.
+		# After transition: smoothly lerp position to track.
 		global_position = global_position.lerp(target_pos, 1.0 - exp(-follow_speed * delta))
 
 	# Collision detection: pull camera closer when blocked by geometry.
 	if marker_collision_enabled and target and not is_transitioning:
-		_apply_marker_collision(delta, target_pos)
-
-	# Apply idle shake offset (subtle breathing/sway when idle).
-	if _idle_shake_offset.length_squared() > 0.0001 and not is_transitioning:
-		# Apply shake in camera-local space for natural feel.
-		var shake_world := camera.global_basis * _idle_shake_offset
-		global_position += shake_world
+		_collision_offset = _collision_handler.update_collision(
+			delta, target, target_pos, target_frame_offset, get_world_3d()
+		)
+		if _collision_offset > COLLISION_OFFSET_THRESHOLD:
+			var direction := (target_pos - (target.global_position + target_frame_offset)).normalized()
+			global_position = target_pos - direction * _collision_offset
+		# Update player visibility based on final camera distance.
+		_collision_handler.update_player_visibility(target, global_position, target_frame_offset)
 
 	# Smooth FOV interpolation (only for preset changes, not zoom).
-	if absf(camera.fov - _target_fov) > 0.1:
+	if absf(camera.fov - _target_fov) > FOV_THRESHOLD:
 		camera.fov = lerpf(camera.fov, _target_fov, 1.0 - exp(-zoom_speed * delta))
 		camera.reset_physics_interpolation()
 
-	# Handle rotation - determine look target based on camera type.
+	# Handle rotation - determine look target.
 	var look_target: Vector3 = player_center
 
-	if _camera_marker is DefaultCameraMarker:
-		# Default camera: cursor panning only when aiming (RMB held).
-		var is_aiming := Input.is_action_pressed("aim")
-		if is_aiming:
-			var marker := _camera_marker as DefaultCameraMarker
-			if marker.cursor_look_at and is_instance_valid(marker.cursor_look_at):
-				look_target = marker.get_clamped_cursor_position(camera.global_position, player_center)
-		# When not aiming, look_target stays at player_center
-	else:
-		# Zone cameras: always use their look_at_node (not gated by aiming).
-		if _look_at_node and is_instance_valid(_look_at_node):
-			if _look_at_node == target:
-				look_target = player_center
-			else:
-				look_target = _look_at_node.global_position
+	# During transitions, always use _look_at_node (the player) for smooth orbit.
+	if is_transitioning and _look_at_node and is_instance_valid(_look_at_node):
+		if _look_at_node == target:
+			look_target = player_center
+		else:
+			look_target = _look_at_node.global_position
+	elif _camera_marker == template_camera and _camera_system:
+		# Default camera: cursor panning via CameraSystem (only when not transitioning).
+		look_target = _camera_system.get_cursor_look_target(camera.global_position, player_center)
+	elif _look_at_node and is_instance_valid(_look_at_node):
+		# Zone cameras: use their explicit look_at_node.
+		if _look_at_node == target:
+			look_target = player_center
+		else:
+			look_target = _look_at_node.global_position
 
 	var dir := look_target - camera.global_position
-	if dir.length_squared() > 0.001:
-		var up := Vector3.FORWARD if absf(dir.normalized().y) > 0.9 else Vector3.UP
-		var rot_speed := 6.0 * transition_speed_mult
+	if dir.length_squared() > LOOK_DIRECTION_THRESHOLD:
+		var up := Vector3.FORWARD if absf(dir.normalized().y) > UP_VECTOR_THRESHOLD else Vector3.UP
 		var target_basis := Basis.looking_at(dir, up)
-		camera.global_basis = camera.global_basis.slerp(target_basis, 1.0 - exp(-rot_speed * delta))
 
-	# Apply idle shake rotation (subtle sway when idle).
-	if _idle_shake_rot_offset.length_squared() > 0.0001 and not is_transitioning:
-		var shake_rot := _idle_shake_rot_offset
-		camera.rotate_object_local(Vector3.RIGHT, deg_to_rad(shake_rot.x))  # Pitch.
-		camera.rotate_object_local(Vector3.UP, deg_to_rad(shake_rot.y))     # Yaw.
-		camera.rotate_object_local(Vector3.FORWARD, deg_to_rad(shake_rot.z)) # Roll.
+		# During transitions, lock instantly to target - no lag.
+		# After transition, use smooth rotation for natural camera feel.
+		if is_transitioning:
+			camera.global_basis = target_basis
+		else:
+			var rot_speed := 6.0 * transition_speed_mult
+			camera.global_basis = camera.global_basis.slerp(target_basis, 1.0 - exp(-rot_speed * delta))
 
+	# Re-enable cursor early during transition (before it fully completes).
+	if is_transitioning and not _cursor_reenabled_early and _transition_progress >= cursor_reenable_percent:
+		if not _first_person_active and player_controller and player_controller.cursor:
+			player_controller.cursor.set_active(true)
+			_cursor_reenabled_early = true
+
+	# Idle shake is now handled by IdleShakeModifier via the modifier stack.
 	camera.reset_physics_interpolation()
 
 #endregion
@@ -598,7 +744,7 @@ func _update_marker_camera(delta: float) -> void:
 func _update_first_person(_delta: float) -> void:
 	if not current_preset:
 		return
-	# Use first_person_marker position if available, otherwise use preset's head_offset.
+	# Use first_person_template position if available, otherwise use preset's head_offset.
 	var head_offset := _get_head_offset()
 	global_position = target.global_position + head_offset
 	if player_controller:
@@ -610,10 +756,10 @@ func _update_first_person(_delta: float) -> void:
 	spring_arm.rotation.x = _fp_pitch
 
 
-## Get head offset from first_person_marker if set, otherwise from preset.
+## Get head offset from first_person_template if set, otherwise from preset.
 func _get_head_offset() -> Vector3:
-	if first_person_marker and is_instance_valid(first_person_marker):
-		return first_person_marker.position
+	if first_person_template and is_instance_valid(first_person_template):
+		return first_person_template.position
 	if current_preset:
 		return current_preset.head_offset
 	return Vector3(0, 1.7, 0)
@@ -635,19 +781,19 @@ func _camera_relative_direction(input: Vector2) -> Vector3:
 	forward = forward.normalized()
 	right = right.normalized()
 	var dir := right * input.x + forward * (-input.y)
-	return dir.normalized() if dir.length() > 0.01 else Vector3.ZERO
+	return dir.normalized() if dir.length_squared() > INPUT_DEADZONE_SQ else Vector3.ZERO
 
 
 func _fixed_axis_direction(input: Vector2) -> Vector3:
 	var forward := current_preset.fixed_forward.normalized()
 	var right := current_preset.fixed_right.normalized()
 	var dir := right * input.x + forward * (-input.y)
-	return dir.normalized() if dir.length() > 0.01 else Vector3.ZERO
+	return dir.normalized() if dir.length_squared() > INPUT_DEADZONE_SQ else Vector3.ZERO
 
 
 func _world_direction(input: Vector2) -> Vector3:
 	var dir := Vector3(input.x, 0.0, input.y)
-	return dir.normalized() if dir.length() > 0.01 else Vector3.ZERO
+	return dir.normalized() if dir.length_squared() > INPUT_DEADZONE_SQ else Vector3.ZERO
 
 #endregion
 
@@ -655,7 +801,6 @@ func _world_direction(input: Vector2) -> Vector3:
 #region Transitions
 
 func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType, from_fixed: bool = false) -> void:
-	print(">>> _transition_third_person: Using preset values! offset=", preset.offset, " spring_length=", preset.spring_length)
 	# Disable collision during transition to prevent camera snapping.
 	spring_arm.collision_mask = 0
 	# Update target zoom to match preset (user can still override with scroll wheel).
@@ -680,8 +825,8 @@ func _transition_third_person(preset: CameraPreset, dur: float, trans: Tween.Tra
 func _transition_to_first_person(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
 	_fp_yaw = pivot.rotation.y
 	_fp_pitch = spring_arm.rotation.x
-	# Use first_person_marker position if available.
-	var head_offset := first_person_marker.position if first_person_marker else preset.head_offset
+	# Use first_person_template position if available.
+	var head_offset := first_person_template.position if first_person_template else preset.head_offset
 	var head_pos := target.global_position + head_offset
 	_active_tween.tween_property(spring_arm, "spring_length", 0.0, dur).set_trans(trans).set_ease(ease_t)
 	_active_tween.tween_property(self, "global_position", head_pos, dur).set_trans(trans).set_ease(ease_t)
@@ -710,11 +855,11 @@ func _transition_from_first_person(preset: CameraPreset, dur: float, trans: Twee
 
 
 func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.TransitionType, ease_t: Tween.EaseType) -> void:
-	# Transition to a marker position (fixed or follow mode).
+	# Transition to a marker/template position (fixed or follow mode).
 	spring_arm.collision_mask = 0
-	# Use marker's FOV if it's a DefaultCameraMarker with custom FOV, otherwise use preset.
+	# Use template camera's FOV if available, otherwise use preset.
 	var marker_fov := preset.fov
-	if _camera_marker is DefaultCameraMarker and _camera_marker.fov > 0:
+	if _camera_marker is Camera3D and _camera_marker.fov > 0:
 		marker_fov = _camera_marker.fov
 	_target_fov = marker_fov
 
@@ -735,18 +880,16 @@ func _transition_to_marker(preset: CameraPreset, dur: float, trans: Tween.Transi
 	_active_tween.tween_property(camera, "fov", marker_fov, dur).set_trans(trans).set_ease(ease_t)
 
 	if preset.follow_target and target:
-		# FOLLOW MODE: Use progress-based interpolation so target updates each frame.
-		# This ensures we always end up at the correct position even if player moves.
+		# FOLLOW MODE: Camera moves from current position to target position.
 		_transition_start_pos = camera_world_pos
 		_transition_progress = 0.0
-		print(">>> _transition_to_marker: FOLLOW MODE - progress-based from ", camera_world_pos)
+		# TWEEN MODE: Time-based transition.
 		_active_tween.tween_property(self, "_transition_progress", 1.0, dur).set_trans(trans).set_ease(ease_t)
 		# Note: position is updated in _update_marker_camera using _transition_progress
 	else:
 		# FIXED MODE: Tween position to fixed marker location.
 		# Rotation is handled by slerp in _update_marker_camera to track player movement.
 		var target_pos := _camera_marker.global_position
-		print(">>> _transition_to_marker: FIXED MODE marker=", _camera_marker.name, " pos=", target_pos)
 		_active_tween.tween_property(self, "global_position", target_pos, dur).set_trans(trans).set_ease(ease_t)
 
 #endregion
@@ -797,270 +940,6 @@ func set_dof_enabled(enabled: bool) -> void:
 #endregion
 
 
-#region Collision
-
-func _apply_marker_collision(delta: float, desired_pos: Vector3) -> void:
-	# Raycast from player to desired camera position to detect blocking geometry.
-	var player_pos := target.global_position + target_frame_offset
-	var to_camera := desired_pos - player_pos
-	var distance := to_camera.length()
-
-	if distance < 0.1:
-		_collision_offset = 0.0
-		_update_player_visibility(distance)
-		return
-
-	var direction := to_camera.normalized()
-
-	# Get physics space state.
-	var space_state := get_world_3d().direct_space_state
-	if not space_state:
-		return
-
-	# Raycast from player toward camera.
-	var query := PhysicsRayQueryParameters3D.create(player_pos, desired_pos, camera_collision_mask)
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	# Exclude the player body.
-	if target:
-		query.exclude = [target.get_rid()]
-
-	var result := space_state.intersect_ray(query)
-
-	var target_offset: float = 0.0
-	if not result.is_empty():
-		# Hit something - calculate how much to pull in.
-		var hit_pos: Vector3 = result.position
-		var hit_distance := player_pos.distance_to(hit_pos)
-		# Pull camera to hit point minus margin.
-		target_offset = distance - hit_distance + collision_margin
-		# Clamp to minimum distance.
-		var max_offset := distance - min_camera_distance
-		target_offset = minf(target_offset, max_offset)
-
-	# Smoothly interpolate collision offset.
-	_collision_offset = lerpf(_collision_offset, target_offset, 1.0 - exp(-collision_speed * delta))
-
-	# Apply collision offset - pull camera closer to player.
-	if _collision_offset > 0.01:
-		global_position = desired_pos - direction * _collision_offset
-
-	# Update player visibility based on final camera distance.
-	var final_distance := player_pos.distance_to(global_position)
-	_update_player_visibility(final_distance)
-
-
-func _update_player_visibility(camera_distance: float) -> void:
-	if not target:
-		return
-
-	# Find renderable meshes on the player.
-	var meshes := _get_player_meshes()
-	if meshes.is_empty():
-		return
-
-	if camera_distance <= player_hide_distance:
-		# Too close - hide completely.
-		for mesh in meshes:
-			mesh.visible = false
-	elif camera_distance <= player_fade_distance:
-		# Fade zone - adjust transparency.
-		var t := (camera_distance - player_hide_distance) / (player_fade_distance - player_hide_distance)
-		for mesh in meshes:
-			mesh.visible = true
-			_set_mesh_transparency(mesh, 1.0 - t)
-	else:
-		# Normal distance - fully visible.
-		for mesh in meshes:
-			mesh.visible = true
-			_set_mesh_transparency(mesh, 0.0)
-
-
-func _get_player_meshes() -> Array[MeshInstance3D]:
-	var meshes: Array[MeshInstance3D] = []
-	if not target:
-		return meshes
-
-	# Recursively find all MeshInstance3D children.
-	_collect_meshes(target, meshes)
-	return meshes
-
-
-func _collect_meshes(node: Node, meshes: Array[MeshInstance3D]) -> void:
-	if node is MeshInstance3D:
-		meshes.append(node)
-	for child in node.get_children():
-		_collect_meshes(child, meshes)
-
-
-func _set_mesh_transparency(mesh: MeshInstance3D, transparency: float) -> void:
-	if transparency <= 0.01:
-		# Fully opaque - restore original material if we modified it.
-		if mesh.has_meta("_original_transparency"):
-			var mat := mesh.get_active_material(0)
-			if mat is StandardMaterial3D:
-				mat.transparency = mesh.get_meta("_original_transparency")
-				mat.albedo_color.a = 1.0
-			mesh.remove_meta("_original_transparency")
-		return
-
-	# Make transparent.
-	var mat := mesh.get_active_material(0)
-	if not mat:
-		return
-
-	# Store original transparency mode.
-	if not mesh.has_meta("_original_transparency"):
-		if mat is StandardMaterial3D:
-			mesh.set_meta("_original_transparency", mat.transparency)
-
-	# Apply transparency.
-	if mat is StandardMaterial3D:
-		if mat.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
-			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color.a = 1.0 - transparency
-
-#endregion
-
-
-#region Auto Framing
-
-func _update_auto_framing(delta: float) -> void:
-	if not auto_frame_enabled or not target:
-		_auto_frame_zoom = lerpf(_auto_frame_zoom, 0.0, 1.0 - exp(-auto_frame_speed * delta))
-		return
-
-	var space_state := get_world_3d().direct_space_state
-	if not space_state:
-		return
-
-	var player_pos := target.global_position + target_frame_offset
-	var total_openness := 0.0
-
-	# Cast rays in a circle around the player to detect nearby geometry.
-	for i in auto_frame_ray_count:
-		var angle := TAU * i / auto_frame_ray_count
-		var direction := Vector3(cos(angle), 0.0, sin(angle))
-		var ray_end := player_pos + direction * auto_frame_distance
-
-		var query := PhysicsRayQueryParameters3D.create(player_pos, ray_end, auto_frame_mask)
-		query.collide_with_areas = false
-		query.collide_with_bodies = true
-		if target:
-			query.exclude = [target.get_rid()]
-
-		var result := space_state.intersect_ray(query)
-
-		if result.is_empty():
-			# No hit - fully open in this direction.
-			total_openness += 1.0
-		else:
-			# Hit something - openness based on distance.
-			var hit_distance := player_pos.distance_to(result.position)
-			total_openness += hit_distance / auto_frame_distance
-
-	# Average openness (0 = surrounded by objects, 1 = completely open).
-	var openness := total_openness / auto_frame_ray_count
-
-	# Map openness to zoom offset.
-	# openness = 1.0 (open) -> zoom in (positive offset, closer to player)
-	# openness = 0.0 (closed) -> zoom out (negative offset, further from player)
-	var target_auto_zoom := lerpf(auto_frame_zoom_out, auto_frame_zoom_in, openness)
-
-	# Smoothly interpolate.
-	_auto_frame_zoom = lerpf(_auto_frame_zoom, target_auto_zoom, 1.0 - exp(-auto_frame_speed * delta))
-
-#endregion
-
-
-#region Idle Zoom & Shake
-
-func _update_idle_zoom(delta: float) -> void:
-	# Check if player is moving (using velocity).
-	var is_moving := target.velocity.length_squared() > 0.1 if target else true
-
-	# Handle idle zoom.
-	if not idle_zoom_enabled or not target:
-		_idle_zoom = lerpf(_idle_zoom, 0.0, 1.0 - exp(-idle_zoom_speed * 4.0 * delta))
-		_idle_time = 0.0
-		_idle_zoom_progress = 0.0
-	elif is_moving:
-		# Player is moving - reset idle time and ease back in from current position.
-		_idle_time = 0.0
-		if _idle_zoom_progress > 0.0:
-			# Store current zoom as new start for returning.
-			_idle_zoom_start = _idle_zoom
-		_idle_zoom_progress = 0.0
-		_idle_zoom = lerpf(_idle_zoom, 0.0, 1.0 - exp(-idle_zoom_speed * 4.0 * delta))
-	else:
-		# Player is idle - accumulate time.
-		_idle_time += delta
-
-		# After delay, start zooming out with ease-in-out from current position.
-		if _idle_time >= idle_zoom_delay:
-			# Capture start position when we first begin idle zoom.
-			if _idle_zoom_progress == 0.0:
-				_idle_zoom_start = _idle_zoom
-
-			# Progress from 0 to 1 over time.
-			_idle_zoom_progress = minf(_idle_zoom_progress + idle_zoom_speed * delta * 0.3, 1.0)
-
-			# Apply smoothstep ease-in-out: slow start, fast middle, slow end.
-			var t := _idle_zoom_progress
-			var eased := t * t * (3.0 - 2.0 * t)
-
-			# Lerp from start position to target.
-			_idle_zoom = lerpf(_idle_zoom_start, idle_zoom_amount, eased)
-
-	# Handle idle shake (subtle breathing/sway effect).
-	_update_idle_shake(delta, is_moving)
-
-#endregion
-
-
-#region Idle Shake
-
-func _update_idle_shake(delta: float, is_moving: bool) -> void:
-	if not idle_shake_enabled:
-		_idle_shake_alpha = 0.0
-		_idle_shake_offset = Vector3.ZERO
-		_idle_shake_rot_offset = Vector3.ZERO
-		return
-
-	# Fade shake alpha based on movement state.
-	if is_moving:
-		# Fade out when moving.
-		_idle_shake_alpha = lerpf(_idle_shake_alpha, 0.0, 1.0 - exp(-idle_shake_fade_speed * 3.0 * delta))
-	else:
-		# Fade in when idle (after the same delay as zoom).
-		if _idle_time >= idle_zoom_delay:
-			_idle_shake_alpha = lerpf(_idle_shake_alpha, 1.0, 1.0 - exp(-idle_shake_fade_speed * delta))
-
-	# Always advance time for smooth oscillation.
-	_idle_shake_time += delta
-
-	# Calculate shake offsets using low-frequency sine waves (different phases per axis).
-	if _idle_shake_alpha > 0.001:
-		var freq := idle_shake_frequency * TAU
-		# Position offset.
-		_idle_shake_offset = Vector3(
-			sin(_idle_shake_time * freq) * idle_shake_amount.x,
-			sin(_idle_shake_time * freq * 0.7 + 1.0) * idle_shake_amount.y,
-			sin(_idle_shake_time * freq * 0.5 + 2.0) * idle_shake_amount.z
-		) * _idle_shake_alpha
-		# Rotation offset (different phases for organic feel).
-		_idle_shake_rot_offset = Vector3(
-			sin(_idle_shake_time * freq * 0.8 + 0.5) * idle_shake_rotation.x,  # Pitch.
-			sin(_idle_shake_time * freq * 0.6 + 1.5) * idle_shake_rotation.y,  # Yaw.
-			sin(_idle_shake_time * freq * 0.4 + 2.5) * idle_shake_rotation.z   # Roll.
-		) * _idle_shake_alpha
-	else:
-		_idle_shake_offset = Vector3.ZERO
-		_idle_shake_rot_offset = Vector3.ZERO
-
-#endregion
-
-
 #region Internal
 
 func _on_transition_complete(preset: CameraPreset, is_fp: bool) -> void:
@@ -1073,14 +952,11 @@ func _on_transition_complete(preset: CameraPreset, is_fp: bool) -> void:
 		if player_controller:
 			player_controller.set_first_person(is_fp)
 		first_person_changed.emit(is_fp)
-	elif not _first_person_active and player_controller and player_controller.cursor:
-		# Re-enable cursor after third-person to third-person transition.
+	elif not _first_person_active and not _cursor_reenabled_early and player_controller and player_controller.cursor:
+		# Re-enable cursor after third-person to third-person transition (if not already enabled).
 		player_controller.cursor.set_active(true)
 	# Reset physics interpolation to prevent flash frame after transition.
-	reset_physics_interpolation()
-	pivot.reset_physics_interpolation()
-	spring_arm.reset_physics_interpolation()
-	camera.reset_physics_interpolation()
+	_reset_all_interpolation()
 	preset_changed.emit(preset)
 
 
@@ -1093,8 +969,8 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 		_fp_yaw = 0.0
 		_fp_pitch = 0.0
 		if target:
-			# Use first_person_marker position if available.
-			var head_offset := first_person_marker.position if first_person_marker else preset.head_offset
+			# Use first_person_template position if available.
+			var head_offset := first_person_template.position if first_person_template else preset.head_offset
 			global_position = target.global_position + head_offset
 		if player_controller:
 			player_controller.set_first_person(true)
@@ -1112,10 +988,7 @@ func _apply_preset_instant(preset: CameraPreset) -> void:
 			player_controller.set_first_person(false)
 		first_person_changed.emit(false)
 	# Reset physics interpolation to prevent flash frame.
-	reset_physics_interpolation()
-	pivot.reset_physics_interpolation()
-	spring_arm.reset_physics_interpolation()
-	camera.reset_physics_interpolation()
+	_reset_all_interpolation()
 	preset_changed.emit(preset)
 
 
@@ -1138,11 +1011,19 @@ func _apply_preset_instant_for_marker(preset: CameraPreset, marker_distance: flo
 		player_controller.set_first_person(false)
 	first_person_changed.emit(false)
 	# Reset physics interpolation to prevent flash frame.
-	reset_physics_interpolation()
-	pivot.reset_physics_interpolation()
-	spring_arm.reset_physics_interpolation()
-	camera.reset_physics_interpolation()
+	_reset_all_interpolation()
 	preset_changed.emit(preset)
+
+
+## Reset physics interpolation on all camera nodes to prevent visual pops.
+func _reset_all_interpolation() -> void:
+	reset_physics_interpolation()
+	if pivot:
+		pivot.reset_physics_interpolation()
+	if spring_arm:
+		spring_arm.reset_physics_interpolation()
+	if camera:
+		camera.reset_physics_interpolation()
 
 
 func _build_hierarchy() -> void:
@@ -1162,5 +1043,119 @@ func _build_hierarchy() -> void:
 	camera.name = "Camera3D"
 	modifier_stack.add_child(camera)
 	modifier_stack.camera = camera
+
+#endregion
+
+
+#region Debug Visualization
+
+func _setup_debug_visualization() -> void:
+	# Line mesh for camera-to-target visualization.
+	_debug_mesh = MeshInstance3D.new()
+	_debug_mesh.name = "_DebugLine"
+	_debug_mesh.mesh = ImmediateMesh.new()
+	_debug_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	get_tree().root.add_child.call_deferred(_debug_mesh)
+
+	_debug_material = StandardMaterial3D.new()
+	_debug_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_debug_material.albedo_color = Color(1.0, 0.0, 1.0, 1.0)  # Magenta.
+	_debug_material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+
+	# Target sphere (green).
+	_debug_target_sphere = _create_debug_sphere(Color(0.0, 1.0, 0.0), 0.3)
+	get_tree().root.add_child.call_deferred(_debug_target_sphere)
+
+	# Look-at sphere (cyan).
+	_debug_lookat_sphere = _create_debug_sphere(Color(0.0, 1.0, 1.0), 0.25)
+	get_tree().root.add_child.call_deferred(_debug_lookat_sphere)
+
+
+func _create_debug_sphere(color: Color, radius: float) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	mesh_instance.mesh = sphere
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mesh_instance.material_override = mat
+	return mesh_instance
+
+
+func _update_debug_visualization() -> void:
+	if not debug_draw_enabled:
+		if _debug_mesh:
+			_debug_mesh.visible = false
+		if _debug_target_sphere:
+			_debug_target_sphere.visible = false
+		if _debug_lookat_sphere:
+			_debug_lookat_sphere.visible = false
+		return
+
+	# Wait until debug nodes are in the scene tree.
+	if not _debug_mesh or not _debug_mesh.is_inside_tree():
+		return
+	if not _debug_target_sphere or not _debug_target_sphere.is_inside_tree():
+		return
+	if not _debug_lookat_sphere or not _debug_lookat_sphere.is_inside_tree():
+		return
+
+	_debug_mesh.visible = true
+	_debug_target_sphere.visible = true
+	_debug_lookat_sphere.visible = true
+
+	# Position target sphere at player (green).
+	var player_center := Vector3.ZERO
+	if target:
+		player_center = target.global_position + target_frame_offset
+		_debug_target_sphere.global_position = player_center
+
+	# Calculate the actual look target used in _update_marker_camera (cyan sphere).
+	var actual_look_target := player_center
+	if _camera_marker and is_instance_valid(_camera_marker):
+		# Mirror the logic from _update_marker_camera.
+		if is_transitioning and _look_at_node and is_instance_valid(_look_at_node):
+			if _look_at_node == target:
+				actual_look_target = player_center
+			else:
+				actual_look_target = _look_at_node.global_position
+		elif _camera_marker == template_camera and _camera_system:
+			actual_look_target = _camera_system.get_cursor_look_target(camera.global_position, player_center)
+		elif _look_at_node and is_instance_valid(_look_at_node):
+			if _look_at_node == target:
+				actual_look_target = player_center
+			else:
+				actual_look_target = _look_at_node.global_position
+
+	if _debug_lookat_sphere:
+		_debug_lookat_sphere.global_position = actual_look_target
+
+	# Draw line from camera to look target.
+	if _debug_mesh and _debug_mesh.mesh is ImmediateMesh and camera:
+		var im: ImmediateMesh = _debug_mesh.mesh
+		im.clear_surfaces()
+
+		var cam_pos := camera.global_position
+		im.surface_begin(Mesh.PRIMITIVE_LINES, _debug_material)
+		im.surface_add_vertex(cam_pos)
+		im.surface_add_vertex(actual_look_target)
+		im.surface_end()
+
+	# Print debug info during transitions.
+	if is_transitioning and debug_print_transitions:
+		var active_preset := _transition_target if _transition_target else current_preset
+		print("[CameraRig] TRANSITIONING:")
+		print("  target (player): %s" % (target.name if target else "NULL"))
+		print("  _look_at_node: %s" % (_look_at_node.name if _look_at_node else "NULL"))
+		print("  _camera_marker: %s" % (_camera_marker.name if _camera_marker else "NULL"))
+		print("  template_camera: %s" % (template_camera.name if template_camera else "NULL"))
+		print("  _camera_marker == template_camera: %s" % (_camera_marker == template_camera))
+		print("  active_preset: %s" % (active_preset.preset_name if active_preset else "NULL"))
+		print("  active_preset.follow_target: %s" % (active_preset.follow_target if active_preset else "N/A"))
+		print("  actual_look_target: %s" % actual_look_target)
+		print("  _transition_progress: %.2f" % _transition_progress)
 
 #endregion

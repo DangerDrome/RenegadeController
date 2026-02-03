@@ -1,21 +1,30 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cv4rr32ktg54f"]
 
-[ext_resource type="Script" path="res://addons/renegade_controller/src/zones/camera_zone.gd" id="1"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/side_scroller.tres" id="2"]
+[ext_resource type="Script" uid="uid://by7iy60qgqp5s" path="res://addons/renegade_controller/src/zones/camera_zone.gd" id="1"]
+[ext_resource type="Resource" uid="uid://v18oqsuohbws" path="res://addons/renegade_controller/presets/side_scroller.tres" id="2"]
 
-[node name="SideScrollerZone" type="Area3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(18.626007, 8.688477, 5.489395)
+
+[node name="SideScrollerZone" type="Area3D" unique_id=1865937893 node_paths=PackedStringArray("zone_camera", "look_at_marker")]
+collision_layer = 0
 script = ExtResource("1")
 camera_preset = ExtResource("2")
-zone_priority = 0
-revert_on_exit = true
-zone_size = Vector3(10, 5, 10)
+zone_camera = NodePath("CameraRig/ZoneCamera")
+look_at_marker = NodePath("CameraRig/LookAtTarget")
 
-[node name="Camera_volume" type="CollisionShape3D" parent="."]
+[node name="ZoneShape" type="CollisionShape3D" parent="." unique_id=1910563699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+shape = SubResource("BoxShape3D_1")
 
-[node name="Camera" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 2, 0)
+[node name="CameraRig" type="Marker3D" parent="." unique_id=1668872784]
+transform = Transform3D(1.0000216, 0, 0, 0, 1.0000027, 0, 0, 0, 1.0000073, 0, 0, 0)
+gizmo_extents = 0.4
+
+[node name="ZoneCamera" type="Camera3D" parent="CameraRig" unique_id=987521082]
+transform = Transform3D(-0.19251734, 0.035860166, -0.9806173, 0, 0.9993293, 0.036543112, 0.9812856, 0.0070353663, -0.19238622, -13.252028, 1.993861, -2.5999749)
+fov = 70.0
+
+[node name="LookAtTarget" type="Marker3D" parent="CameraRig" unique_id=328933640]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 gizmo_extents = 0.5
-
-[node name="Camera_target" type="Marker3D" parent="Camera"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2)
-gizmo_extents = 0.3

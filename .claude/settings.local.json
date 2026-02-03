@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(godot:*)"
+      "Bash(godot:*)",
+      "mcp__serena__find_symbol",
+      "mcp__serena__activate_project",
+      "Bash(grep:*)",
+      "mcp__serena__think_about_whether_you_are_done"
     ]
   },
   "outputStyle": "default"

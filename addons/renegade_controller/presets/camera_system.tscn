@@ -1,57 +1,55 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene format=3 uid="uid://cpo2fvv3xhi2y"]
 
-[ext_resource type="Script" path="res://addons/renegade_controller/src/camera/camera_system.gd" id="1"]
-[ext_resource type="Script" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="2"]
-[ext_resource type="Script" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="3"]
-[ext_resource type="Script" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="4"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/third_person.tres" id="5"]
-[ext_resource type="Script" path="res://addons/renegade_controller/src/camera/modifiers/camera_modifier_stack.gd" id="6"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/modifiers/default_shake.tres" id="7"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/modifiers/default_zoom.tres" id="8"]
-[ext_resource type="Resource" path="res://addons/renegade_controller/presets/modifiers/default_framing.tres" id="9"]
-[ext_resource type="Script" path="res://addons/renegade_controller/src/camera/default_camera_marker.gd" id="10"]
+[ext_resource type="Script" uid="uid://clykkyekxu6gk" path="res://addons/renegade_controller/src/camera/camera_system.gd" id="1"]
+[ext_resource type="Script" uid="uid://ci3lf582eb6f4" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="2"]
+[ext_resource type="Script" uid="uid://kf5sip8wymyh" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="3"]
+[ext_resource type="Script" uid="uid://bpabgpdksoyhb" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="4"]
+[ext_resource type="Resource" uid="uid://b5xvmbvm1o0xp" path="res://addons/renegade_controller/presets/third_person.tres" id="5"]
+[ext_resource type="Script" uid="uid://btqyg8ilelcv1" path="res://addons/renegade_controller/src/camera/modifiers/camera_modifier_stack.gd" id="6"]
+[ext_resource type="Resource" uid="uid://bjau5bpsv4d6l" path="res://addons/renegade_controller/presets/modifiers/default_shake.tres" id="7"]
+[ext_resource type="Resource" uid="uid://cx4yijl0ua8cf" path="res://addons/renegade_controller/presets/modifiers/default_zoom.tres" id="8"]
+[ext_resource type="Resource" uid="uid://bbfk5l0a3vhe1" path="res://addons/renegade_controller/presets/modifiers/default_framing.tres" id="9"]
+[ext_resource type="Script" uid="uid://dngamilx5u6gw" path="res://addons/renegade_controller/src/camera/camera_preset.gd" id="10_62340"]
 
-[node name="CameraSystem" type="Node3D"]
+[sub_resource type="Resource" id="Resource_f8pt8"]
+script = ExtResource("10_62340")
+metadata/_custom_type_script = "uid://dngamilx5u6gw"
+
+[node name="CameraSystem" type="Node3D" unique_id=566928009]
 script = ExtResource("1")
+default_preset = ExtResource("5")
 third_person_camera = NodePath("ThirdPersonCamera")
 first_person_camera = NodePath("FirstPersonCamera")
-default_preset = ExtResource("5")
 shake_modifier = ExtResource("7")
 zoom_modifier = ExtResource("8")
 framing_modifier = ExtResource("9")
 
-[node name="ThirdPersonCamera" type="Marker3D" parent="." node_paths=PackedStringArray("cursor_look_at")]
-transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 3, 6)
-gizmo_extents = 0.5
-script = ExtResource("10")
-cursor_look_at = NodePath("../Cursor3D")
-marker_label = "3rd Person"
+[node name="ThirdPersonCamera" type="Camera3D" parent="." unique_id=1167155369]
+transform = Transform3D(1, 0, 0, 0, 0.9659259, 0.25881898, 0, -0.25881898, 0.9659259, 0, 16.15537, 16.561241)
+fov = 10.0
 
-[node name="FirstPersonCamera" type="Marker3D" parent="."]
+[node name="FirstPersonCamera" type="Camera3D" parent="." unique_id=958740059]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
-gizmo_extents = 0.25
-script = ExtResource("10")
-marker_label = "1st Person"
 
-[node name="CameraRig" type="Node3D" parent="."]
+[node name="CameraRig" type="Node3D" parent="." unique_id=1974708773]
 script = ExtResource("2")
-default_preset = ExtResource("5")
 
-[node name="Pivot" type="Node3D" parent="CameraRig"]
+[node name="Pivot" type="Node3D" parent="CameraRig" unique_id=45986632]
 
-[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig/Pivot"]
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig/Pivot" unique_id=1254927577]
 spring_length = 5.0
 margin = 0.2
 
-[node name="CameraModifierStack" type="Node3D" parent="CameraRig/Pivot/SpringArm3D"]
+[node name="CameraModifierStack" type="Node3D" parent="CameraRig/Pivot/SpringArm3D" unique_id=2086402432]
 script = ExtResource("6")
 
-[node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D/CameraModifierStack"]
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D/CameraModifierStack" unique_id=298327191]
 current = true
 
-[node name="Cursor3D" type="Node3D" parent="."]
+[node name="Cursor3D" type="Node3D" parent="." unique_id=2083170300]
 script = ExtResource("3")
 
-[node name="CameraZoneManager" type="Node" parent="."]
+[node name="CameraZoneManager" type="Node" parent="." unique_id=73191255]
 script = ExtResource("4")
 camera_rig = NodePath("../CameraRig")
+default_preset = SubResource("Resource_f8pt8")

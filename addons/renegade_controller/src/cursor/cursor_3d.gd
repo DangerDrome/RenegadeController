@@ -92,6 +92,8 @@ var _previous_hovered: Node3D = null
 var _space_state: PhysicsDirectSpaceState3D
 var _sticky_target: Node3D = null
 var _sticky_position: Vector3 = Vector3.ZERO
+var _cached_interactables: Array[Node3D] = []
+var _interactable_cache_valid: bool = false
 
 
 func _ready() -> void:
@@ -101,10 +103,30 @@ func _ready() -> void:
 	look_at_target.top_level = true  # Independent of parent transform.
 	add_child(look_at_target)
 
+	# Connect to tree signals for cache invalidation.
+	get_tree().node_added.connect(_on_tree_changed)
+	get_tree().node_removed.connect(_on_tree_changed)
+
 	if show_cursor:
 		_create_cursor_visual()
 	_create_aim_line_visual()
 	_create_aim_plane_visual()
+
+
+func _on_tree_changed(_node: Node) -> void:
+	# Invalidate cache when scene tree changes.
+	_interactable_cache_valid = false
+
+
+## Get cached list of interactables (refreshed when tree changes).
+func _get_interactables() -> Array[Node3D]:
+	if not _interactable_cache_valid:
+		_cached_interactables.clear()
+		for node in get_tree().get_nodes_in_group("interactable"):
+			if node is Node3D:
+				_cached_interactables.append(node as Node3D)
+		_interactable_cache_valid = true
+	return _cached_interactables
 
 
 func _physics_process(delta: float) -> void:
@@ -226,13 +248,10 @@ func _apply_sticky(delta: float) -> void:
 	var best_target: Node3D = null
 	var best_dist_sq: float = sticky_radius * sticky_radius
 
-	# Get all interactables in the scene.
-	var interactables := get_tree().get_nodes_in_group("interactable")
+	# Get cached interactables in the scene.
+	var interactables := _get_interactables()
 
-	for node in interactables:
-		if not node is Node3D:
-			continue
-		var node3d := node as Node3D
+	for node3d in interactables:
 		if not node3d.is_inside_tree():
 			continue
 

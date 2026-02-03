@@ -92,7 +92,7 @@ func _resolve_active_camera() -> void:
 		return
 
 	if _active_zones.is_empty():
-		# Revert to default camera (uses CameraRig's default_preset and default_camera_marker).
+		# Revert to default camera (uses CameraRig's default_preset and template_camera).
 		_current_zone = null
 		camera_rig.reset_to_default()
 		active_zone_changed.emit(null)
@@ -112,10 +112,20 @@ func _resolve_active_camera() -> void:
 			# follow_target controls look-at behavior, follow_player controls position only.
 			var preset := best.camera_preset.duplicate() as CameraPreset
 			# Only enable look-at-player if zone has no explicit look_at target.
-			var has_look_at := best.get_look_at_node() != null
+			var look_at_node := best.get_look_at_node()
+			var camera_marker := best.get_camera_marker()
+			var has_look_at := look_at_node != null
 			preset.follow_target = has_look_at or best.follow_player
+
+			print("[CameraZoneManager] Transitioning to zone: %s" % best.name)
+			print("  - camera_marker: %s" % (camera_marker.name if camera_marker else "NULL"))
+			print("  - look_at_node: %s" % (look_at_node.name if look_at_node else "NULL"))
+			print("  - preset.follow_target: %s" % preset.follow_target)
+			print("  - best.follow_player: %s" % best.follow_player)
+			print("  - best.target_player: %s" % best.target_player)
+
 			camera_rig.set_position_follow_only(best.follow_player and not has_look_at)
-			camera_rig.transition_to(preset, best.camera_marker, best.get_look_at_node())
+			camera_rig.transition_to(preset, camera_marker, look_at_node)
 		active_zone_changed.emit(best)
 
 #endregion

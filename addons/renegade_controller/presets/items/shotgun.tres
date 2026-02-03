@@ -1,20 +1,16 @@
-[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="WeaponDefinition" format=3 uid="uid://csbyhpf0pviyj"]
 
-[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/weapon_definition.gd" id="1"]
+[ext_resource type="Script" uid="uid://b0v5vp6cngngg" path="res://addons/renegade_controller/src/inventory/weapon_definition.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
-id = &"shotgun"
-display_name = "Pump Shotgun"
-description = "Devastating at close range. Slow to reload."
-max_stack_size = 1
-is_unique = false
-item_type = 0
-slot_restrictions = [&"primary"]
 damage = 45.0
 fire_rate = 0.8
 magazine_size = 6
 reload_time = 2.5
 effective_range = 15.0
 animation_set = &"shotgun"
-fire_mode = 0
+id = &"shotgun"
+display_name = "Pump Shotgun"
+description = "Devastating at close range. Slow to reload."
+slot_restrictions = Array[StringName]([&"primary"])

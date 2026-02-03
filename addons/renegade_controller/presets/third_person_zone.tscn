@@ -1,21 +1,32 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/renegade_controller/src/zones/camera_zone.gd" id="1"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/third_person.tres" id="2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(10, 5, 10)
 
 [node name="ThirdPersonZone" type="Area3D"]
 script = ExtResource("1")
 camera_preset = ExtResource("2")
 zone_priority = 0
 revert_on_exit = true
-zone_size = Vector3(10, 5, 10)
+camera_fov = 70.0
+follow_player = true
+target_player = true
 
-[node name="Camera_volume" type="CollisionShape3D" parent="."]
+[node name="ZoneShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+shape = SubResource("BoxShape3D_1")
 
-[node name="Camera" type="Marker3D" parent="."]
+[node name="CameraRig" type="Marker3D" parent="."]
+gizmo_extents = 0.4
+
+[node name="ZoneCamera" type="Camera3D" parent="CameraRig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 5)
-gizmo_extents = 0.5
+current = false
+fov = 70.0
 
-[node name="Camera_target" type="Marker3D" parent="Camera"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2)
-gizmo_extents = 0.3
+[node name="LookAtTarget" type="Marker3D" parent="CameraRig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+gizmo_extents = 0.5

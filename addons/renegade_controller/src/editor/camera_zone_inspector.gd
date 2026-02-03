@@ -6,36 +6,31 @@ var _preset_settings_control: Control
 
 
 func _can_handle(object: Object) -> bool:
-	# Handle CameraZone or Marker3D that's a child of CameraZone.
+	# Handle CameraZone or Camera3D/Marker3D that's a child of CameraZone.
 	if object is CameraZone:
 		return true
-	if object is Marker3D:
+	if object is Camera3D or object is Marker3D:
 		var parent := (object as Node).get_parent()
 		if parent is CameraZone:
 			return true
-		# Also handle Camera_target (child of Camera, grandchild of CameraZone).
-		if parent is Marker3D:
-			var grandparent := parent.get_parent()
-			if grandparent is CameraZone:
-				return true
 	return false
 
 
 func _parse_begin(object: Object) -> void:
-	# Find the CameraZone and determine if this is the Camera marker.
+	# Find the CameraZone and determine if this is the zone camera.
 	var zone: CameraZone = null
-	var is_camera_marker := false
+	var is_zone_camera := false
 	if object is CameraZone:
 		zone = object
+	elif object is Camera3D:
+		var parent := (object as Node).get_parent()
+		if parent is CameraZone:
+			zone = parent
+			is_zone_camera = true
 	elif object is Marker3D:
 		var parent := (object as Node).get_parent()
 		if parent is CameraZone:
 			zone = parent
-			is_camera_marker = true  # Direct child of CameraZone = Camera marker.
-		elif parent is Marker3D:
-			var grandparent := parent.get_parent()
-			if grandparent is CameraZone:
-				zone = grandparent
 
 	if not zone:
 		return
@@ -45,8 +40,8 @@ func _parse_begin(object: Object) -> void:
 	_preview_control.setup(zone)
 	add_custom_control(_preview_control)
 
-	# Add preset settings when Camera marker is selected.
-	if is_camera_marker:
+	# Add preset settings when zone camera is selected.
+	if is_zone_camera:
 		_preset_settings_control = CameraPresetSettingsControl.new()
 		_preset_settings_control.setup(zone)
 		add_custom_control(_preset_settings_control)
@@ -80,9 +75,9 @@ class CameraPreviewControl extends VBoxContainer:
 		_subviewport.transparent_bg = false
 		add_child(_subviewport)
 
-		# Create preview camera (exclude layer 2 to hide camera body/lens).
+		# Create preview camera.
 		_preview_camera = Camera3D.new()
-		_preview_camera.cull_mask = 1  # Only layer 1.
+		_preview_camera.cull_mask = 0xFFFFFFFF  # All layers.
 		_subviewport.add_child(_preview_camera)
 
 		# Create TextureRect to display the viewport with proper aspect ratio.
@@ -117,27 +112,19 @@ class CameraPreviewControl extends VBoxContainer:
 		if not _preview_camera.is_inside_tree():
 			return
 
-		var marker := _zone.camera_marker
-		if not marker or not is_instance_valid(marker):
+		var zone_cam := _zone.zone_camera
+		if not zone_cam or not is_instance_valid(zone_cam):
 			return
-		if not marker.is_inside_tree():
+		if not zone_cam.is_inside_tree():
 			return
 
-		# Position the camera at the marker.
-		_preview_camera.global_transform = marker.global_transform
+		# Copy transform from zone camera (which auto-looks at marker in editor).
+		_preview_camera.global_transform = zone_cam.global_transform
 
-		# Look at the target if available (use editor version to avoid tracking player).
-		var look_node := _zone.get_editor_look_at_node()
-		if look_node and is_instance_valid(look_node) and look_node.is_inside_tree():
-			var look_pos := look_node.global_position
-			var cam_pos := _preview_camera.global_position
-			var dir := (look_pos - cam_pos).normalized()
-			# Avoid colinear issue.
-			var up := Vector3.FORWARD if absf(dir.y) > 0.9 else Vector3.UP
-			_preview_camera.look_at(look_pos, up)
-
-		# Apply FOV from preset if available.
-		if _zone.camera_preset:
+		# Apply FOV from zone camera or preset.
+		if _zone.camera_fov > 0:
+			_preview_camera.fov = _zone.camera_fov
+		elif _zone.camera_preset:
 			_preview_camera.fov = _zone.camera_preset.fov
 
 	func _on_resize_handle_input(event: InputEvent) -> void:
@@ -163,7 +150,7 @@ class CameraPreviewControl extends VBoxContainer:
 				_subviewport.queue_free()
 
 
-## Custom control that displays editable camera preset settings when Camera marker is selected.
+## Custom control that displays editable camera preset settings when zone camera is selected.
 class CameraPresetSettingsControl extends VBoxContainer:
 	var _zone: CameraZone
 	var _settings_container: VBoxContainer
