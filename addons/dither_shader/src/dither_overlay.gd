@@ -129,42 +129,49 @@ const PALETTES := {
 		blend_mode = value
 		_update_shader_params()
 
-@export_group("Depth Visualization")
+@export_group("World-Space Dithering")
 
-## Reference to a SceneBuffers node that provides depth/normal textures.
+## Reference to a SceneBuffers node that provides world position texture.
 @export var scene_buffers: SceneBuffers:
 	set(value):
-		# Disconnect from old scene_buffers
-		if scene_buffers and scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
-			scene_buffers.buffer_changed.disconnect(_on_buffer_changed)
+		# Disconnect from old scene_buffers and clear its request
+		if scene_buffers:
+			if scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+				scene_buffers.buffer_changed.disconnect(_on_buffer_changed)
+			scene_buffers.requested_buffer = SceneBuffers.BufferType.NONE
 		scene_buffers = value
-		# Connect to new scene_buffers
-		if scene_buffers and not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
-			scene_buffers.buffer_changed.connect(_on_buffer_changed)
+		# Connect to new scene_buffers and set our request
+		if scene_buffers:
+			if not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+				scene_buffers.buffer_changed.connect(_on_buffer_changed)
+			_update_scene_buffers_request()
 		_update_shader_params()
 
-## Enable depth-based effects. When enabled, depth information influences the dither.
-@export var depth_enabled: bool = false:
+## Set to WORLD_POSITION for world-space triplanar dithering, NONE for screen-space.
+## When WORLD_POSITION is selected, the dither pattern sticks to geometry using
+## triplanar mapping with proper normals. Other buffer types are for visualization only.
+@export var dither_buffer: SceneBuffers.BufferType = SceneBuffers.BufferType.NONE:
 	set(value):
-		depth_enabled = value
+		dither_buffer = value
+		_update_scene_buffers_request()
+		# Defer shader update to ensure SceneBuffers has updated first
+		if is_inside_tree():
+			call_deferred("_update_shader_params")
+		else:
+			_update_shader_params()
+
+## Size of the world-space dither pattern in world units. Larger = bigger pattern.
+@export_range(1.0, 100.0, 0.5) var world_dither_scale: float = 5.0:
+	set(value):
+		world_dither_scale = value
 		_update_shader_params()
 
-## Show only the depth buffer (grayscale). Useful for debugging and visualization.
-@export var depth_only: bool = false:
-	set(value):
-		depth_only = value
-		_update_shader_params()
+enum ProjectionPlane { XZ_FLOORS, XY_Z_WALLS, YZ_X_WALLS, AUTO }
 
-## Invert depth values (near becomes white, far becomes black).
-@export var depth_invert: bool = false:
+## Which plane to project the dither pattern onto. AUTO detects surface orientation.
+@export var world_dither_projection: ProjectionPlane = ProjectionPlane.AUTO:
 	set(value):
-		depth_invert = value
-		_update_shader_params()
-
-## How much depth influences the luminance calculation. 0 = color only, 1 = depth only.
-@export_range(0.0, 1.0, 0.01) var depth_influence: float = 0.5:
-	set(value):
-		depth_influence = value
+		world_dither_projection = value
 		_update_shader_params()
 
 @export_group("Overlay Settings")
@@ -189,8 +196,10 @@ func _ready() -> void:
 	if not color_palette and PALETTES.has(palette_preset):
 		color_palette = PALETTES[palette_preset]
 	# Ensure signal connection if scene_buffers was set from scene file
-	if scene_buffers and not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
-		scene_buffers.buffer_changed.connect(_on_buffer_changed)
+	if scene_buffers:
+		if not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+			scene_buffers.buffer_changed.connect(_on_buffer_changed)
+		_update_scene_buffers_request()
 	_update_shader_params()
 
 
@@ -239,28 +248,29 @@ func _update_shader_params() -> void:
 	_material.set_shader_parameter("u_mix", color_mix)
 	_material.set_shader_parameter("u_blend_mode", blend_mode)
 
-	# Depth visualization parameters - only enable if SceneBuffers has a valid active buffer
-	var buffer_active := false
+	# Get buffer texture if SceneBuffers is rendering something
 	var buffer_tex: ViewportTexture = null
-	# Check if scene_buffers exists and active_buffer is not NONE (0)
-	if scene_buffers and int(scene_buffers.active_buffer) > 0:
+	if scene_buffers:
 		buffer_tex = scene_buffers.get_buffer_texture()
-		buffer_active = buffer_tex != null
 
-	var show_buffer := depth_enabled and buffer_active
-	_material.set_shader_parameter("u_depth_enabled", show_buffer)
-	_material.set_shader_parameter("u_depth_only", show_buffer and depth_only)
-	_material.set_shader_parameter("u_depth_invert", depth_invert)
-	_material.set_shader_parameter("u_depth_influence", depth_influence if show_buffer else 0.0)
-
-	# Set or clear buffer texture
-	_material.set_shader_parameter("u_depth_tex", buffer_tex)
+	# World-space dithering (when WORLD_POSITION buffer is set)
+	var use_world_dither := dither_buffer == SceneBuffers.BufferType.WORLD_POSITION and buffer_tex != null
+	_material.set_shader_parameter("u_world_dither", use_world_dither)
+	_material.set_shader_parameter("u_world_dither_scale", world_dither_scale)
+	_material.set_shader_parameter("u_world_dither_projection", world_dither_projection)
+	_material.set_shader_parameter("u_world_pos_tex", buffer_tex)
 
 
 ## Called when SceneBuffers changes its active buffer type.
 func _on_buffer_changed(_new_buffer: SceneBuffers.BufferType) -> void:
 	_last_buffer_type = int(_new_buffer)
 	_update_shader_params()
+
+
+## Tell SceneBuffers which buffer we need for dithering.
+func _update_scene_buffers_request() -> void:
+	if scene_buffers:
+		scene_buffers.requested_buffer = dither_buffer
 
 
 ## Set all parameters at once. Useful for transitions or presets.
@@ -283,19 +293,9 @@ func next_palette() -> void:
 	palette_preset = next as PalettePreset
 
 
-## Toggle depth visualization on/off.
-func toggle_depth() -> void:
-	depth_enabled = not depth_enabled
-
-
-## Toggle depth-only mode (shows raw depth buffer).
-func toggle_depth_only() -> void:
-	if not depth_enabled:
-		depth_enabled = true
-	depth_only = not depth_only
-
-
-## Set depth parameters at once.
-func set_depth_params(p_invert: bool = false, p_influence: float = 0.5) -> void:
-	depth_invert = p_invert
-	depth_influence = p_influence
+## Toggle world-space dithering on/off.
+func toggle_world_dither() -> void:
+	if dither_buffer == SceneBuffers.BufferType.NONE:
+		dither_buffer = SceneBuffers.BufferType.WORLD_POSITION
+	else:
+		dither_buffer = SceneBuffers.BufferType.NONE

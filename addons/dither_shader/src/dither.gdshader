@@ -10,7 +10,6 @@ change this shader according to your needs.
 shader_type canvas_item;
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_nearest;
-uniform sampler2D u_depth_tex : filter_nearest;  // Depth from SceneBuffers viewport
 uniform sampler2D u_dither_tex : filter_nearest, repeat_enable;
 uniform sampler2D u_color_tex : filter_nearest;
 
@@ -21,11 +20,12 @@ uniform int u_dither_size : hint_range(1, 8) = 2;
 uniform float u_mix : hint_range(0.0, 1.0) = 1.0;
 uniform int u_blend_mode : hint_range(0, 10) = 0;
 
-// Depth visualization settings (depth texture is pre-linearized by SceneBuffers)
-uniform bool u_depth_enabled = false;
-uniform bool u_depth_only = false;
-uniform bool u_depth_invert = false;
-uniform float u_depth_influence : hint_range(0.0, 1.0) = 0.5;
+// World-space dithering
+uniform sampler2D u_world_pos_tex : filter_nearest;
+uniform bool u_world_dither = false;
+uniform float u_world_dither_scale : hint_range(0.01, 10.0) = 1.0;
+// Projection plane: 0 = XZ (floors), 1 = XY (Z-facing walls), 2 = YZ (X-facing walls)
+uniform int u_world_dither_projection : hint_range(0, 2) = 0;
 
 // Blend mode functions
 vec3 blend_normal(vec3 base, vec3 blend) { return blend; }
@@ -60,105 +60,112 @@ vec3 blend_difference(vec3 base, vec3 blend) { return abs(base - blend); }
 
 void fragment() {
 	// Sample the screen texture at the desired output resolution (according to u_dither_size)
-	// This will effectively pixelate the resulting output
 	vec2 screen_size = vec2(textureSize(screen_texture, 0)) / float(u_dither_size);
 	vec2 screen_sample_uv = floor(SCREEN_UV * screen_size) / screen_size;
 	vec3 screen_col = texture(screen_texture, screen_sample_uv).rgb;
 
-	// Sample depth if enabled (depth texture is pre-linearized: 0 = near, 1 = far)
-	float depth_value = 0.0;
-	if (u_depth_enabled) {
-		depth_value = texture(u_depth_tex, screen_sample_uv).r;
-		if (u_depth_invert) {
-			depth_value = 1.0 - depth_value;
-		}
-	}
+	// Calculate pixel luminosity
+	float lum = (screen_col.r * 0.299) + (screen_col.g * 0.587) + (screen_col.b * 0.114);
 
-	// Branch: depth_only mode shows raw depth, otherwise do full dither processing
-	vec3 final_col;
-	if (u_depth_enabled && u_depth_only) {
-		// Depth-only visualization
-		final_col = vec3(depth_value);
+	// Adjust with contrast and offset parameters
+	lum = (lum - 0.5 + u_offset) * u_contrast + 0.5;
+	lum = clamp(lum, 0.0, 1.0);
+
+	// Reduce luminosity bit depth to give a more banded visual if desired
+	float bits = float(u_bit_depth);
+	lum = floor(lum * bits) / bits;
+
+	// Get the palette texture size mapped so it is 1px high
+	ivec2 col_size = textureSize(u_color_tex, 0);
+	col_size /= col_size.y;
+
+	float col_x = float(col_size.x) - 1.0;
+	float col_texel_size = 1.0 / col_x;
+
+	lum = max(lum - 0.00001, 0.0);
+	float lum_lower = floor(lum * col_x) * col_texel_size;
+	float lum_upper = (floor(lum * col_x) + 1.0) * col_texel_size;
+	float lum_scaled = lum * col_x - floor(lum * col_x);
+
+	// Map the dither texture onto the screen or world geometry
+	ivec2 noise_size = textureSize(u_dither_tex, 0);
+	vec2 noise_uv;
+
+	if (u_world_dither) {
+		// Sample world position
+		vec3 world_encoded = texture(u_world_pos_tex, SCREEN_UV).rgb;
+
+		// Decode world position (was encoded as pos/100 + 0.5)
+		vec3 world_pos = (world_encoded - 0.5) * 100.0;
+
+		// Divide by scale so bigger scale = bigger pattern (more world units per tile)
+		vec3 scaled_pos = world_pos / max(u_world_dither_scale, 1.0);
+
+		if (u_world_dither_projection == 3) {
+			// AUTO: Use screen-space derivatives to find surface normal
+			vec3 ddx = dFdx(world_pos);
+			vec3 ddy = dFdy(world_pos);
+			vec3 normal = normalize(cross(ddy, ddx));
+
+			// Get dominant axis (which component of normal is largest)
+			vec3 abs_normal = abs(normal);
+
+			// Hard switch based on dominant axis (no blending = no swirls)
+			if (abs_normal.y >= abs_normal.x && abs_normal.y >= abs_normal.z) {
+				// Y is dominant - horizontal surface, use XZ
+				noise_uv = scaled_pos.xz;
+			} else if (abs_normal.x >= abs_normal.z) {
+				// X is dominant - X-facing wall, use YZ
+				noise_uv = scaled_pos.yz;
+			} else {
+				// Z is dominant - Z-facing wall, use XY
+				noise_uv = scaled_pos.xy;
+			}
+		} else if (u_world_dither_projection == 0) {
+			noise_uv = scaled_pos.xz; // XZ for floors/ceilings
+		} else if (u_world_dither_projection == 1) {
+			noise_uv = scaled_pos.xy; // XY for Z-facing walls
+		} else {
+			noise_uv = scaled_pos.yz; // YZ for X-facing walls
+		}
 	} else {
-		// Full dither processing
-		// Calculate pixel luminosity (https://stackoverflow.com/questions/596216/formula-to-determine-brightness-of-rgb-color)
-		float lum = (screen_col.r * 0.299) + (screen_col.g * 0.587) + (screen_col.b * 0.114);
-
-		// Mix in depth influence if enabled
-		if (u_depth_enabled && u_depth_influence > 0.0) {
-			lum = mix(lum, depth_value, u_depth_influence);
-		}
-
-		// Adjust with contrast and offset parameters
-		float contrast = u_contrast;
-		lum = (lum - 0.5 + u_offset) * contrast + 0.5;
-		lum = clamp(lum, 0.0, 1.0);
-
-		// Reduce luminosity bit depth to give a more banded visual if desired
-		float bits = float(u_bit_depth);
-		lum = floor(lum * bits) / bits;
-
-		// To support multicolour palettes, we want to dither between the two colours on the palette
-		// which are adjacent to the current pixel luminosity.
-		// To do this, we need to determine which 'band' lum falls into, calculate the upper and lower
-		// bound of that band, then later we will use the dither texture to pick either the upper or
-		// lower colour.
-
-		// Get the palette texture size mapped so it is 1px high (so the x value is however many colour bands there are)
-		ivec2 col_size = textureSize(u_color_tex, 0);
-		col_size /= col_size.y;
-
-		float col_x = float(col_size.x) - 1.0; // Colour boundaries is 1 less than the number of colour bands
-		float col_texel_size = 1.0 / col_x; // The size of one colour boundary
-
-		lum = max(lum - 0.00001, 0.0); // Makes sure our floor calculation below behaves when lum == 1.0
-		float lum_lower = floor(lum * col_x) * col_texel_size;
-		float lum_upper = (floor(lum * col_x) + 1.0) * col_texel_size;
-		float lum_scaled = lum * col_x - floor(lum * col_x); // Calculates where lum lies between the upper and lower bound
-
-		// Map the dither texture onto the screen
-		// Note: For world-space dithering (like Obra Dinn), see Lucas Pope's posts:
-		// https://forums.tigsource.com/index.php?topic=40832.msg1363742#msg1363742
-		ivec2 noise_size = textureSize(u_dither_tex, 0);
+		// Screen-space dithering (default)
 		vec2 inv_noise_size = vec2(1.0 / float(noise_size.x), 1.0 / float(noise_size.y));
-		vec2 noise_uv = SCREEN_UV * inv_noise_size * vec2(float(screen_size.x), float(screen_size.y));
-		float threshold = texture(u_dither_tex, noise_uv).r;
-
-		// Adjust the dither slightly so min and max aren't quite at 0.0 and 1.0
-		// Otherwise we wouldn't get fully dark and fully light dither patterns at lum 0.0 and 1.0
-		threshold = threshold * 0.99 + 0.005;
-
-		// The lower lum_scaled is, the fewer pixels will be below the dither threshold, and thus will use the lower bound colour,
-		// and vice-versa
-		float ramp_val = lum_scaled < threshold ? 0.0 : 1.0;
-		// Sample at the lower bound colour if ramp_val is 0.0, upper bound colour if 1.0
-		float col_sample = mix(lum_lower, lum_upper, ramp_val);
-		vec3 dither_col = texture(u_color_tex, vec2(col_sample, 0.5)).rgb;
-
-		// Get original scene color
-		vec3 original_col = texture(screen_texture, SCREEN_UV).rgb;
-
-		// Apply blend mode
-		vec3 blended_col;
-		switch (u_blend_mode) {
-			case 0: blended_col = blend_normal(original_col, dither_col); break;     // Normal
-			case 1: blended_col = blend_add(original_col, dither_col); break;        // Add
-			case 2: blended_col = blend_subtract(original_col, dither_col); break;   // Subtract
-			case 3: blended_col = blend_multiply(original_col, dither_col); break;   // Multiply
-			case 4: blended_col = blend_screen(original_col, dither_col); break;     // Screen
-			case 5: blended_col = blend_overlay(original_col, dither_col); break;    // Overlay
-			case 6: blended_col = blend_soft_light(original_col, dither_col); break; // Soft Light
-			case 7: blended_col = blend_hard_light(original_col, dither_col); break; // Hard Light
-			case 8: blended_col = blend_color_dodge(original_col, dither_col); break;// Color Dodge
-			case 9: blended_col = blend_color_burn(original_col, dither_col); break; // Color Burn
-			case 10: blended_col = blend_difference(original_col, dither_col); break;// Difference
-			default: blended_col = dither_col; break;
-		}
-
-		// Mix between original and blended result
-		final_col = mix(original_col, blended_col, u_mix);
+		noise_uv = SCREEN_UV * inv_noise_size * vec2(float(screen_size.x), float(screen_size.y));
 	}
 
-	// Output final colour
+	float threshold = texture(u_dither_tex, noise_uv).r;
+
+	// Adjust the dither slightly so min and max aren't quite at 0.0 and 1.0
+	threshold = threshold * 0.99 + 0.005;
+
+	// Pick color based on threshold
+	float ramp_val = lum_scaled < threshold ? 0.0 : 1.0;
+	float col_sample = mix(lum_lower, lum_upper, ramp_val);
+	vec3 dither_col = texture(u_color_tex, vec2(col_sample, 0.5)).rgb;
+
+	// Get original scene color
+	vec3 original_col = texture(screen_texture, SCREEN_UV).rgb;
+
+	// Apply blend mode
+	vec3 blended_col;
+	switch (u_blend_mode) {
+		case 0: blended_col = blend_normal(original_col, dither_col); break;
+		case 1: blended_col = blend_add(original_col, dither_col); break;
+		case 2: blended_col = blend_subtract(original_col, dither_col); break;
+		case 3: blended_col = blend_multiply(original_col, dither_col); break;
+		case 4: blended_col = blend_screen(original_col, dither_col); break;
+		case 5: blended_col = blend_overlay(original_col, dither_col); break;
+		case 6: blended_col = blend_soft_light(original_col, dither_col); break;
+		case 7: blended_col = blend_hard_light(original_col, dither_col); break;
+		case 8: blended_col = blend_color_dodge(original_col, dither_col); break;
+		case 9: blended_col = blend_color_burn(original_col, dither_col); break;
+		case 10: blended_col = blend_difference(original_col, dither_col); break;
+		default: blended_col = dither_col; break;
+	}
+
+	// Mix between original and blended result
+	vec3 final_col = mix(original_col, blended_col, u_mix);
+
 	COLOR.rgb = final_col;
 }

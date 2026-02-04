@@ -319,6 +319,9 @@ transition_curve_in = SubResource("Curve_ms7ms")
 transition_curve_out = SubResource("Curve_0c8yo")
 cursor_reenable_percent = 0.3
 
+[node name="Camera3D" parent="SubViewportContainer/SubViewport/World3D/CameraSystem/CameraRig/Pivot/SpringArm3D" parent_id_path=PackedInt32Array(1562357881, 1254927577) index="0" unique_id=298327191]
+cull_mask = 524287
+
 [node name="Cursor3D" parent="SubViewportContainer/SubViewport/World3D/CameraSystem" index="3" unique_id=2083170300]
 sticky_radius = 20.0
 
@@ -415,12 +418,13 @@ pattern_preset = 3
 dither_pattern = ExtResource("23_8xg2k")
 color_palette = ExtResource("24_8xg2k")
 bit_depth = 8
-contrast = 5.0
-lum_offset = 0.28
+lum_offset = 0.25
 dither_size = 1
 blend_mode = 6
 scene_buffers = NodePath("../World3D/SceneBuffers")
-effect_enabled = false
+dither_buffer = 5
+world_dither_scale = 1.0
+world_dither_projection = 1
 
 [node name="GameHUD" parent="." unique_id=426183297 instance=ExtResource("21_cqtiy")]
 font_size = 48

@@ -81,9 +81,11 @@ void fragment() {
 		output_color = vec3(1.0 - normalized);
 	}
 	else if (buffer_mode == 2) {
-		// View-space normals (mapped to 0-1 for visualization)
-		vec3 normal = normal_from_depth(SCREEN_UV, inv_proj, texel_size);
-		output_color = normal * 0.5 + 0.5;
+		// World-space normals (mapped to 0-1 for visualization and triplanar)
+		vec3 view_normal = normal_from_depth(SCREEN_UV, inv_proj, texel_size);
+		// Convert view-space normal to world-space using inverse view matrix
+		vec3 world_normal = normalize(mat3(INV_VIEW_MATRIX) * view_normal);
+		output_color = world_normal * 0.5 + 0.5;
 	}
 	else if (buffer_mode == 3) {
 		// View-space normals (raw, for shader use)
@@ -92,8 +94,10 @@ void fragment() {
 	}
 	else {
 		// World-space position (RGB = XYZ)
+		// Output world position normalized to 0-1 range (assuming scene is within -50 to +50)
 		vec3 world_pos = world_position_from_depth(SCREEN_UV, inv_proj, INV_VIEW_MATRIX);
-		output_color = fract(world_pos / max_depth);
+		// Map -50..+50 to 0..1
+		output_color = clamp(world_pos / 100.0 + 0.5, 0.0, 1.0);
 	}
 
 	ALBEDO = output_color;
