@@ -32,15 +32,28 @@ Based on [godot_dither_shader](https://github.com/samuelbigos/godot_dither_shade
 
 ## DitherOverlay Properties
 
+### Presets
 | Property | Description |
 |----------|-------------|
-| `dither_pattern` | Texture for the dither pattern. Bayer matrices or blue noise. |
-| `color_palette` | Texture for the color palette. Colors go dark (left) to light (right). |
+| `pattern_preset` | Quick-select dither pattern (Bayer 2x2 to 16x16, Blue Noise, Custom) |
+| `palette_preset` | Quick-select color palette (Mono, Moonlight, Eevee, Hollow, Rising Sun, Custom) |
+
+### Custom Textures
+| Property | Description |
+|----------|-------------|
+| `dither_pattern` | Custom dither pattern texture (set preset to CUSTOM to use) |
+| `color_palette` | Custom color palette texture (set preset to CUSTOM to use) |
+
+### Effect Parameters
+| Property | Description |
+|----------|-------------|
 | `bit_depth` | Luminance banding (2-64). Lower = more distinct bands. |
 | `contrast` | Luminance scale (0.0-5.0). Higher = more contrast. |
 | `lum_offset` | Luminance shift (-1.0 to 1.0). Positive = brighter. |
 | `dither_size` | Pixel size (1-8). Higher = more pixelated. |
-| `enabled` | Toggle the effect on/off at runtime. |
+| `color_mix` | Mix between original scene (0.0) and dither effect (1.0). |
+| `blend_mode` | How dither blends with scene (Normal, Add, Subtract, Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Difference). |
+| `effect_enabled` | Toggle the effect on/off at runtime. |
 
 ## Included Assets
 
@@ -75,6 +88,34 @@ Example: A 4-color palette would be 4 pixels wide by 1 pixel tall.
    - Repeat: Enabled
    - Filter: Nearest (disabled)
 4. Assign to `dither_pattern`
+
+## WorldLabel - Crisp Text Above Dither
+
+Use `WorldLabel` nodes to display crisp 2D text that tracks 3D positions without being affected by the dither effect. This is useful for floating labels, item names, or any text that should remain readable.
+
+### Usage
+
+1. Add a `WorldLabel` node as a child of any 3D object
+2. Set the `text` property to your desired label
+3. The label will automatically render as crisp 2D text above the dither effect
+
+### WorldLabel Properties
+
+| Property | Description |
+|----------|-------------|
+| `text` | The text to display |
+| `font_size` | Font size in pixels (8-128) |
+| `color` | Text color |
+| `outline_color` | Outline color for readability |
+| `outline_size` | Outline thickness in pixels (0-16) |
+| `pixel_offset` | Offset from 3D position in screen pixels |
+| `max_distance` | Distance at which label fully fades out (0 = no fade) |
+| `fade_start_distance` | Distance at which label starts fading |
+| `label_visible` | Toggle label visibility |
+
+### How It Works
+
+WorldLabel creates a 2D `Label` on a high-layer `CanvasLayer` that renders above the dither effect. Each frame, it projects the 3D world position to screen coordinates. Works automatically with SubViewport setups (handles scaling).
 
 ## Demo Scene
 

@@ -27,7 +27,7 @@ signal picked_up(item: ItemDefinition, quantity: int)
 		_update_visuals()
 
 var _mesh: MeshInstance3D
-var _label: Label3D
+var _label: WorldLabel
 var _collision: CollisionShape3D
 var _original_y: float
 var _time: float = 0.0
@@ -76,16 +76,20 @@ func _ensure_children() -> void:
 		if Engine.is_editor_hint():
 			_mesh.owner = get_tree().edited_scene_root
 
-	# Find or create label.
-	_label = _find_child_of_type("Label3D") as Label3D
+	# Find or create label (WorldLabel for crisp text above dither effect).
+	_label = _find_child_of_type("WorldLabel") as WorldLabel
 	if not _label:
-		_label = Label3D.new()
-		_label.name = "Label"
-		_label.position = Vector3(0, 0.5, 0)
-		_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		# Also check for old Label3D nodes to help with migration
+		var old_label := _find_child_of_type("Label3D")
+		if old_label:
+			old_label.queue_free()
+
+		_label = WorldLabel.new()
+		_label.name = "WorldLabel"
+		_label.position = Vector3(0, 0.5, 0)  # 3D position offset
 		_label.font_size = 18
 		_label.outline_size = 6
-		_label.modulate = Color(1, 1, 1, 0.9)
+		_label.pixel_offset = Vector2(0, -10)  # Screen space offset
 		add_child(_label)
 		if Engine.is_editor_hint():
 			_label.owner = get_tree().edited_scene_root
@@ -93,7 +97,11 @@ func _ensure_children() -> void:
 
 func _find_child_of_type(type_name: String) -> Node:
 	for child in get_children():
+		# Check native class name
 		if child.get_class() == type_name:
+			return child
+		# Check custom class_name (for WorldLabel, etc.)
+		if child is WorldLabel and type_name == "WorldLabel":
 			return child
 	return null
 
