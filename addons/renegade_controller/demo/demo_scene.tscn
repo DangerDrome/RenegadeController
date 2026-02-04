@@ -26,10 +26,15 @@
 [ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="24_8xg2k"]
 [ext_resource type="Script" uid="uid://bmbdn0pxo661h" path="res://addons/pixel_upscale/src/pixel_upscale_material.gd" id="24_upscale_script"]
 [ext_resource type="Script" uid="uid://dy01qjfn6o7m3" path="res://addons/dither_shader/src/world_label.gd" id="25_worldlabel"]
+[ext_resource type="Script" uid="uid://dovt6df6nclb2" path="res://addons/dither_shader/src/scene_buffers.gd" id="26_buffers"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8xg2k"]
 shader = ExtResource("23_upscale")
 shader_parameter/sharpness = 1.0
+
+[sub_resource type="Curve" id="Curve_nufa0"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
 
 [sub_resource type="Resource" id="Resource_cqtiy"]
 script = ExtResource("3_xcchm")
@@ -145,6 +150,12 @@ render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport" unique_id=78664980]
 
+[node name="SceneBuffers" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1877447980 node_paths=PackedStringArray("source_camera")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15851688, -0.5167327, 0.3884344)
+script = ExtResource("26_buffers")
+source_camera = NodePath("../CameraSystem/CameraRig/Pivot/SpringArm3D/Camera3D")
+depth_curve = SubResource("Curve_nufa0")
+
 [node name="SkyWeather" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1023465616]
 script = ExtResource("2_0c8yo")
 time = 9.58
@@ -163,7 +174,6 @@ environment = SubResource("Environment_rrlp6")
 navigation_mesh = SubResource("4")
 
 [node name="Ground" type="CSGBox3D" parent="SubViewportContainer/SubViewport/World3D/NavRegion" unique_id=1429176654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.002963066, -0.5, 0.0075206757)
 use_collision = true
 size = Vector3(60, 1, 60)
 material = SubResource("5")
@@ -330,6 +340,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, -20)
 collision_layer = 0
 zone_priority = 1
 zone_camera = NodePath("CameraRig/ZoneCamera")
+camera_fov = 20.0
 look_at_target = NodePath("../Player/Mesh/Body")
 look_at_marker = NodePath("CameraRig/LookAtTarget")
 
@@ -399,7 +410,7 @@ item = ExtResource("16")
 [node name="Node3D" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1831620052]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.484007, 0, 0.99864197)
 
-[node name="DitherOverlay" parent="SubViewportContainer/SubViewport" unique_id=1437343066 instance=ExtResource("22_rrlp6")]
+[node name="DitherOverlay" parent="SubViewportContainer/SubViewport" unique_id=1437343066 node_paths=PackedStringArray("scene_buffers") instance=ExtResource("22_rrlp6")]
 pattern_preset = 3
 dither_pattern = ExtResource("23_8xg2k")
 color_palette = ExtResource("24_8xg2k")
@@ -408,6 +419,8 @@ contrast = 5.0
 lum_offset = 0.28
 dither_size = 1
 blend_mode = 6
+scene_buffers = NodePath("../World3D/SceneBuffers")
+effect_enabled = false
 
 [node name="GameHUD" parent="." unique_id=426183297 instance=ExtResource("21_cqtiy")]
 font_size = 48

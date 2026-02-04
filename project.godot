@@ -25,10 +25,12 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/always_on_top=true
 window/size/extend_to_title=true
+window/stretch/aspect="ignore"
+window/stretch/scale_mode="integer"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/dither_shader/plugin.cfg", "res://addons/material_icons_importer/plugin.cfg", "res://addons/modular_hud/plugin.cfg", "res://addons/pixel_outline/plugin.cfg", "res://addons/renegade_controller/plugin.cfg", "res://addons/sky_weather/plugin.cfg", "res://addons/universal_door/plugin.cfg")
+enabled=PackedStringArray("res://addons/dither_shader/plugin.cfg", "res://addons/material_icons_importer/plugin.cfg", "res://addons/modular_hud/plugin.cfg", "res://addons/pixel_outline/plugin.cfg", "res://addons/pixel_upscale/plugin.cfg", "res://addons/renegade_controller/plugin.cfg", "res://addons/sky_weather/plugin.cfg", "res://addons/universal_door/plugin.cfg")
 
 [file_customization]
 

@@ -129,6 +129,44 @@ const PALETTES := {
 		blend_mode = value
 		_update_shader_params()
 
+@export_group("Depth Visualization")
+
+## Reference to a SceneBuffers node that provides depth/normal textures.
+@export var scene_buffers: SceneBuffers:
+	set(value):
+		# Disconnect from old scene_buffers
+		if scene_buffers and scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+			scene_buffers.buffer_changed.disconnect(_on_buffer_changed)
+		scene_buffers = value
+		# Connect to new scene_buffers
+		if scene_buffers and not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+			scene_buffers.buffer_changed.connect(_on_buffer_changed)
+		_update_shader_params()
+
+## Enable depth-based effects. When enabled, depth information influences the dither.
+@export var depth_enabled: bool = false:
+	set(value):
+		depth_enabled = value
+		_update_shader_params()
+
+## Show only the depth buffer (grayscale). Useful for debugging and visualization.
+@export var depth_only: bool = false:
+	set(value):
+		depth_only = value
+		_update_shader_params()
+
+## Invert depth values (near becomes white, far becomes black).
+@export var depth_invert: bool = false:
+	set(value):
+		depth_invert = value
+		_update_shader_params()
+
+## How much depth influences the luminance calculation. 0 = color only, 1 = depth only.
+@export_range(0.0, 1.0, 0.01) var depth_influence: float = 0.5:
+	set(value):
+		depth_influence = value
+		_update_shader_params()
+
 @export_group("Overlay Settings")
 
 ## Enable or disable the dither effect at runtime.
@@ -140,6 +178,7 @@ const PALETTES := {
 
 var _color_rect: ColorRect
 var _material: ShaderMaterial
+var _last_buffer_type: int = -1  # Track buffer changes
 
 
 func _ready() -> void:
@@ -149,7 +188,21 @@ func _ready() -> void:
 		dither_pattern = PATTERNS[pattern_preset]
 	if not color_palette and PALETTES.has(palette_preset):
 		color_palette = PALETTES[palette_preset]
+	# Ensure signal connection if scene_buffers was set from scene file
+	if scene_buffers and not scene_buffers.buffer_changed.is_connected(_on_buffer_changed):
+		scene_buffers.buffer_changed.connect(_on_buffer_changed)
 	_update_shader_params()
+
+
+func _process(_delta: float) -> void:
+	# Poll for buffer type changes every frame
+	if not scene_buffers or not _material:
+		return
+
+	var current_buffer := int(scene_buffers.active_buffer)
+	if current_buffer != _last_buffer_type:
+		_last_buffer_type = current_buffer
+		_update_shader_params()
 
 
 func _setup_overlay() -> void:
@@ -186,6 +239,29 @@ func _update_shader_params() -> void:
 	_material.set_shader_parameter("u_mix", color_mix)
 	_material.set_shader_parameter("u_blend_mode", blend_mode)
 
+	# Depth visualization parameters - only enable if SceneBuffers has a valid active buffer
+	var buffer_active := false
+	var buffer_tex: ViewportTexture = null
+	# Check if scene_buffers exists and active_buffer is not NONE (0)
+	if scene_buffers and int(scene_buffers.active_buffer) > 0:
+		buffer_tex = scene_buffers.get_buffer_texture()
+		buffer_active = buffer_tex != null
+
+	var show_buffer := depth_enabled and buffer_active
+	_material.set_shader_parameter("u_depth_enabled", show_buffer)
+	_material.set_shader_parameter("u_depth_only", show_buffer and depth_only)
+	_material.set_shader_parameter("u_depth_invert", depth_invert)
+	_material.set_shader_parameter("u_depth_influence", depth_influence if show_buffer else 0.0)
+
+	# Set or clear buffer texture
+	_material.set_shader_parameter("u_depth_tex", buffer_tex)
+
+
+## Called when SceneBuffers changes its active buffer type.
+func _on_buffer_changed(_new_buffer: SceneBuffers.BufferType) -> void:
+	_last_buffer_type = int(_new_buffer)
+	_update_shader_params()
+
 
 ## Set all parameters at once. Useful for transitions or presets.
 func set_params(p_bit_depth: int = 32, p_contrast: float = 1.0, p_lum_offset: float = 0.0, p_dither_size: int = 2) -> void:
@@ -205,3 +281,21 @@ func next_pattern() -> void:
 func next_palette() -> void:
 	var next := (palette_preset + 1) % PalettePreset.CUSTOM
 	palette_preset = next as PalettePreset
+
+
+## Toggle depth visualization on/off.
+func toggle_depth() -> void:
+	depth_enabled = not depth_enabled
+
+
+## Toggle depth-only mode (shows raw depth buffer).
+func toggle_depth_only() -> void:
+	if not depth_enabled:
+		depth_enabled = true
+	depth_only = not depth_only
+
+
+## Set depth parameters at once.
+func set_depth_params(p_invert: bool = false, p_influence: float = 0.5) -> void:
+	depth_invert = p_invert
+	depth_influence = p_influence
