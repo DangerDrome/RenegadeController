@@ -21,6 +21,14 @@
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/security_keycard.tres" id="16"]
 [ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="21_cqtiy"]
 [ext_resource type="PackedScene" path="res://addons/dither_shader/presets/dither_overlay.tscn" id="22_rrlp6"]
+[ext_resource type="Texture2D" uid="uid://bjmj1ko4h8hgp" path="res://addons/dither_shader/assets/patterns/bayer2tile16.png" id="23_8xg2k"]
+[ext_resource type="Shader" uid="uid://dccqiutbxhyal" path="res://addons/pixel_upscale/src/pixel_upscale.gdshader" id="23_upscale"]
+[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="24_8xg2k"]
+[ext_resource type="Script" uid="uid://bmbdn0pxo661h" path="res://addons/pixel_upscale/src/pixel_upscale_material.gd" id="24_upscale_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8xg2k"]
+shader = ExtResource("23_upscale")
+shader_parameter/sharpness = 1.0
 
 [sub_resource type="Resource" id="Resource_cqtiy"]
 script = ExtResource("3_xcchm")
@@ -120,6 +128,8 @@ size = Vector3(1, 0.8, 0.7)
 script = ExtResource("1")
 
 [node name="SubViewportContainer" type="SubViewportContainer" parent="." unique_id=1329709681]
+texture_filter = 2
+material = SubResource("ShaderMaterial_8xg2k")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -127,6 +137,7 @@ grow_horizontal = 2
 grow_vertical = 2
 stretch = true
 stretch_shrink = 3
+script = ExtResource("24_upscale_script")
 
 [node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=736108026]
 handle_input_locally = false
@@ -327,7 +338,7 @@ look_at_marker = NodePath("CameraRig/LookAtTarget")
 shape = SubResource("BoxShape3D_8y21c")
 
 [node name="ZoneCamera" parent="SubViewportContainer/SubViewport/World3D/TopDownZone/CameraRig" index="0"]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 12, 0)
+transform = Transform3D(-4.371139e-08, -0.6414687, 0.7671492, 0, 0.7671492, 0.6414687, -1, 2.8039487e-08, -3.353316e-08, 9.265738, 7.7477493, 0)
 
 [node name="FirstPersonZone" parent="SubViewportContainer/SubViewport/World3D" unique_id=938536592 instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23, 0, 15)
@@ -389,13 +400,20 @@ item = ExtResource("16")
 [node name="Node3D" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1831620052]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.484007, 0, 0.99864197)
 
-[node name="GameHUD" parent="." unique_id=426183297 instance=ExtResource("21_cqtiy")]
-font_size = 20
-
-[node name="DitherOverlay" parent="." unique_id=1437343066 instance=ExtResource("22_rrlp6")]
+[node name="DitherOverlay" parent="SubViewportContainer/SubViewport" unique_id=1437343066 instance=ExtResource("22_rrlp6")]
 pattern_preset = 3
-palette_preset = 2
-contrast = 1.1
+dither_pattern = ExtResource("23_8xg2k")
+color_palette = ExtResource("24_8xg2k")
+bit_depth = 8
+contrast = 5.0
+lum_offset = 0.28
+dither_size = 1
+color_mix = 0.5
+blend_mode = 5
+
+[node name="GameHUD" parent="." unique_id=426183297 instance=ExtResource("21_cqtiy")]
+font_size = 48
+use_recommended_size = true
 
 [editable path="SubViewportContainer/SubViewport/World3D/Player"]
 [editable path="SubViewportContainer/SubViewport/World3D/CameraSystem"]

@@ -16,7 +16,8 @@
       "mcp__serena__list_dir",
       "Bash(test:*)",
       "Bash(git checkout:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:git.sr.ht)"
     ]
   },
   "outputStyle": "default"

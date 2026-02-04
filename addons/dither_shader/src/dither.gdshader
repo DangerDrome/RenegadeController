@@ -17,6 +17,39 @@ uniform int u_bit_depth : hint_range(2, 64) = 32;
 uniform float u_contrast : hint_range(0.0, 5.0) = 1.0;
 uniform float u_offset : hint_range(-1.0, 1.0) = 0.0;
 uniform int u_dither_size : hint_range(1, 8) = 2;
+uniform float u_mix : hint_range(0.0, 1.0) = 1.0;
+uniform int u_blend_mode : hint_range(0, 10) = 0;
+
+// Blend mode functions
+vec3 blend_normal(vec3 base, vec3 blend) { return blend; }
+vec3 blend_add(vec3 base, vec3 blend) { return min(base + blend, vec3(1.0)); }
+vec3 blend_subtract(vec3 base, vec3 blend) { return max(base - blend, vec3(0.0)); }
+vec3 blend_multiply(vec3 base, vec3 blend) { return base * blend; }
+vec3 blend_screen(vec3 base, vec3 blend) { return 1.0 - (1.0 - base) * (1.0 - blend); }
+vec3 blend_overlay(vec3 base, vec3 blend) {
+	return mix(
+		2.0 * base * blend,
+		1.0 - 2.0 * (1.0 - base) * (1.0 - blend),
+		step(0.5, base)
+	);
+}
+vec3 blend_soft_light(vec3 base, vec3 blend) {
+	return mix(
+		2.0 * base * blend + base * base * (1.0 - 2.0 * blend),
+		sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend),
+		step(0.5, blend)
+	);
+}
+vec3 blend_hard_light(vec3 base, vec3 blend) {
+	return mix(
+		2.0 * base * blend,
+		1.0 - 2.0 * (1.0 - base) * (1.0 - blend),
+		step(0.5, blend)
+	);
+}
+vec3 blend_color_dodge(vec3 base, vec3 blend) { return min(base / max(1.0 - blend, 0.001), vec3(1.0)); }
+vec3 blend_color_burn(vec3 base, vec3 blend) { return 1.0 - min((1.0 - base) / max(blend, 0.001), vec3(1.0)); }
+vec3 blend_difference(vec3 base, vec3 blend) { return abs(base - blend); }
 
 void fragment() {
 	// Sample the screen texture at the desired output resolution (according to u_dither_size)
@@ -72,7 +105,30 @@ void fragment() {
 	float ramp_val = lum_scaled < threshold ? 0.0 : 1.0;
 	// Sample at the lower bound colour if ramp_val is 0.0, upper bound colour if 1.0
 	float col_sample = mix(lum_lower, lum_upper, ramp_val);
-	vec3 final_col = texture(u_color_tex, vec2(col_sample, 0.5)).rgb;
+	vec3 dither_col = texture(u_color_tex, vec2(col_sample, 0.5)).rgb;
+
+	// Get original scene color
+	vec3 original_col = texture(screen_texture, SCREEN_UV).rgb;
+
+	// Apply blend mode
+	vec3 blended_col;
+	switch (u_blend_mode) {
+		case 0: blended_col = blend_normal(original_col, dither_col); break;     // Normal
+		case 1: blended_col = blend_add(original_col, dither_col); break;        // Add
+		case 2: blended_col = blend_subtract(original_col, dither_col); break;   // Subtract
+		case 3: blended_col = blend_multiply(original_col, dither_col); break;   // Multiply
+		case 4: blended_col = blend_screen(original_col, dither_col); break;     // Screen
+		case 5: blended_col = blend_overlay(original_col, dither_col); break;    // Overlay
+		case 6: blended_col = blend_soft_light(original_col, dither_col); break; // Soft Light
+		case 7: blended_col = blend_hard_light(original_col, dither_col); break; // Hard Light
+		case 8: blended_col = blend_color_dodge(original_col, dither_col); break;// Color Dodge
+		case 9: blended_col = blend_color_burn(original_col, dither_col); break; // Color Burn
+		case 10: blended_col = blend_difference(original_col, dither_col); break;// Difference
+		default: blended_col = dither_col; break;
+	}
+
+	// Mix between original and blended result
+	vec3 final_col = mix(original_col, blended_col, u_mix);
 
 	// Return the final colour!
 	COLOR.rgb = final_col;

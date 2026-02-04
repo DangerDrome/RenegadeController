@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3 uid="uid://pixel_upscale_preset"]
+
+[ext_resource type="Script" path="res://addons/pixel_upscale/src/pixel_upscale_display.gd" id="1_display"]
+
+[node name="PixelUpscaleDisplay" type="SubViewportContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+script = ExtResource("1_display")
+internal_width = 480
+internal_height = 270
+sharpness = 1.0
+effect_enabled = true
+enable_3d = true
+transparent_bg = false
+msaa = 0
+
+[node name="SubViewport" type="SubViewport" parent="."]
+handle_input_locally = false
+size = Vector2i(480, 270)
+render_target_update_mode = 3

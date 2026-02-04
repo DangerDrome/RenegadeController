@@ -28,6 +28,21 @@ enum PalettePreset {
 	CUSTOM,       ## Use custom texture
 }
 
+## Blend modes for compositing dither with original scene.
+enum BlendMode {
+	NORMAL,       ## Replace with dither color
+	ADD,          ## Brighten (base + blend)
+	SUBTRACT,     ## Darken (base - blend)
+	MULTIPLY,     ## Darken, preserve darks
+	SCREEN,       ## Lighten, preserve lights
+	OVERLAY,      ## Contrast boost
+	SOFT_LIGHT,   ## Subtle contrast
+	HARD_LIGHT,   ## Strong contrast
+	COLOR_DODGE,  ## Brighten highlights
+	COLOR_BURN,   ## Darken shadows
+	DIFFERENCE,   ## Invert based on blend
+}
+
 # Preloaded pattern textures
 const PATTERNS := {
 	DitherPattern.BAYER_16X16: preload("res://addons/dither_shader/assets/patterns/bayer16tile2.png"),
@@ -102,6 +117,18 @@ const PALETTES := {
 		dither_size = value
 		_update_shader_params()
 
+## Mix between original scene colors and dithered output. 0.0 = original, 1.0 = full dither.
+@export_range(0.0, 1.0, 0.01) var color_mix: float = 1.0:
+	set(value):
+		color_mix = value
+		_update_shader_params()
+
+## How the dither effect blends with the original scene.
+@export var blend_mode: BlendMode = BlendMode.NORMAL:
+	set(value):
+		blend_mode = value
+		_update_shader_params()
+
 @export_group("Overlay Settings")
 
 ## Enable or disable the dither effect at runtime.
@@ -156,6 +183,8 @@ func _update_shader_params() -> void:
 	_material.set_shader_parameter("u_contrast", contrast)
 	_material.set_shader_parameter("u_offset", lum_offset)
 	_material.set_shader_parameter("u_dither_size", dither_size)
+	_material.set_shader_parameter("u_mix", color_mix)
+	_material.set_shader_parameter("u_blend_mode", blend_mode)
 
 
 ## Set all parameters at once. Useful for transitions or presets.

@@ -43,12 +43,7 @@ theme/custom_font="res://addons/modular_hud/fonts/Tiny5-Regular.ttf"
 
 [rendering]
 
-textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/default_filters/anisotropic_filtering_level=0
-textures/default_filters/texture_mipmap_bias=-1.0
-textures/decals/filter=0
-textures/light_projectors/filter=0
 environment/defaults/default_clear_color=Color(0.1, 0.1, 0.12, 1)
