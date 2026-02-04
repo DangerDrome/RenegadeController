@@ -39,30 +39,30 @@ func _process(_delta: float) -> void:
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
 	
-	# Style.
+	# Style (scaled for 640x360 pixel art viewport).
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0.7)
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.corner_radius_top_left = 2
+	style.corner_radius_top_right = 2
+	style.corner_radius_bottom_left = 2
+	style.corner_radius_bottom_right = 2
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
 	_panel.add_theme_stylebox_override("panel", style)
-	
+
 	# Position top-left.
 	_panel.anchor_left = 0
 	_panel.anchor_top = 0
-	_panel.offset_left = 10
-	_panel.offset_top = 10
-	
+	_panel.offset_left = 3
+	_panel.offset_top = 3
+
 	_label = RichTextLabel.new()
 	_label.bbcode_enabled = true
 	_label.fit_content = true
-	_label.custom_minimum_size = Vector2(320, 0)
-	_label.add_theme_font_size_override("normal_font_size", 14)
+	_label.custom_minimum_size = Vector2(100, 0)
+	_label.add_theme_font_size_override("normal_font_size", 6)
 	_panel.add_child(_label)
 	
 	add_child(_panel)

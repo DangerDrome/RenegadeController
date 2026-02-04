@@ -14,18 +14,28 @@ config/name="Renegade_controller"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+HUDEvents="*uid://cbof8kfrwjube"
+
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/always_on_top=true
 window/size/extend_to_title=true
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/renegade_controller/plugin.cfg")
+enabled=PackedStringArray("res://addons/dither_shader/plugin.cfg", "res://addons/material_icons_importer/plugin.cfg", "res://addons/modular_hud/plugin.cfg", "res://addons/pixel_outline/plugin.cfg", "res://addons/renegade_controller/plugin.cfg", "res://addons/sky_weather/plugin.cfg", "res://addons/universal_door/plugin.cfg")
+
+[gui]
+
+theme/default_font_antialiasing=0
+theme/default_font_hinting=0
+theme/default_font_subpixel_positioning=0
+theme/custom="res://addons/modular_hud/fonts/pixel_theme.tres"
+theme/custom_font="res://addons/modular_hud/fonts/Tiny5-Regular.ttf"
 
 [physics]
 
@@ -33,6 +43,12 @@ enabled=PackedStringArray("res://addons/renegade_controller/plugin.cfg")
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/anisotropic_filtering_level=0
+textures/default_filters/texture_mipmap_bias=-1.0
+textures/decals/filter=0
+textures/light_projectors/filter=0
+environment/defaults/default_clear_color=Color(0.1, 0.1, 0.12, 1)

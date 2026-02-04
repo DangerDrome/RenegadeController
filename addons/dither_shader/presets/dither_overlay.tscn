@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://dither_overlay_preset"]
+
+[ext_resource type="Script" path="res://addons/dither_shader/src/dither_overlay.gd" id="1_overlay"]
+
+[node name="DitherOverlay" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_overlay")
+pattern_preset = 1
+palette_preset = 0
+bit_depth = 32
+contrast = 1.0
+lum_offset = 0.0
+dither_size = 2

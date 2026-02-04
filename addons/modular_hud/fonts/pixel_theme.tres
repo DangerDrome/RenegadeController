@@ -1,0 +1,7 @@
+[gd_resource type="Theme" format=3 uid="uid://pixel_theme_modular"]
+
+[ext_resource type="FontFile" uid="uid://c1mt0gg4uiq6a" path="res://addons/modular_hud/fonts/Tiny5-Regular.ttf" id="1_font"]
+
+[resource]
+default_font = ExtResource("1_font")
+default_font_size = 10

@@ -11,24 +11,9 @@ script = ExtResource("1")
 camera_preset = ExtResource("2")
 zone_priority = 0
 revert_on_exit = true
-camera_fov = 75.0
-follow_player = false
-target_player = false
 hide_player_mesh = true
 mesh_node_path = "Mesh"
 
 [node name="ZoneShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("BoxShape3D_1")
-
-[node name="CameraRig" type="Marker3D" parent="."]
-gizmo_extents = 0.4
-
-[node name="ZoneCamera" type="Camera3D" parent="CameraRig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
-current = false
-fov = 75.0
-
-[node name="LookAtTarget" type="Marker3D" parent="CameraRig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 1)
-gizmo_extents = 0.5

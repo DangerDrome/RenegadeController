@@ -48,12 +48,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 material_override = SubResource("StandardMaterial3D_2")
 mesh = SubResource("SphereMesh_1")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Mesh/Head" unique_id=1607156648]
+[node name="Eye_R" type="MeshInstance3D" parent="Mesh/Head" unique_id=1607156648]
 transform = Transform3D(0.14999998, 0, 0, 0, -6.5567067e-09, -0.15399998, 0, 0.14999996, -6.731553e-09, -0.07120304, 0.006820202, 0.05630681)
 mesh = SubResource("CylinderMesh_wly81")
 surface_material_override/0 = SubResource("StandardMaterial3D_wly81")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="Mesh/Head" unique_id=1266244029]
+[node name="Eye_L" type="MeshInstance3D" parent="Mesh/Head" unique_id=1266244029]
 transform = Transform3D(0.14999998, 0, 0, 0, -6.5567067e-09, -0.15399998, 0, 0.14999996, -6.731553e-09, 0.06244974, 0.006820202, 0.05630681)
 mesh = SubResource("CylinderMesh_wly81")
 surface_material_override/0 = SubResource("StandardMaterial3D_wly81")
@@ -87,3 +87,7 @@ gizmo_extents = 0.1
 
 [node name="PlayerController" type="Node" parent="." unique_id=308324613]
 script = ExtResource("2")
+
+[node name="Face_cam" type="Camera3D" parent="." unique_id=1602645686]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7470782, 2.4455485)
+fov = 4.488194

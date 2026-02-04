@@ -109,16 +109,21 @@ func _resolve_active_camera() -> void:
 		_current_zone = best
 		if best.camera_preset:
 			# Create a runtime copy of the preset.
-			# follow_target controls look-at behavior, follow_player controls position only.
 			var preset := best.camera_preset.duplicate() as CameraPreset
-			# Only enable look-at-player if zone has no explicit look_at target.
-			var look_at_node := best.get_look_at_node()
-			var camera_marker := best.get_camera_marker()
-			var has_look_at := look_at_node != null
-			preset.follow_target = has_look_at or best.follow_player
 
-			camera_rig.set_position_follow_only(best.follow_player and not has_look_at)
-			camera_rig.transition_to(preset, camera_marker, look_at_node)
+			# First person mode: no marker or look-at needed (uses head offset + mouse look).
+			if preset.is_first_person:
+				camera_rig.set_position_follow_only(false)
+				camera_rig.transition_to(preset, null, null)
+			else:
+				# Third person modes: use zone's camera marker and look-at target.
+				var look_at_node := best.get_look_at_node()
+				var camera_marker := best.get_camera_marker()
+				var has_look_at := look_at_node != null
+				preset.follow_target = has_look_at or best.follow_player
+
+				camera_rig.set_position_follow_only(best.follow_player and not has_look_at)
+				camera_rig.transition_to(preset, camera_marker, look_at_node)
 		active_zone_changed.emit(best)
 
 #endregion

@@ -1,0 +1,75 @@
+[gd_scene format=3 uid="uid://bp2k8xmn4v3hq"]
+
+[ext_resource type="Script" uid="uid://huuvrpqbcdsh" path="res://addons/modular_hud/components/prompt.gd" id="1_prompt"]
+
+[sub_resource type="Animation" id="Animation_fade_in"]
+resource_name = "fade_in"
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:modulate:a")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 1.0]
+}
+
+[sub_resource type="Animation" id="Animation_fade_out"]
+resource_name = "fade_out"
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".:modulate:a")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [1.0, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_main"]
+_data = {
+&"fade_in": SubResource("Animation_fade_in"),
+&"fade_out": SubResource("Animation_fade_out")
+}
+
+[node name="Prompt" type="Control" unique_id=2098535774]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 192.0
+offset_bottom = 48.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_prompt")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=638440150]
+layout_mode = 0
+offset_right = 192.0
+offset_bottom = 48.0
+theme_override_constants/separation = 9
+
+[node name="TextureRect" type="TextureRect" parent="HBoxContainer" unique_id=1667407804]
+visible = false
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="HBoxContainer" unique_id=1496955662]
+layout_mode = 2
+size_flags_vertical = 1
+text = "
+Press E to interact"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1096953779]
+libraries/ = SubResource("AnimationLibrary_main")

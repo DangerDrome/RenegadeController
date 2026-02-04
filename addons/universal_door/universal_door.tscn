@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://da3piqlm3lx8o"]
+
+[ext_resource type="Script" uid="uid://bqyif4lae54nx" path="res://addons/universal_door/universal_door.gd" id="1_door"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_detect"]
+size = Vector3(2, 2.5, 2)
+
+[node name="UniversalDoor" type="Node3D" unique_id=1343680769]
+script = ExtResource("1_door")
+
+[node name="DoorBody" type="AnimatableBody3D" parent="." unique_id=146854454]
+sync_to_physics = false
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="DoorBody" unique_id=1683953453]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DoorBody" unique_id=2111743582]
+
+[node name="LeftPanel" type="Node3D" parent="DoorBody" unique_id=1051101764]
+visible = false
+
+[node name="RightPanel" type="Node3D" parent="DoorBody" unique_id=226417785]
+visible = false
+
+[node name="DetectionZone" type="Area3D" parent="." unique_id=108714866]
+collision_layer = 0
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DetectionZone" unique_id=2011029596]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 1.5)
+shape = SubResource("BoxShape3D_detect")
+
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=377329525]
+attenuation_model = 1
+max_distance = 15.0
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=912308692]

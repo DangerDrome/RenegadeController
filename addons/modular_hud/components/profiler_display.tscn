@@ -1,0 +1,79 @@
+[gd_scene load_steps=3 format=3 uid="uid://dpk8xm3v7n2hp"]
+
+[ext_resource type="Script" path="res://addons/modular_hud/components/profiler_display.gd" id="1_script"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_mono"]
+font_size = 18
+
+[node name="ProfilerDisplay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="VBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = -6.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 9
+
+[node name="CPU" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="VBox/CPU"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "CPU [4 cores]
+FPS: 60
+Load: ████░░░░░░ 40%
+Process: 8.5ms
+Physics: 2.1ms"
+label_settings = SubResource("LabelSettings_mono")
+
+[node name="GPU" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="VBox/GPU"]
+layout_mode = 2
+text = "GPU
+VRAM: 512MB
+Draw Calls: 128
+Objects: 256
+Tris: 45k"
+label_settings = SubResource("LabelSettings_mono")
+
+[node name="Graph" type="Control" parent="VBox/GPU"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Stats" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="VBox/Stats"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "MEMORY
+Static: 128MB
+Nodes: 1024
+Orphans: 0
+Resources: 512
+
+FRAME TIME
+▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▂▃▄"
+label_settings = SubResource("LabelSettings_mono")
+
+[connection signal="draw" from="VBox/GPU/Graph" to="." method="_on_graph_draw"]

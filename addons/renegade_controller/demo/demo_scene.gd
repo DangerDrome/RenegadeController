@@ -3,17 +3,20 @@
 ## cross-references, connects signals, sets up patrol points, and bakes nav.
 extends Node3D
 
-@onready var player: RenegadeCharacter = $Player
-@onready var player_ctrl: PlayerController = $Player/PlayerController
-@onready var cam_system: CameraSystem = $CameraSystem
-@onready var cam_rig: CameraRig = $CameraSystem/CameraRig
-@onready var cursor_3d: Cursor3D = $CameraSystem/Cursor3D
-@onready var zone_mgr: CameraZoneManager = $CameraSystem/CameraZoneManager
-@onready var debug: CanvasLayer = $DebugOverlay
-@onready var instructions: RichTextLabel = $InstructionsLayer/Instructions
-@onready var npc: RenegadeCharacter = $PatrolNPC
-@onready var ai_ctrl: AIController = $PatrolNPC/AIController
-@onready var patrol: Node = $PatrolNPC/PatrolBehavior
+# World3D is inside SubViewport for hybrid rendering (pixel art 3D + crisp UI).
+const WORLD_PATH := "SubViewportContainer/SubViewport/World3D"
+
+@onready var world_3d: Node3D = get_node(WORLD_PATH)
+@onready var player: RenegadeCharacter = get_node(WORLD_PATH + "/Player")
+@onready var player_ctrl: PlayerController = get_node(WORLD_PATH + "/Player/PlayerController")
+@onready var cam_system: CameraSystem = get_node(WORLD_PATH + "/CameraSystem")
+@onready var cam_rig: CameraRig = get_node(WORLD_PATH + "/CameraSystem/CameraRig")
+@onready var cursor_3d: Cursor3D = get_node(WORLD_PATH + "/CameraSystem/Cursor3D")
+@onready var zone_mgr: CameraZoneManager = get_node(WORLD_PATH + "/CameraSystem/CameraZoneManager")
+@onready var game_hud: CanvasLayer = $GameHUD
+@onready var npc: RenegadeCharacter = get_node(WORLD_PATH + "/PatrolNPC")
+@onready var ai_ctrl: AIController = get_node(WORLD_PATH + "/PatrolNPC/AIController")
+@onready var patrol: Node = get_node(WORLD_PATH + "/PatrolNPC/PatrolBehavior")
 
 # Inventory system nodes (created at runtime).
 var player_inventory: Inventory
@@ -28,7 +31,7 @@ func _ready() -> void:
 	# Player wiring.
 	player.controller = player_ctrl
 	player.camera_rig = cam_rig
-	player.visual_root = $Player/Mesh
+	player.visual_root = get_node(WORLD_PATH + "/Player/Mesh")
 
 	# Camera wiring - configure through CameraSystem (bubbles down to CameraRig).
 	cam_system.target = player
@@ -39,7 +42,7 @@ func _ready() -> void:
 
 	# NPC wiring.
 	npc.controller = ai_ctrl
-	npc.visual_root = $PatrolNPC/Mesh
+	npc.visual_root = get_node(WORLD_PATH + "/PatrolNPC/Mesh")
 	patrol.ai_controller = ai_ctrl
 	patrol.character = npc
 	patrol.set_patrol_points([
@@ -58,22 +61,21 @@ func _ready() -> void:
 	# Create inventory system nodes.
 	_setup_inventory_system()
 
-	# Debug overlay.
-	debug.character = player
-	debug.camera_rig = cam_rig
-	debug.cursor = cursor_3d
-	debug.zone_manager = zone_mgr
-	debug.inventory = player_inventory
-	debug.equipment_manager = player_equipment
-	debug.weapon_manager = player_weapons
-	debug.item_slots = player_item_slots
-	debug.instructions_panel = instructions
+	# Debug overlay — wired through GameHUD.
+	game_hud.debug_character = player
+	game_hud.debug_camera_rig = cam_rig
+	game_hud.debug_cursor = cursor_3d
+	game_hud.debug_zone_manager = zone_mgr
+	game_hud.debug_inventory = player_inventory
+	game_hud.debug_equipment_manager = player_equipment
+	game_hud.debug_weapon_manager = player_weapons
+	game_hud.debug_item_slots = player_item_slots
 
 	# Interaction signal.
 	player.ready_to_interact.connect(_on_interact)
 
 	# Bake navigation mesh.
-	$NavRegion.bake_navigation_mesh()
+	get_node(WORLD_PATH + "/NavRegion").bake_navigation_mesh()
 
 
 func _setup_inventory_system() -> void:

@@ -1,0 +1,62 @@
+[gd_scene format=3 uid="uid://dm8xqk3v7n2hp"]
+
+[ext_resource type="PackedScene" uid="uid://c8xqjk2h5m1va" path="res://addons/modular_hud/components/health_bar.tscn" id="1_health"]
+[ext_resource type="PackedScene" uid="uid://dkm7xqp3g2h8b" path="res://addons/modular_hud/components/ammo_display.tscn" id="2_ammo"]
+[ext_resource type="PackedScene" uid="uid://bp2k8xmn4v3hq" path="res://addons/modular_hud/components/prompt.tscn" id="3_prompt"]
+[ext_resource type="PackedScene" uid="uid://c4xv8nm2k7p3q" path="res://addons/modular_hud/components/damage_flash.tscn" id="4_flash"]
+[ext_resource type="Resource" uid="uid://dv8k2xmqp4h1n" path="res://addons/modular_hud/examples/resources/player_health.tres" id="5_health_data"]
+[ext_resource type="Resource" uid="uid://bxq7k3mn2p8va" path="res://addons/modular_hud/examples/resources/player_ammo.tres" id="6_ammo_data"]
+[ext_resource type="Resource" uid="uid://c3xv7qk8m2n4p" path="res://addons/modular_hud/examples/resources/player_reserve.tres" id="7_reserve_data"]
+
+[node name="ExampleHUD" type="CanvasLayer" unique_id=1215019595]
+layer = 10
+
+[node name="Root" type="Control" parent="." unique_id=1394781469]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HealthBar" parent="Root" unique_id=1390116609 instance=ExtResource("1_health")]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 220.0
+offset_bottom = 44.0
+data = ExtResource("5_health_data")
+
+[node name="AmmoDisplay" parent="Root" unique_id=1512222312 instance=ExtResource("2_ammo")]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -52.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+magazine = ExtResource("6_ammo_data")
+reserve = ExtResource("7_reserve_data")
+
+[node name="Prompt" parent="Root" unique_id=1767044905 instance=ExtResource("3_prompt")]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -100.0
+offset_top = -80.0
+offset_right = 100.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="DamageFlash" parent="Root" unique_id=1847582605 instance=ExtResource("4_flash")]
+layout_mode = 1

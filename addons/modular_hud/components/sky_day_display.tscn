@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3 uid="uid://bxk7m3qp8v2hn"]
+
+[ext_resource type="Script" path="res://addons/modular_hud/components/sky_day_display.gd" id="1_script"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_day"]
+font_size = 24
+
+[node name="SkyDayDisplay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Day 1"
+label_settings = SubResource("LabelSettings_day")
+horizontal_alignment = 1
+vertical_alignment = 1

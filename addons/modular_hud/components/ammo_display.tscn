@@ -1,0 +1,57 @@
+[gd_scene load_steps=4 format=3 uid="uid://dkm7xqp3g2h8b"]
+
+[ext_resource type="Script" path="res://addons/modular_hud/components/ammo_display.gd" id="1_ammo"]
+
+[sub_resource type="Animation" id="Animation_low"]
+resource_name = "low_ammo"
+length = 0.4
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("HBoxContainer/Magazine:modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Color(1, 1, 1, 1), Color(1, 0.5, 0.2, 1), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_main"]
+_data = {
+"low_ammo": SubResource("Animation_low")
+}
+
+[node name="AmmoDisplay" type="Control"]
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 120.0
+offset_bottom = 32.0
+script = ExtResource("1_ammo")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Magazine" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "30"
+horizontal_alignment = 2
+
+[node name="Reserve" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "/ 90"
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_main")
+}

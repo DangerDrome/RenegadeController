@@ -7,5 +7,4 @@ script = ExtResource("1")
 preset_name = "Third Person"
 follow_target = true
 transition_duration = 1.5
-transition_type = 5
 fov = 50.0

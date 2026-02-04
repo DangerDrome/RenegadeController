@@ -14,7 +14,9 @@
       "WebFetch(domain:docs.godotengine.org)",
       "Bash(wc:*)",
       "mcp__serena__list_dir",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)"
     ]
   },
   "outputStyle": "default"

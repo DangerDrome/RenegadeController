@@ -1,0 +1,674 @@
+[gd_scene format=3 uid="uid://c8xqm7v3k2nhp"]
+
+[ext_resource type="PackedScene" uid="uid://c8xqjk2h5m1va" path="res://addons/modular_hud/components/health_bar.tscn" id="1_health"]
+[ext_resource type="PackedScene" uid="uid://bv7xm3qk8n2hp" path="res://addons/modular_hud/components/stamina_bar.tscn" id="2_stamina"]
+[ext_resource type="PackedScene" uid="uid://bp2k8xmn4v3hq" path="res://addons/modular_hud/components/prompt.tscn" id="3_prompt"]
+[ext_resource type="PackedScene" uid="uid://c4xv8nm2k7p3q" path="res://addons/modular_hud/components/damage_flash.tscn" id="4_flash"]
+[ext_resource type="Resource" uid="uid://dv8k2xmqp4h1n" path="res://addons/modular_hud/examples/resources/player_health.tres" id="5_health_data"]
+[ext_resource type="Resource" uid="uid://d2xv8qk3m7n4p" path="res://addons/modular_hud/examples/resources/player_stamina.tres" id="6_stamina_data"]
+[ext_resource type="FontFile" uid="uid://csxjb5w7toka4" path="res://addons/modular_hud/fonts/VT323-Regular.ttf" id="7_aibe0"]
+[ext_resource type="PackedScene" uid="uid://5qnhn0otndyl" path="res://addons/modular_hud/components/money_display.tscn" id="8_money"]
+[ext_resource type="PackedScene" uid="uid://dqk8xm3v7n2hp" path="res://addons/modular_hud/components/sky_time_display.tscn" id="9_sky_time"]
+[ext_resource type="PackedScene" uid="uid://bxk7m3qp8v2hn" path="res://addons/modular_hud/components/sky_day_display.tscn" id="10_sky_day"]
+[ext_resource type="PackedScene" uid="uid://daxk7m3qp8v2h" path="res://addons/modular_hud/components/sky_speed_display.tscn" id="11_sky_speed"]
+[ext_resource type="PackedScene" uid="uid://d2xk7m3qp8v3h" path="res://addons/modular_hud/components/sky_weather_icon.tscn" id="12_sky_icon"]
+[ext_resource type="PackedScene" uid="uid://dpk8xm3v7n2hp" path="res://addons/modular_hud/components/profiler_display.tscn" id="13_profiler"]
+[ext_resource type="Script" uid="uid://co4ffab2upfxk" path="res://addons/modular_hud/examples/game_hud.gd" id="14_hud_script"]
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_wo6uv"]
+content_margin_left = 0.0
+content_margin_top = 6.0
+content_margin_right = 0.0
+content_margin_bottom = 6.0
+color = Color(0, 0, 0, 0)
+vertical = true
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_wo6uv"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0, 0, 0, 0.8745098)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+corner_detail = 9
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kpfma"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+corner_detail = 9
+
+[node name="GameHUD" type="CanvasLayer" unique_id=791584683]
+layer = 10
+script = ExtResource("14_hud_script")
+pixel_font = 2
+font_size = 25
+use_recommended_size = false
+
+[node name="Root" type="Control" parent="." unique_id=1948842432]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="DamageFlash" parent="Root" unique_id=509250497 instance=ExtResource("4_flash")]
+layout_mode = 1
+color = Color(0.8, 0.101960786, 0.101960786, 0.10980392)
+
+[node name="Layout" type="VBoxContainer" parent="Root" unique_id=367029065]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Padding_top" type="HSeparator" parent="Root/Layout" unique_id=2104231374]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Header" type="HBoxContainer" parent="Root/Layout" unique_id=410299672]
+layout_mode = 2
+alignment = 1
+
+[node name="VSeparator" type="VSeparator" parent="Root/Layout/Header" unique_id=141233738]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Inventory" type="Panel" parent="Root/Layout/Header" unique_id=1063887312]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator3" type="VSeparator" parent="Root/Layout/Header" unique_id=1923807507]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="empty" type="Panel" parent="Root/Layout/Header" unique_id=617124827]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_kpfma")
+
+[node name="VSeparator4" type="VSeparator" parent="Root/Layout/Header" unique_id=554022012]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Time_Mult" type="Panel" parent="Root/Layout/Header" unique_id=744457042]
+custom_minimum_size = Vector2(192, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Root/Layout/Header/Time_Mult" unique_id=1525497653]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VSeparator" type="VSeparator" parent="Root/Layout/Header/Time_Mult/HBoxContainer" unique_id=1405656562]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="SkySpeedDisplay" parent="Root/Layout/Header/Time_Mult/HBoxContainer" unique_id=1893962140 instance=ExtResource("11_sky_speed")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VSeparator2" type="VSeparator" parent="Root/Layout/Header/Time_Mult/HBoxContainer" unique_id=534962428]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VSeparator5" type="VSeparator" parent="Root/Layout/Header" unique_id=569845399]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Time" type="Panel" parent="Root/Layout/Header" unique_id=1555114842]
+custom_minimum_size = Vector2(192, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="SkyTimeDisplay" parent="Root/Layout/Header/Time" unique_id=1152941498 instance=ExtResource("9_sky_time")]
+layout_mode = 1
+
+[node name="VSeparator6" type="VSeparator" parent="Root/Layout/Header" unique_id=856134727]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Day" type="Panel" parent="Root/Layout/Header" unique_id=587938179]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="SkyDayDisplay" parent="Root/Layout/Header/Day" unique_id=474912605 instance=ExtResource("10_sky_day")]
+layout_mode = 1
+use_short_names = true
+
+[node name="VSeparator7" type="VSeparator" parent="Root/Layout/Header" unique_id=1036149904]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Icon" type="Panel" parent="Root/Layout/Header" unique_id=1147612557]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="SkyWeatherIcon" parent="Root/Layout/Header/Icon" unique_id=464851180 instance=ExtResource("12_sky_icon")]
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 72.0
+offset_bottom = 72.0
+grow_horizontal = 1
+grow_vertical = 1
+
+[node name="VSeparator2" type="VSeparator" parent="Root/Layout/Header" unique_id=1752033183]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Padding_header" type="HSeparator" parent="Root/Layout" unique_id=1902907730]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Center" type="HBoxContainer" parent="Root/Layout" unique_id=1356793369]
+custom_minimum_size = Vector2(0, 480)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VSeparator7" type="VSeparator" parent="Root/Layout/Center" unique_id=378396039]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Main" type="Panel" parent="Root/Layout/Center" unique_id=1908822772]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_kpfma")
+
+[node name="Instructions" type="RichTextLabel" parent="Root/Layout/Center/Main" unique_id=356612211]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_fonts/normal_font = ExtResource("7_aibe0")
+theme_override_font_sizes/normal_font_size = 25
+bbcode_enabled = true
+text = "[color=yellow]CONTROLS[/color]
+[color=white]WASD[/color] — Move
+[color=white]Space[/color] — Jump
+[color=white]Shift[/color] — Sprint
+[color=white]RMB Hold[/color] — Aim / Strafe
+[color=white]LMB[/color] — Interact / Move-to
+[color=white]F3[/color] — Toggle debug overlay
+[color=white]Scroll[/color] — Zoom in/out
+
+[color=yellow]FEATURES[/color]
+• Walk into colored zones for camera transitions
+• Click interactables (colored objects)
+• Click ground to test move-to
+• Hold RMB + move to strafe-aim
+• [color=orange]Orange NPC[/color] patrols on its own
+• Camera shake on landing from jumps
+• Camera shifts when aiming (RMB)"
+fit_content = true
+
+[node name="VSeparator6" type="VSeparator" parent="Root/Layout/Center" unique_id=1900380796]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Toasts" type="Panel" parent="Root/Layout/Center" unique_id=1018199612]
+clip_contents = true
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_styles/panel = SubResource("StyleBoxFlat_kpfma")
+
+[node name="DebugLabel" type="RichTextLabel" parent="Root/Layout/Center/Toasts" unique_id=744128039]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 9.0
+offset_top = 9.0
+offset_right = -9.0
+offset_bottom = -9.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_fonts/normal_font = ExtResource("7_aibe0")
+theme_override_font_sizes/normal_font_size = 25
+bbcode_enabled = true
+text = "[color=yellow]DEBUG[/color]
+Loading..."
+fit_content = true
+scroll_active = false
+
+[node name="Prompt" parent="Root/Layout/Center/Toasts" unique_id=1967020959 instance=ExtResource("3_prompt")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VSeparator5" type="VSeparator" parent="Root/Layout/Center" unique_id=1120199623]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Padding_footer" type="HSeparator" parent="Root/Layout" unique_id=250212489]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Footer" type="HBoxContainer" parent="Root/Layout" unique_id=1998824164]
+layout_mode = 2
+
+[node name="VSeparator3" type="VSeparator" parent="Root/Layout/Footer" unique_id=1210169713]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Face_cam" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=958707170]
+custom_minimum_size = Vector2(216, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Panel" type="Panel" parent="Root/Layout/Footer/Face_cam" unique_id=1337919181]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="Label" type="Label" parent="Root/Layout/Footer/Face_cam/Panel" unique_id=1045424178]
+layout_mode = 0
+offset_top = 144.0
+offset_right = 192.0
+offset_bottom = 168.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+
+[node name="VSeparator" type="VSeparator" parent="Root/Layout/Footer" unique_id=1967705523]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Stats" type="Panel" parent="Root/Layout/Footer" unique_id=289974137]
+custom_minimum_size = Vector2(420, 192)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Root/Layout/Footer/Stats" unique_id=779621237]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VSeparator7" type="VSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer" unique_id=1548560838]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="Root/Layout/Footer/Stats/HBoxContainer" unique_id=1484043036]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator3" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=1301835680]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="HealthBar" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=943248834 instance=ExtResource("1_health")]
+modulate = Color(0.4, 1, 0.4, 1)
+layout_mode = 2
+size_flags_vertical = 3
+data = ExtResource("5_health_data")
+
+[node name="HSeparator" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=1441953783]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="StaminaBar" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=133262294 instance=ExtResource("2_stamina")]
+modulate = Color(0.4, 0.7, 1, 1)
+layout_mode = 2
+size_flags_vertical = 3
+data = ExtResource("6_stamina_data")
+
+[node name="HSeparator2" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=1493402840]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="MoneyDisplay" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=30241063 instance=ExtResource("8_money")]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HSeparator4" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer2" unique_id=450371532]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VSeparator8" type="VSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer" unique_id=1023063502]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Root/Layout/Footer/Stats/HBoxContainer" unique_id=709041717]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="HSeparator5" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=299218136]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Label" type="Label" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=82572255]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+text = "TEXT"
+vertical_alignment = 1
+uppercase = true
+
+[node name="HSeparator6" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=956659904]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Label2" type="Label" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=1628539723]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+text = "TEXT"
+vertical_alignment = 1
+uppercase = true
+
+[node name="HSeparator7" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=1380895378]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Label3" type="Label" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=1695236970]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+text = "TEXT"
+vertical_alignment = 1
+uppercase = true
+
+[node name="HSeparator8" type="HSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer/VBoxContainer" unique_id=1329216393]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VSeparator9" type="VSeparator" parent="Root/Layout/Footer/Stats/HBoxContainer" unique_id=1572597803]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="VSeparator2" type="VSeparator" parent="Root/Layout/Footer" unique_id=1069726993]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Ammo" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=620224327]
+custom_minimum_size = Vector2(216, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Panel" type="Panel" parent="Root/Layout/Footer/Ammo" unique_id=1359385529]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="Label" type="Label" parent="Root/Layout/Footer/Ammo/Panel" unique_id=1921888371]
+layout_mode = 0
+offset_top = 144.0
+offset_right = 192.0
+offset_bottom = 168.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+
+[node name="VSeparator8" type="VSeparator" parent="Root/Layout/Footer" unique_id=1040937709]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Equiped_items" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=1465981623]
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Left Hand" type="HBoxContainer" parent="Root/Layout/Footer/Equiped_items" unique_id=1644137163]
+layout_mode = 2
+
+[node name="Item_01" type="Panel" parent="Root/Layout/Footer/Equiped_items/Left Hand" unique_id=1909313665]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator3" type="VSeparator" parent="Root/Layout/Footer/Equiped_items/Left Hand" unique_id=653949807]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Item_02" type="Panel" parent="Root/Layout/Footer/Equiped_items/Left Hand" unique_id=1613693878]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator4" type="VSeparator" parent="Root/Layout/Footer/Equiped_items/Left Hand" unique_id=45763537]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Item_03" type="Panel" parent="Root/Layout/Footer/Equiped_items/Left Hand" unique_id=1624087282]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="HSeparator" type="HSeparator" parent="Root/Layout/Footer/Equiped_items" unique_id=990761377]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Right Hand" type="HBoxContainer" parent="Root/Layout/Footer/Equiped_items" unique_id=1210760172]
+layout_mode = 2
+
+[node name="Item_01" type="Panel" parent="Root/Layout/Footer/Equiped_items/Right Hand" unique_id=1119682453]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator5" type="VSeparator" parent="Root/Layout/Footer/Equiped_items/Right Hand" unique_id=1365242019]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Item_02" type="Panel" parent="Root/Layout/Footer/Equiped_items/Right Hand" unique_id=1515963491]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator6" type="VSeparator" parent="Root/Layout/Footer/Equiped_items/Right Hand" unique_id=1824377979]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Item_03" type="Panel" parent="Root/Layout/Footer/Equiped_items/Right Hand" unique_id=359791251]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="VSeparator4" type="VSeparator" parent="Root/Layout/Footer" unique_id=510902639]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Profiler" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=1190126803]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Panel" type="Panel" parent="Root/Layout/Footer/Profiler" unique_id=462758820]
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="ProfilerDisplay" parent="Root/Layout/Footer/Profiler/Panel" unique_id=98641902 instance=ExtResource("13_profiler")]
+layout_mode = 1
+offset_left = 15.0
+offset_top = 18.0
+offset_right = -15.0
+offset_bottom = -18.0
+
+[node name="VSeparator5" type="VSeparator" parent="Root/Layout/Footer" unique_id=1086861185]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Messages" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=903409751]
+layout_mode = 2
+
+[node name="Panel" type="Panel" parent="Root/Layout/Footer/Messages" unique_id=1894213890]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_kpfma")
+
+[node name="Label" type="Label" parent="Root/Layout/Footer/Messages/Panel" unique_id=835572498]
+layout_mode = 0
+offset_top = 144.0
+offset_right = 192.0
+offset_bottom = 168.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+
+[node name="VSeparator7" type="VSeparator" parent="Root/Layout/Footer" unique_id=1434793905]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="MiniMap" type="VBoxContainer" parent="Root/Layout/Footer" unique_id=2033257325]
+custom_minimum_size = Vector2(216, 0)
+layout_mode = 2
+size_flags_horizontal = 10
+
+[node name="Panel" type="Panel" parent="Root/Layout/Footer/MiniMap" unique_id=643777495]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
+
+[node name="Label" type="Label" parent="Root/Layout/Footer/MiniMap/Panel" unique_id=615347125]
+layout_mode = 0
+offset_top = 144.0
+offset_right = 192.0
+offset_bottom = 168.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/outline_size = 0
+theme_override_fonts/font = ExtResource("7_aibe0")
+theme_override_font_sizes/font_size = 25
+
+[node name="VSeparator6" type="VSeparator" parent="Root/Layout/Footer" unique_id=1516455832]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
+
+[node name="Padding_bottom" type="HSeparator" parent="Root/Layout" unique_id=1417602019]
+layout_mode = 2
+theme_override_constants/separation = 18
+theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
