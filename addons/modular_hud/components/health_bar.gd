@@ -1,30 +1,7 @@
-extends Control
+extends HUDDataBar
 ## Health bar component - binds to HUDData resource.
-
-@export var data: HUDData
-
-@onready var bar := $TextureProgressBar
-@onready var anim := $AnimationPlayer
-
+## Default warning threshold at 25% health.
 
 func _ready() -> void:
-	if data:
-		data.changed.connect(_update)
-		_update()
-
-
-func _update() -> void:
-	if not is_inside_tree():
-		return
-
-	var target := (data.value / data.max_value) * 100.0
-	var tween := create_tween()
-	tween.tween_property(bar, "value", target, 0.15)
-
-	# Low health warning
-	if data.value / data.max_value < 0.25:
-		if not anim.is_playing() or anim.current_animation != "pulse":
-			anim.play("pulse")
-	else:
-		if anim.is_playing() and anim.current_animation == "pulse":
-			anim.stop()
+	warning_threshold = 0.25
+	super._ready()

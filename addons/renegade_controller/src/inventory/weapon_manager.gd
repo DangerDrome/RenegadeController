@@ -26,11 +26,25 @@ var state: State = State.IDLE
 var ammo_in_magazine: int = 0
 
 var _fire_cooldown: float = 0.0
+var _burst_remaining: int = 0
+var _trigger_held: bool = false
+
+const BURST_COUNT: int = 3
+const BURST_DELAY: float = 0.05
 
 
 func _process(delta: float) -> void:
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
+
+	# Handle full-auto firing while trigger is held
+	if _trigger_held and current_weapon and state == State.IDLE:
+		if current_weapon.fire_mode == WeaponDefinition.FireMode.FULL_AUTO:
+			_try_fire_single()
+
+	# Handle burst fire continuation
+	if _burst_remaining > 0 and _fire_cooldown <= 0.0 and state == State.IDLE:
+		_fire_burst_shot()
 
 
 ## Set the active weapon. Holsters current, spawns new.
@@ -59,11 +73,32 @@ func set_weapon(weapon: WeaponDefinition) -> void:
 
 
 ## Fire the current weapon. Returns true if fired.
+## Call this on trigger press. For full-auto, also call set_trigger_held(true).
 func fire() -> bool:
 	if state != State.IDLE:
 		return false
 	if current_weapon == null:
 		return false
+
+	match current_weapon.fire_mode:
+		WeaponDefinition.FireMode.SEMI_AUTO:
+			return _try_fire_single()
+		WeaponDefinition.FireMode.FULL_AUTO:
+			return _try_fire_single()
+		WeaponDefinition.FireMode.BURST:
+			return _start_burst()
+
+	return false
+
+
+## Set whether the trigger is being held (for full-auto weapons).
+func set_trigger_held(held: bool) -> void:
+	_trigger_held = held
+	if not held:
+		_burst_remaining = 0  # Cancel burst if trigger released
+
+
+func _try_fire_single() -> bool:
 	if _fire_cooldown > 0.0:
 		return false
 	if ammo_in_magazine <= 0:
@@ -73,6 +108,34 @@ func fire() -> bool:
 	_fire_cooldown = current_weapon.fire_rate
 	weapon_fired.emit()
 	return true
+
+
+func _start_burst() -> bool:
+	if _fire_cooldown > 0.0:
+		return false
+	if ammo_in_magazine <= 0:
+		return false
+	if _burst_remaining > 0:
+		return false  # Already in a burst
+
+	_burst_remaining = BURST_COUNT
+	_fire_burst_shot()
+	return true
+
+
+func _fire_burst_shot() -> void:
+	if ammo_in_magazine <= 0 or _burst_remaining <= 0:
+		_burst_remaining = 0
+		return
+
+	ammo_in_magazine -= 1
+	_burst_remaining -= 1
+	_fire_cooldown = BURST_DELAY
+	weapon_fired.emit()
+
+	# Add delay between burst and next burst
+	if _burst_remaining <= 0:
+		_fire_cooldown = current_weapon.fire_rate
 
 
 ## Start a reload. Async — waits for reload_time.

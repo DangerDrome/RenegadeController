@@ -2,6 +2,9 @@
 ## Movement is driven entirely by a ControllerInterface (player input or AI).
 class_name RenegadeCharacter extends CharacterBody3D
 
+## Squared threshold for input/direction magnitude checks (0.01^2 = 0.0001).
+const INPUT_THRESHOLD_SQ: float = 0.0001
+
 @export_group("References")
 @export var controller: ControllerInterface:
 	set(value):
@@ -16,6 +19,8 @@ class_name RenegadeCharacter extends CharacterBody3D
 			controller.move_to_requested.connect(_on_move_to_requested)
 			controller.interact_requested.connect(_on_interact_requested)
 @export var camera_rig: CameraRig
+## Optional equipment manager for applying gear stat modifiers.
+@export var equipment_manager: EquipmentManager
 
 @export_group("Movement")
 @export var move_speed: float = 8.0
@@ -122,26 +127,30 @@ func _update_movement(delta: float) -> void:
 	if camera_rig:
 		move_direction = camera_rig.calculate_move_direction(input)
 	else:
-		move_direction = Vector3(input.x, 0.0, input.y).normalized() if input.length() > 0.01 else Vector3.ZERO
-	is_sprinting = not is_aiming and controller.is_action_pressed(sprint_action) and move_direction.length() > 0.01
+		move_direction = Vector3(input.x, 0.0, input.y).normalized() if input.length_squared() > INPUT_THRESHOLD_SQ else Vector3.ZERO
+	is_sprinting = not is_aiming and controller.is_action_pressed(sprint_action) and move_direction.length_squared() > INPUT_THRESHOLD_SQ
 	var speed_mult := 1.0
 	if is_aiming:
 		speed_mult = aim_speed_multiplier
 	elif is_sprinting:
 		speed_mult = sprint_multiplier
-	_apply_horizontal_movement(move_direction, move_speed * speed_mult, delta)
+	# Apply gear speed modifier (additive percentage, e.g. 0.1 = +10% speed)
+	var gear_modifier := 1.0
+	if equipment_manager:
+		gear_modifier = 1.0 + equipment_manager.get_speed_modifier()
+	_apply_horizontal_movement(move_direction, move_speed * speed_mult * gear_modifier, delta)
 	if controller.has_aim_target():
 		var to_target := controller.get_aim_target() - global_position
 		to_target.y = 0.0
-		if to_target.length_squared() > 0.01:
+		if to_target.length_squared() > INPUT_THRESHOLD_SQ:
 			aim_direction = to_target.normalized()
-	elif move_direction.length() > 0.01:
+	elif move_direction.length_squared() > INPUT_THRESHOLD_SQ:
 		aim_direction = move_direction
 
 
 func _apply_horizontal_movement(direction: Vector3, target_speed: float, delta: float) -> void:
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	if direction.length() > 0.01:
+	if direction.length_squared() > INPUT_THRESHOLD_SQ:
 		horizontal = horizontal.move_toward(direction * target_speed, acceleration * delta)
 	else:
 		horizontal = horizontal.move_toward(Vector3.ZERO, deceleration * delta)
@@ -158,7 +167,7 @@ func _update_rotation(delta: float) -> void:
 	var face_dir: Vector3
 	if is_aiming and controller.has_aim_target():
 		face_dir = aim_direction
-	elif move_direction.length() > 0.01:
+	elif move_direction.length_squared() > INPUT_THRESHOLD_SQ:
 		face_dir = move_direction
 	else:
 		return
@@ -267,7 +276,7 @@ func _update_navigation(delta: float) -> void:
 		_nav_target = _nav_interact_target.global_position
 	var to_target := _nav_target - global_position
 	to_target.y = 0.0
-	if to_target.length() <= _nav_arrival_dist:
+	if to_target.length_squared() <= _nav_arrival_dist * _nav_arrival_dist:
 		_on_navigation_arrived()
 		return
 	move_direction = to_target.normalized()

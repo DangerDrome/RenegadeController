@@ -1,409 +1,404 @@
-# RenegadeController — Refactoring Plan
+# Renegade Controller — Refactoring Plan
 
-## Priority Legend
-- **P0** — Quick wins (low effort, high impact, safe)
-- **P1** — Medium effort improvements
-- **P2** — Larger refactors (require careful testing)
-
----
-
-## P0: Quick Wins
-
-### 1. Remove Debug Print Statements
-**Files:** `camera_rig.gd`
-**Lines affected:** ~20
-**Risk:** Safe — No behavior change
-
-Remove or gate behind `OS.is_debug_build()`:
-```gdscript
-# Lines to remove/modify:
-# 217, 218, 219, 222, 223, 232, 233, 282, 283, 300, 301, 311, 322, 357, 658, 742, 749
-```
-
-**Action:**
-```bash
-# Find all print statements
-grep -n "print(" src/camera/camera_rig.gd
-```
+**Priority Legend:**
+- 🔴 **Critical** — Must fix, affects correctness
+- 🟠 **High** — Should fix, significant improvement
+- 🟡 **Medium** — Nice to have, cleanliness improvement
+- 🟢 **Low** — Optional optimization
 
 ---
 
-### 2. Delete Empty FirstPersonZone Class
-**File:** `src/zones/first_person_zone.gd` (37 lines)
-**Risk:** Safe — Adds no functionality
+## Phase 1: Quick Wins (Low Effort, High Impact)
 
-The file extends `CameraZone` but adds nothing:
-```gdscript
-class_name FirstPersonZone extends CameraZone
-# No additional methods, properties, or overrides
-```
-
-**Action:**
-1. Search codebase for `FirstPersonZone` references
-2. Replace with `CameraZone` + first_person preset
-3. Delete `first_person_zone.gd` and `first_person_zone.gd.uid`
-4. Update `plugin.gd` custom type registration if needed
-
----
-
-### 3. Merge LootEntry into LootTable
-**Files:** `src/inventory/loot_entry.gd` (7 lines) → `src/inventory/loot_table.gd`
-**Risk:** Safe — Internal API only
-
-`LootEntry` is only 4 properties:
-```gdscript
-class LootEntry extends Resource:
-    @export var item: ItemDefinition
-    @export var weight: float = 1.0
-    @export var min_quantity: int = 1
-    @export var max_quantity: int = 1
-```
-
-**Action:**
-1. Move class definition into `loot_table.gd` as inner class
-2. Update any `.tres` files that reference `LootEntry`
-3. Delete `loot_entry.gd` and `loot_entry.gd.uid`
-
----
-
-### 4. Add Constants for Magic Numbers
-**File:** `camera_rig.gd`
-**Lines affected:** ~10
+### 1.1 Standardize Signal Signatures 🔴
 **Risk:** Safe
+**Scope:** ~10 lines
+**Plugins:** modular_hud, sky_weather
 
+**Change:**
 ```gdscript
-# Add at top of CameraRig class:
-const INPUT_DIRECTION_THRESHOLD := 0.7  # ~45 degrees for direction change
-const VELOCITY_MOVING_THRESHOLD := 0.1  # Squared velocity to consider "moving"
-const CAMERA_LOOK_THRESHOLD := 0.001    # Min direction length for look_at
-const UP_VECTOR_THRESHOLD := 0.9        # When to use alternate up vector
+# sky_weather/sky_weather.gd - Update line 84
+signal time_changed(hour: float, period: String)  # Add period parameter
+
+# Update _emit_hud_time() to pass period
+func _emit_hud_time() -> void:
+    var hud_events := get_node_or_null("/root/HUDEvents")
+    if hud_events and hud_events.has_signal("time_changed"):
+        hud_events.emit_signal("time_changed", time, get_period())
+    time_changed.emit(time, get_period())  # Include period
 ```
+
+**Why:** Eliminates signal signature confusion between plugins.
 
 ---
 
-### 5. Extract Physics Interpolation Reset Helper
-**File:** `camera_rig.gd`
-**Lines affected:** ~30 (5 call sites × 4 lines each → 5 lines each)
+### 1.2 Remove Dead Signals 🟡
 **Risk:** Safe
+**Scope:** ~5 lines
+**Plugin:** renegade_controller
 
+**Change:**
 ```gdscript
-func _reset_all_interpolation() -> void:
-    reset_physics_interpolation()
-    if pivot:
-        pivot.reset_physics_interpolation()
-    if spring_arm:
-        spring_arm.reset_physics_interpolation()
-    if camera:
-        camera.reset_physics_interpolation()
+# inventory_slot_ui.gd - Remove line 6
+# signal right_clicked  # DELETE - never connected
+
+# Line 50 - Simplify to only emit clicked
+func _gui_input(event: InputEvent) -> void:
+    if event is InputEventMouseButton and event.pressed:
+        clicked.emit(event.button_index)
 ```
 
-Replace 5 duplicate blocks with single call.
+**Why:** Dead code removal, cleaner API.
 
 ---
 
-## P1: Medium Effort Improvements
+### 1.3 Fix Distance Calculation 🟡
+**Risk:** Safe
+**Scope:** ~3 lines
+**Plugin:** renegade_controller
 
-### 6. Extract Damping Utility Functions
-**Files:** `camera_rig.gd`, `cursor_3d.gd`
-**Lines affected:** ~50 (25 call sites)
-**Risk:** Low
-
-Create `src/utils/math_utils.gd`:
+**Change:**
 ```gdscript
-class_name MathUtils
+# camera_auto_frame.gd - Line 94
+# Before:
+var hit_distance := player_pos.distance_to(result.position)
 
-## Frame-rate independent exponential damping for floats.
-static func damp(from: float, to: float, speed: float, delta: float) -> float:
-    return lerpf(from, to, 1.0 - exp(-speed * delta))
+# After (option 1 - if only comparison needed):
+var hit_distance_sq := player_pos.distance_squared_to(result.position)
+var check_distance_sq := check_distance * check_distance
+total_openness += hit_distance_sq / check_distance_sq
 
-## Frame-rate independent exponential damping for Vector3.
-static func damp_v3(from: Vector3, to: Vector3, speed: float, delta: float) -> Vector3:
-    return from.lerp(to, 1.0 - exp(-speed * delta))
-
-## Frame-rate independent exponential damping for angles.
-static func damp_angle(from: float, to: float, speed: float, delta: float) -> float:
-    return lerp_angle(from, to, 1.0 - exp(-speed * delta))
+# After (option 2 - keep sqrt for actual distance ratio):
+var hit_distance := player_pos.distance_to(result.position)  # Keep if ratio matters
 ```
+
+**Why:** Avoids 8 sqrt() calls per frame in auto-framing loop.
 
 ---
 
-### 7. Extract Camera Gizmo Utility
-**Files:** `camera_zone.gd`, `default_camera_marker.gd`
-**Lines affected:** ~600 (extract to new file)
-**Risk:** Low — Editor-only code
+### 1.4 Fix Outline Depth Edge Detection 🟡
+**Risk:** Safe
+**Scope:** 1 line
+**Plugin:** pixel_outline
 
-Create `src/editor/camera_gizmo.gd`:
-```gdscript
-class_name CameraGizmo extends RefCounted
+**Change:**
+```glsl
+// outline_post_process.gdshader - Line 77
+// Before:
+float behind_weight = max(0.0, sign(sample_depth - center_depth));
 
-static func draw_camera_body(im: ImmediateMesh, pos: Vector3, basis: Basis) -> void:
-    # ...existing code from both files...
-
-static func draw_frustum(im: ImmediateMesh, pos: Vector3, basis: Basis, fov: float, aspect: float) -> void:
-    # ...
-
-static func draw_look_at_line(im: ImmediateMesh, from: Vector3, to: Vector3) -> void:
-    # ...
-
-# Helper methods
-static func add_line(im: ImmediateMesh, start: Vector3, end: Vector3, local_transform: Transform3D) -> void:
-    # ...
-
-static func add_tri(im: ImmediateMesh, a: Vector3, b: Vector3, c: Vector3, local_transform: Transform3D) -> void:
-    # ...
-
-static func add_dashed_line(im: ImmediateMesh, start: Vector3, end: Vector3, ...) -> void:
-    # ...
-
-static func add_wireframe_cube(im: ImmediateMesh, center: Vector3, size: float, basis: Basis, ...) -> void:
-    # ...
-
-static func add_filled_cube(im: ImmediateMesh, ...) -> void:
-    # ...
+// After:
+float behind_weight = step(center_depth, sample_depth);
 ```
+
+**Why:** `sign()` returns 0 at exact threshold; `step()` is more reliable.
 
 ---
 
-### 8. Cache Interactable Group in Cursor3D
-**File:** `cursor_3d.gd`
-**Lines affected:** ~30
-**Risk:** Medium — Timing sensitivity
+## Phase 2: Code Deduplication (Medium Effort)
 
+### 2.1 Extract HUD Tree Search Utility 🟠
+**Risk:** Safe
+**Scope:** ~50 lines added, ~200 lines removed
+**Plugin:** modular_hud
+
+**Change:**
 ```gdscript
-var _cached_interactables: Array[Node3D] = []
-var _cache_valid: bool = false
+# Add to hud_events.gd:
+static func find_node_by_class(root: Node, class_name_str: String) -> Node:
+    var script := root.get_script() as Script
+    if script and script.get_global_name() == class_name_str:
+        return root
+    for child in root.get_children():
+        var result := find_node_by_class(child, class_name_str)
+        if result:
+            return result
+    return null
+
+# Update all 4 sky_* components to use:
+# _sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
+```
+
+**Files to update:**
+- `sky_time_display.gd` — Remove `_find_node_by_class()`, use HUDEvents
+- `sky_day_display.gd` — Same
+- `sky_weather_icon.gd` — Same
+- `sky_speed_display.gd` — Same
+
+**Why:** Eliminates 4 copies of identical 15-line function.
+
+---
+
+### 2.2 Create HUDDataBar Base Class 🟠
+**Risk:** Safe (additive)
+**Scope:** ~40 lines new, ~20 lines removed
+**Plugin:** modular_hud
+
+**New file:** `modular_hud/components/hud_data_bar.gd`
+```gdscript
+class_name HUDDataBar
+extends Control
+
+@export var data: HUDData
+@export var low_threshold: float = 0.25
+@export var bar_color: Color = Color.WHITE
+@export var warning_color: Color = Color.RED
+
+@onready var bar: ProgressBar = $ProgressBar
+@onready var anim: AnimationPlayer = $AnimationPlayer
 
 func _ready() -> void:
-    # ...existing code...
-    get_tree().node_added.connect(_on_tree_changed)
-    get_tree().node_removed.connect(_on_tree_changed)
+    if data:
+        data.changed.connect(_update)
+        _update()
 
-func _on_tree_changed(_node: Node) -> void:
-    _cache_valid = false
+func _update() -> void:
+    if not data or not bar:
+        return
+    var target := (data.value / data.max_value) * 100.0
+    var tween := create_tween()
+    tween.tween_property(bar, "value", target, 0.15)
 
-func _get_interactables() -> Array[Node3D]:
-    if not _cache_valid:
-        _cached_interactables.clear()
-        for node in get_tree().get_nodes_in_group("interactable"):
-            if node is Node3D:
-                _cached_interactables.append(node)
-        _cache_valid = true
-    return _cached_interactables
+    var ratio := data.value / data.max_value
+    if ratio < low_threshold:
+        bar.modulate = warning_color
+        if anim and anim.has_animation("pulse"):
+            anim.play("pulse")
+    else:
+        bar.modulate = bar_color
+        if anim:
+            anim.stop()
 ```
+
+**Refactor `health_bar.gd` and `stamina_bar.gd` to extend HUDDataBar.**
+
+**Why:** Merges 60 lines of duplicate code into reusable base.
 
 ---
 
-### 9. Cache Player Meshes in CameraRig
-**File:** `camera_rig.gd`
-**Lines affected:** ~20
-**Risk:** Low
-
-```gdscript
-var _cached_player_meshes: Array[MeshInstance3D] = []
-var _player_meshes_valid: bool = false
-
-func _get_player_meshes() -> Array[MeshInstance3D]:
-    if not _player_meshes_valid and target:
-        _cached_player_meshes.clear()
-        _collect_meshes(target, _cached_player_meshes)
-        _player_meshes_valid = true
-    return _cached_player_meshes
-
-# Invalidate when target changes
-@export var target: CharacterBody3D:
-    set(value):
-        target = value
-        _player_meshes_valid = false
-```
-
----
-
-### 10. Fix Editor Material Recreation
-**File:** `camera_zone.gd`
-**Lines affected:** ~40
-**Risk:** Low — Editor-only
-
-```gdscript
-var _body_face_mat: StandardMaterial3D
-var _body_line_mat: StandardMaterial3D
-var _line_face_mat: StandardMaterial3D
-var _line_mat: StandardMaterial3D
-var _cross_mat: StandardMaterial3D
-
-func _create_camera_preview() -> void:
-    # Create materials once
-    _body_face_mat = StandardMaterial3D.new()
-    _body_face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    _body_face_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    # ...etc
-
-func _update_camera_preview() -> void:
-    # Just update colors, don't recreate
-    if _body_face_mat:
-        _body_face_mat.albedo_color = face_color
-    # ...
-```
-
----
-
-### 11. Update CLAUDE.md Documentation
-**File:** `CLAUDE.md`
-**Lines affected:** ~100
+### 2.3 Extract Zoom Composition Method 🟡
 **Risk:** Safe
+**Scope:** ~15 lines
+**Plugin:** renegade_controller
 
-Add sections for:
-1. Inventory system file structure
-2. CameraSystem node
-3. DefaultCameraMarker
-4. Updated presets directory structure
-5. New dependency relationships
+**Change in `camera_rig.gd`:**
+```gdscript
+## Calculates effective zoom offset from dynamic sources.
+func _get_dynamic_zoom_offset() -> float:
+    return minf(_auto_frame_zoom, _movement_zoom) + _aim_zoom
+
+# Line 622-623 (follow mode):
+var effective_zoom := _target_zoom - _get_dynamic_zoom_offset()
+
+# Line 673-674 (marker mode):
+var total_zoom := _current_zoom + _get_dynamic_zoom_offset()
+```
+
+**Why:** Eliminates duplicate zoom composition logic, makes zoom behavior testable.
 
 ---
 
-## P2: Larger Refactors
+## Phase 3: Architecture Improvements (Higher Effort)
 
-### 12. Split CameraRig into Focused Modules
-**File:** `camera_rig.gd` (1,166 lines)
-**Lines affected:** 1,166 → split into ~5 files
-**Risk:** Medium — Many internal references
+### 3.1 Clarify Inventory/Equipment Ownership 🔴
+**Risk:** Medium (behavioral change)
+**Scope:** ~50 lines
+**Plugin:** renegade_controller
 
-**Proposed structure:**
-```
-src/camera/
-├── camera_rig.gd           # Core: _ready, target follow, public API (~300 lines)
-├── camera_transitions.gd   # Tween logic, mode switching (~200 lines)
-├── camera_zoom.gd          # Auto-frame, idle zoom, scroll wheel (~150 lines)
-├── camera_effects.gd       # Idle shake, DOF settings (~120 lines)
-└── camera_collision.gd     # Raycast, player fade (~150 lines)
-```
+**Current problem:** Items exist in both `Inventory.slots` AND `EquipmentManager.equipped`.
 
-**Approach:**
-1. Create child nodes or composition (not inheritance)
-2. CameraRig holds references to modules
-3. Modules can be optional (e.g., collision can be disabled)
+**Solution:** EquipmentManager stores slot indices, not item references.
 
-**Example composition:**
 ```gdscript
-# camera_rig.gd
-var _zoom_module: CameraZoom
-var _effects_module: CameraEffects
-var _collision_module: CameraCollision
+# equipment_manager.gd - Change equipped dict
+var equipped: Dictionary = {
+    &"primary": -1,    # Inventory slot index, -1 = empty
+    &"secondary": -1,
+    &"throwable": -1,
+    &"armor": -1
+}
 
-func _ready() -> void:
-    _zoom_module = CameraZoom.new(self)
-    _effects_module = CameraEffects.new(self)
-    _collision_module = CameraCollision.new(self)
+func equip_to_slot(slot_name: StringName, inventory_slot_index: int) -> bool:
+    if inventory_slot_index < 0 or inventory_slot_index >= inventory.slots.size():
+        return false
+    var slot := inventory.slots[inventory_slot_index]
+    if not slot.item:
+        return false
+    # ... validation ...
+    equipped[slot_name] = inventory_slot_index
+    item_equipped.emit(slot.item, slot_name)
+    return true
 
-func _physics_process(delta: float) -> void:
-    _zoom_module.update(delta)
-    _effects_module.update(delta)
-    if _collision_module:
-        _collision_module.update(delta)
+func get_equipped_item(slot_name: StringName) -> ItemDefinition:
+    var idx := equipped.get(slot_name, -1)
+    if idx < 0:
+        return null
+    return inventory.slots[idx].item
 ```
+
+**Why:** Single source of truth prevents item duplication bugs.
 
 ---
 
-### 13. Decouple CameraRig from CameraSystem
-**Files:** `camera_rig.gd`, `camera_system.gd`
-**Lines affected:** ~50
-**Risk:** Medium
-
-Current problem:
-```gdscript
-# camera_rig.gd:299
-var parent := get_parent()
-if parent is CameraSystem and parent.third_person_camera:
-    marker = parent.third_person_camera
-```
-
-**Solution:** Inject dependencies via exports/setters:
-```gdscript
-# camera_system.gd
-func _ready() -> void:
-    if camera_rig:
-        camera_rig.default_camera_marker = third_person_camera
-        camera_rig.first_person_marker = first_person_camera
-```
-
-Remove parent lookup from CameraRig entirely.
-
----
-
-### 14. Standardize Null Checking Patterns
-**Files:** Multiple
-**Lines affected:** ~100
+### 3.2 Extract CameraTransitionHandler 🟠
 **Risk:** Low
+**Scope:** ~150 lines moved
+**Plugin:** renegade_controller
 
-Establish pattern:
-- Use `is_instance_valid(node)` for any Node reference that could be freed
-- Use simple `if value:` for Resources and values
-- Never double-check (`if x and is_instance_valid(x)`)
-
+**New file:** `renegade_controller/src/camera/camera_transition_handler.gd`
 ```gdscript
-# Before
-if _camera_marker and is_instance_valid(_camera_marker):
+class_name CameraTransitionHandler
+extends RefCounted
 
-# After
-if is_instance_valid(_camera_marker):
+signal transition_started(from: CameraPreset, to: CameraPreset)
+signal transition_finished(preset: CameraPreset)
+
+var is_transitioning: bool = false
+var transition_progress: float = 0.0
+var _active_tween: Tween
+
+# Move from camera_rig.gd:
+# - _apply_curve()
+# - _get_active_curve()
+# - _transition_third_person()
+# - _transition_to_first_person()
+# - _transition_from_first_person()
+# - _transition_to_marker()
+# - Transition-related state variables
 ```
+
+**Why:** Reduces camera_rig.gd by ~150 lines, isolates transition logic for easier testing.
+
+---
+
+### 3.3 Implement FireMode 🟡
+**Risk:** Low (additive feature)
+**Scope:** ~30 lines
+**Plugin:** renegade_controller
+
+**Change in `weapon_manager.gd`:**
+```gdscript
+func fire() -> bool:
+    if state != State.IDLE or _fire_cooldown > 0.0 or ammo_in_magazine <= 0:
+        return false
+
+    match current_weapon.fire_mode:
+        WeaponDefinition.FireMode.SEMI_AUTO:
+            _fire_single()
+        WeaponDefinition.FireMode.BURST:
+            _fire_burst(3)  # 3-round burst
+        WeaponDefinition.FireMode.FULL_AUTO:
+            # Handled in _process while trigger held
+            _fire_single()
+    return true
+
+func _fire_single() -> void:
+    ammo_in_magazine -= 1
+    _fire_cooldown = 1.0 / current_weapon.fire_rate
+    weapon_fired.emit()
+
+func _fire_burst(count: int) -> void:
+    for i in count:
+        if ammo_in_magazine <= 0:
+            break
+        _fire_single()
+        await get_tree().create_timer(0.05).timeout
+```
+
+**Why:** Existing enum becomes functional, enables weapon variety.
+
+---
+
+### 3.4 Add Sky Update Optimization 🟢
+**Risk:** Safe
+**Scope:** ~15 lines
+**Plugin:** sky_weather
+
+**Change in `sky_weather.gd`:**
+```gdscript
+var _needs_sky_update: bool = true
+
+func _process(delta: float) -> void:
+    if day_duration_minutes > 0 and not Engine.is_editor_hint():
+        var old_time := time
+        var base_speed := (delta / 60.0) * (24.0 / day_duration_minutes)
+        time += base_speed * time_scale
+        if time != old_time:
+            _needs_sky_update = true
+
+    if _weather_t < 1.0:
+        _weather_t = minf(_weather_t + delta / weather_transition_time, 1.0)
+        _needs_sky_update = true
+
+    if _needs_sky_update:
+        _update_sky()
+        _needs_sky_update = false
+```
+
+**Why:** Skips redundant sky calculations when nothing changed.
+
+---
+
+## Phase 4: Documentation Updates
+
+### 4.1 Update CLAUDE.md File Structure 🟡
+**Risk:** Safe
+**Scope:** Documentation only
+
+Add any new files created during refactoring. Verify all paths match actual structure.
+
+---
+
+### 4.2 Document Integration Patterns 🟡
+**Risk:** Safe
+**Scope:** Documentation only
+
+Add to modular_hud README:
+- How to find SkyWeather from HUD components
+- Signal listening patterns (HUDEvents vs direct)
+- Recommended integration approach
 
 ---
 
 ## Implementation Order
 
-### Phase 1: Safe Cleanup (P0)
-1. Remove debug prints
-2. Delete FirstPersonZone
-3. Merge LootEntry
-4. Add magic number constants
-5. Extract interpolation reset helper
+| Phase | Task | Priority | Effort | Risk |
+|-------|------|----------|--------|------|
+| 1 | Standardize signal signatures | 🔴 Critical | 15 min | Safe |
+| 1 | Remove dead signals | 🟡 Medium | 5 min | Safe |
+| 1 | Fix distance calculation | 🟡 Medium | 10 min | Safe |
+| 1 | Fix outline depth edge | 🟡 Medium | 5 min | Safe |
+| 2 | Extract HUD tree search | 🟠 High | 1 hr | Safe |
+| 2 | Create HUDDataBar base | 🟠 High | 1.5 hr | Safe |
+| 2 | Extract zoom composition | 🟡 Medium | 30 min | Safe |
+| 3 | Clarify inventory ownership | 🔴 Critical | 2 hr | Medium |
+| 3 | Extract CameraTransitionHandler | 🟠 High | 2 hr | Low |
+| 3 | Implement FireMode | 🟡 Medium | 1 hr | Low |
+| 3 | Add sky update optimization | 🟢 Low | 30 min | Safe |
+| 4 | Update documentation | 🟡 Medium | 1 hr | Safe |
 
-**Estimated scope:** ~100 lines changed, ~50 lines removed
-
-### Phase 2: Utilities (P1)
-1. Extract damping utility
-2. Extract camera gizmo utility
-3. Cache interactables
-4. Cache player meshes
-5. Fix editor materials
-6. Update documentation
-
-**Estimated scope:** ~400 lines changed, ~300 lines consolidated
-
-### Phase 3: Architecture (P2)
-1. Split CameraRig
-2. Decouple CameraRig/CameraSystem
-3. Standardize null checks
-
-**Estimated scope:** ~600 lines refactored
+**Estimated Total:** ~10.5 hours
 
 ---
 
-## Testing Checklist
+## Testing Requirements
 
-After each phase, verify:
+After each phase:
 
-### Core Functionality
-- [ ] Player character moves correctly in all camera modes
-- [ ] Camera follows player smoothly
-- [ ] Camera transitions between zones work
-- [ ] First-person mode works
-- [ ] Cursor 3D works (hover, click, aim)
-- [ ] Zoom (scroll wheel) works
-- [ ] Idle camera behaviors work (zoom, shake)
+1. **Phase 1:** Run demo scene, verify no errors
+2. **Phase 2:** Test HUD components with/without SkyWeather present
+3. **Phase 3:**
+   - Inventory: Equip/unequip/drop weapons, verify no duplication
+   - Camera: Test all zone transitions, verify smooth interpolation
+   - Weapons: Test each fire mode (once implemented)
+4. **Phase 4:** Review documentation accuracy
 
-### Editor Functionality
-- [ ] Camera gizmos display correctly
-- [ ] Zone collision shapes editable
-- [ ] Marker positions adjustable
-- [ ] Inspector properties work
+---
 
-### NPC Functionality
-- [ ] AIController works
-- [ ] NPCs move correctly
-- [ ] No camera interference with NPCs
+## Rollback Plan
 
-### Inventory (if modified)
-- [ ] Items can be picked up
-- [ ] Inventory displays correctly
-- [ ] Weapon wheel works
+All changes are isolated. If issues arise:
+- Phase 1: Revert individual line changes
+- Phase 2: Delete new base classes, restore original files from git
+- Phase 3: Revert to previous implementation via git
+- Phase 4: Documentation-only, no code impact

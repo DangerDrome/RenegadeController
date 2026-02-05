@@ -34,7 +34,8 @@ func can_equip(item: ItemDefinition, slot: StringName) -> bool:
 
 
 ## Equip an item to a slot. Returns true on success.
-func equip(item: ItemDefinition, slot: StringName) -> bool:
+## If remove_from_inventory is true and inventory is set, removes the item from inventory.
+func equip(item: ItemDefinition, slot: StringName, remove_from_inventory: bool = true) -> bool:
 	if not can_equip(item, slot):
 		return false
 
@@ -42,6 +43,10 @@ func equip(item: ItemDefinition, slot: StringName) -> bool:
 	var previous := equipped.get(slot) as ItemDefinition
 	if previous:
 		unequip(slot)
+
+	# Remove from inventory to prevent item duplication
+	if remove_from_inventory and inventory and inventory.has_item(item):
+		inventory.remove_item(item, 1)
 
 	equipped[slot] = item
 	item_equipped.emit(item, slot)
@@ -56,7 +61,8 @@ func equip(item: ItemDefinition, slot: StringName) -> bool:
 
 
 ## Unequip whatever is in a slot. Returns the item that was removed (or null).
-func unequip(slot: StringName) -> ItemDefinition:
+## If return_to_inventory is true and inventory is set, adds the item back to inventory.
+func unequip(slot: StringName, return_to_inventory: bool = true) -> ItemDefinition:
 	var item := equipped.get(slot) as ItemDefinition
 	if not item:
 		return null
@@ -66,6 +72,10 @@ func unequip(slot: StringName) -> ItemDefinition:
 
 	if slot == _active_weapon_slot and weapon_manager:
 		weapon_manager.clear_weapon()
+
+	# Return item to inventory to prevent item loss
+	if return_to_inventory and inventory:
+		inventory.add_item(item, 1)
 
 	return item
 
@@ -103,3 +113,39 @@ func get_equipped(slot: StringName) -> ItemDefinition:
 ## Check if a specific slot has an item.
 func has_equipped(slot: StringName) -> bool:
 	return equipped.get(slot) != null
+
+
+## Get total armor value from all equipped gear.
+func get_total_armor() -> float:
+	var total := 0.0
+	for item in equipped.values():
+		if item is GearDefinition:
+			total += item.armor_value
+	return total
+
+
+## Get total damage reduction from all equipped gear.
+func get_total_damage_reduction() -> float:
+	var total := 0.0
+	for item in equipped.values():
+		if item is GearDefinition:
+			total += item.damage_reduction
+	return clampf(total, 0.0, 1.0)  # Cap at 100% reduction
+
+
+## Get total speed modifier from all equipped gear (additive percentage).
+func get_speed_modifier() -> float:
+	var total := 0.0
+	for item in equipped.values():
+		if item is GearDefinition:
+			total += item.speed_modifier
+	return total
+
+
+## Get total stealth modifier from all equipped gear (additive percentage).
+func get_stealth_modifier() -> float:
+	var total := 0.0
+	for item in equipped.values():
+		if item is GearDefinition:
+			total += item.stealth_modifier
+	return total

@@ -14,7 +14,7 @@ func _ready() -> void:
 
 
 func _find_sky_weather() -> void:
-	_sky_weather = _find_node_by_class(get_tree().root, "SkyWeather")
+	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
 	if not _sky_weather:
 		return
 
@@ -28,18 +28,7 @@ func _find_sky_weather() -> void:
 		_update_display(_sky_weather.time)
 
 
-func _find_node_by_class(node: Node, class_name_str: String) -> Node:
-	var script := node.get_script() as Script
-	if script and script.get_global_name() == class_name_str:
-		return node
-	for child in node.get_children():
-		var result := _find_node_by_class(child, class_name_str)
-		if result:
-			return result
-	return null
-
-
-func _on_time_changed(hour: float) -> void:
+func _on_time_changed(hour: float, _period: String) -> void:
 	_update_display(hour)
 
 

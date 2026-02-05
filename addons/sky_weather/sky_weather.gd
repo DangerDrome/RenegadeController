@@ -20,11 +20,11 @@ extends Node3D
 		if time < 0:
 			time += 24.0
 		_update_sky()
-		time_changed.emit(time)
-		var new_period := get_period()
-		if new_period != _last_period:
-			_last_period = new_period
-			period_changed.emit(new_period)
+		var current_period := get_period()
+		time_changed.emit(time, current_period)
+		if current_period != _last_period:
+			_last_period = current_period
+			period_changed.emit(current_period)
 			_emit_hud_time()
 
 ## Real minutes per full 24-hour day cycle. Set to 0 to pause time.
@@ -81,7 +81,7 @@ extends Node3D
 		axial_tilt = v
 		_update_sky()
 
-signal time_changed(hour: float)
+signal time_changed(hour: float, period: String)
 signal period_changed(period: String)
 signal weather_changed(preset: WeatherPreset)
 signal day_changed(day: int)
@@ -138,15 +138,19 @@ func _register_npc_hooks() -> void:
 
 
 func _process(delta: float) -> void:
+	var time_updated := false
+
 	# Advance time based on time_scale
 	if day_duration_minutes > 0 and not Engine.is_editor_hint():
 		var base_speed := (delta / 60.0) * (24.0 / day_duration_minutes)
-		time += base_speed * time_scale
+		time += base_speed * time_scale  # This calls _update_sky() via setter
+		time_updated = true
 
-	# Weather transition
+	# Weather transition - only update if time didn't already trigger it
 	if _weather_t < 1.0:
 		_weather_t = minf(_weather_t + delta / weather_transition_time, 1.0)
-		_update_sky()
+		if not time_updated:
+			_update_sky()
 
 
 func _setup_nodes() -> void:

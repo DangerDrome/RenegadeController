@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://item_info_panel"]
 
-[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/ui/item_info_panel.gd" id="1"]
+[ext_resource type="Script" path="res://addons/renegade_controller/src/inventory/item_info_panel.gd" id="1"]
 
 [node name="ItemInfoPanel" type="PanelContainer"]
 custom_minimum_size = Vector2(220, 0)

@@ -19,7 +19,9 @@
       "Bash(curl:*)",
       "WebFetch(domain:git.sr.ht)",
       "Bash(unzip:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(sort:*)",
+      "Bash(xargs:*)"
     ]
   },
   "outputStyle": "default"

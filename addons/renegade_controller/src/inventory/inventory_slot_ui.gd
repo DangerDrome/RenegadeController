@@ -3,7 +3,6 @@
 class_name InventorySlotUI extends PanelContainer
 
 signal clicked(button_index: int)
-signal right_clicked
 
 @export var empty_color: Color = Color(0.15, 0.15, 0.15, 0.8)
 @export var hover_color: Color = Color(0.25, 0.25, 0.25, 0.9)
@@ -47,7 +46,6 @@ func _gui_input(event: InputEvent) -> void:
 			clicked.emit(MOUSE_BUTTON_LEFT)
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			clicked.emit(MOUSE_BUTTON_RIGHT)
-			right_clicked.emit()
 
 
 func _on_mouse_entered() -> void:
