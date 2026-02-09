@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dithering_overlay_preset"]
+
+[ext_resource type="Script" path="res://addons/dithering/src/dithering_overlay.gd" id="1_overlay"]
+
+[node name="DitheringOverlay" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_overlay")

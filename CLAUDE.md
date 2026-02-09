@@ -2,6 +2,9 @@
 
 ## Project Overview
 
+PATH TO GODOT:
+/home/danger/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64. 
+
 A unified character controller plugin for Godot 4.6 with a decoupled camera system, 3D mouse cursor, and zone-based camera transitions. Works for both player characters and NPCs through input abstraction.
 
 This is a plugin for the "Renegade Cop" game — a gritty 80s third-person shooter action-RPG with Metal Gear Solid-inspired gameplay.

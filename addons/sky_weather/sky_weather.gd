@@ -30,13 +30,10 @@ extends Node3D
 ## Real minutes per full 24-hour day cycle. Set to 0 to pause time.
 @export var day_duration_minutes: float = 24.0
 
-## Time scale multiplier. Positive = forward, negative = backward.
-## x1 = realtime (24 min/day), x2 = double speed, -1 = reverse realtime, etc.
-## Note: 0 is not allowed, minimum is 1 or -1.
+## Time scale multiplier. Positive = forward, negative = backward, 0 = frozen.
+## x1 = realtime (24 min/day), x2 = double speed, -1 = reverse realtime, 0 = paused.
 @export_range(-300, 300) var time_scale: int = 1:
 	set(v):
-		if v == 0:
-			v = 1
 		time_scale = v
 
 ## Current weather preset

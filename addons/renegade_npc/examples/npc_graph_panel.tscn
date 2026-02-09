@@ -1,0 +1,41 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" uid="uid://7vf3elclslay" path="res://addons/renegade_npc/examples/npc_graph_panel.gd" id="1_script"]
+[ext_resource type="FontFile" uid="uid://csxjb5w7toka4" path="res://addons/modular_hud/fonts/VT323-Regular.ttf" id="2_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0, 0, 0, 0.875)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+corner_detail = 9
+
+[node name="NPCGraphPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(400, 150)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_script")
+title_text = "Graph"
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/VBox" unique_name_in_owner=true]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.83, 1, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 25
+text = "Graph"
+
+[node name="GraphArea" type="Control" parent="Margin/VBox" unique_name_in_owner=true]
+layout_mode = 2
+size_flags_vertical = 3

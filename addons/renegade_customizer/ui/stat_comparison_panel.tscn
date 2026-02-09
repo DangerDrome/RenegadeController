@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3 uid="uid://stat_compare"]
+
+[ext_resource type="Script" path="res://addons/renegade_customizer/ui/stat_comparison_panel.gd" id="1_stats"]
+
+[node name="StatComparisonPanel" type="PanelContainer"]
+visible = false
+z_index = 100
+custom_minimum_size = Vector2(220, 0)
+script = ExtResource("1_stats")
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="VBox" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ItemNameLabel" type="Label" parent="MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="StatsContainer" type="VBoxContainer" parent="MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2

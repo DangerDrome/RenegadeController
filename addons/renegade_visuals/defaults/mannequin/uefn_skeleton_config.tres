@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="SkeletonConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_visuals/resources/skeleton_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+root_bone = &"root"
+pelvis_bone = &"pelvis"
+spine_01 = &"spine_01"
+spine_02 = &"spine_02"
+spine_03 = &"spine_03"
+neck = &"neck_01"
+head = &"head"
+left_thigh = &"thigh_l"
+left_calf = &"calf_l"
+left_foot = &"foot_l"
+right_thigh = &"thigh_r"
+right_calf = &"calf_r"
+right_foot = &"foot_r"
+left_upperarm = &"upperarm_l"
+left_lowerarm = &"lowerarm_l"
+left_hand = &"hand_l"
+right_upperarm = &"upperarm_r"
+right_lowerarm = &"lowerarm_r"
+right_hand = &"hand_r"
+upper_body_bones = PackedStringArray("spine_02", "spine_03", "neck_01", "head", "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r")

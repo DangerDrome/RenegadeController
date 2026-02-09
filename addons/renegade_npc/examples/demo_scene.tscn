@@ -1,0 +1,838 @@
+[gd_scene format=3 uid="uid://bka836ycluhoe"]
+
+[ext_resource type="Script" uid="uid://b61m5tbatpivm" path="res://addons/renegade_npc/examples/demo_scene.gd" id="1_demo"]
+[ext_resource type="Script" uid="uid://u8apxdu31avc" path="res://addons/renegade_npc/examples/demo_player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://dmbue1bbhcphq" path="res://addons/renegade_npc/examples/demo_hud.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://bxwmu2kdgsynx" path="res://addons/renegade_npc/nodes/activity_node.gd" id="4_activity"]
+[ext_resource type="Script" uid="uid://bdwpd4hf170tm" path="res://addons/renegade_npc/tests/test_visualizer.gd" id="5_testvis"]
+[ext_resource type="PackedScene" path="res://addons/renegade_npc/examples/npc_data_graphs.tscn" id="6_graphs"]
+[ext_resource type="Script" uid="uid://cvsl1e0je7jf6" path="res://addons/sky_weather/sky_weather.gd" id="7_5tlye"]
+
+[sub_resource type="NavigationMesh" id="NavMesh_1"]
+vertices = PackedVector3Array(-3.25, 0.4, -38.5, -1.5, 0.4, -38.75, -1.75, 0.4, -49.5, -49.5, 0.4, -16.75, -38, 0.4, -16.75, -37.75, 0.4, -19, -49.5, 0.4, -49.5, -33.25, 0.4, -19, -3.25, 0.4, -30.5, 2.5, 0.4, -38.75, 2.75, 0.4, -36.5, 4.25, 0.4, -36.5, 4.25, 0.4, -43.5, 7.75, 0.4, -49.5, 7.5, 0.4, -43.75, 23.75, 0.4, -37, 26.25, 0.4, -37, 26.5, 0.4, -39.5, 9.25, 0.4, -43.5, 30, 0.4, -39.5, 30, 0.4, -49.5, 9.25, 0.4, -35.75, 23.5, 0.4, -35.5, 32.25, 0.4, -39.25, 32.25, 0.4, -32.25, 31.75, 0.4, -32, 49.5, 0.4, -31.75, 49.5, 0.4, -49.5, 5.25, 6.4, -42.75, 5.25, 6.4, -35.5, 8.25, 6.4, -35.5, 8.25, 6.4, -42.75, 5.5, 0.4, -42.5, 5.5, 0.4, -35.75, 8, 0.4, -35.75, 8, 0.4, -42.5, 27.25, 5.4, -38.5, 27.25, 5.4, -33, 31.25, 5.4, -33, 31.25, 5.4, -38.5, 27.5, 0.4, -38.25, 27.5, 0.4, -37, 29.75, 0.4, -36.75, 31, 0.4, -38.25, 29.75, 0.4, -33.25, 31, 0.4, -33.25, -2.25, 3.4, -37.75, -2.25, 3.4, -31.25, 1.75, 3.4, -31.25, 1.75, 3.4, -37.75, -2, 0.4, -37.5, -2, 0.4, -31.5, 1.5, 0.4, -31.5, 1.5, 0.4, -37.5, 23.25, 0.4, -28.25, 24, 0.4, -29.5, 23.5, 0.4, -29.75, 4.5, 0.4, -34.5, 2.75, 0.4, -30.5, 5, 0.4, -17.25, 5.25, 0.4, -16.75, 9, 0.4, -34.5, -0.75, 0.4, -30.25, -0.75, 0.4, -17.25, 28.75, 3.15, -30.5, 28.75, 3.15, -32, 26.25, 3.15, -32.25, 24.5, 3.15, -30.5, 24.5, 3.15, -36, 26.25, 3.15, -36, 27.5, 3.15, -36, 27.5, 3.15, -33.25, 28.75, 3.15, -33.25, 28.75, 3.15, -36, 28.5, 0.4, -30.75, 28.5, 0.4, -32, 26.25, 0.4, -32.25, 24.75, 0.4, -30.75, 24.75, 0.4, -35.75, 26.25, 0.4, -35.75, 27.5, 0.4, -35.75, 27.5, 0.4, -33.25, 28.5, 0.4, -33.25, 28.5, 0.4, -35.75, 29.75, 0.4, -32, 29.5, 0.4, -29.5, 20, 0.4, 1.75, 20, 0.4, 7, 20.25, 0.4, 7.25, 27.5, 0.4, 7.25, 49.5, 0.4, 8.75, 27.75, 0.4, 9, -2.75, 0.4, -17.25, -32.75, 0.4, -18.75, -32.75, 0.4, -15.75, -3, 0.4, -15.5, 5.25, 0.4, -8.75, 14.5, 0.4, 1.25, 19.75, 0.4, 1.25, -37, 4.4, -18, -37, 4.4, -12.5, -33.75, 4.4, -12.5, -33.75, 4.4, -18, -36.75, 0.4, -17.75, -36.75, 0.4, -12.75, -34, 0.4, -12.75, -34, 0.4, -17.75, -49.5, 0.4, -13.75, -38, 0.4, -13.75, -2, 3.9, -16.25, -2, 3.9, -9.25, 4.25, 3.9, -9.25, 4.25, 3.9, -16.25, -1.75, 0.4, -16, -1.75, 0.4, -9.5, 4, 0.4, -9.5, 4, 0.4, -16, -32.75, 0.4, -13.25, -3, 0.4, -13, -37.75, 0.4, -11.5, -49.5, 0.4, 10.25, -17.25, 0.4, 5.75, -32.75, 0.4, -12, -33, 0.4, -11.5, -17, 0.4, 10, -12.25, 0.4, 5.5, -3, 0.4, -8.75, -11.75, 0.4, 6, -2.5, 0.4, -8.25, 5, 0.4, -8.25, 14, 0.4, 1.5, -11.75, 0.4, 7.5, 14.5, 0.4, 7.25, 14, 0.4, 7, 15, 5.15, 2.25, 15, 5.15, 6.25, 19, 5.15, 6.25, 19, 5.15, 2.25, 15.25, 0.4, 2.5, 15.25, 0.4, 6, 18.75, 0.4, 6, 18.75, 0.4, 2.5, -16.25, 2.65, 6.5, -16.25, 2.65, 9, -12.75, 2.65, 9, -12.75, 2.65, 6.5, -16, 0.4, 6.75, -16, 0.4, 8.75, -13, 0.4, 8.75, -13, 0.4, 6.75, 20, 0.4, 15.25, -12, 0.4, 10, -17.75, 0.4, 29, -11, 0.4, 36.25, -6.25, 0.4, 36.25, -16.75, 0.4, 10, -18.25, 0.4, 24, -17.75, 0.4, 24.25, 20.5, 0.4, 15.5, 21, 4.9, 8.25, 21, 4.9, 14.5, 26.75, 4.9, 14.5, 26.75, 4.9, 8.25, 21.25, 0.4, 8.5, 21.25, 0.4, 14.25, 26.5, 0.4, 14.25, 26.5, 0.4, 8.5, 27.75, 0.4, 13.75, 49.5, 0.4, 14, -24.25, 0.4, 24, -49.5, 0.4, 26.75, -24.5, 0.4, 26.75, 36.5, 0.4, 28.5, 36.75, 0.4, 30.25, 49.5, 0.4, 30, 27.75, 0.4, 15, 32.25, 0.4, 28.5, 27.25, 0.4, 15.5, 31.75, 0.4, 29, -5.75, 0.4, 41, -7.5, 0.4, 41.25, -7.25, 0.4, 49.5, 33.25, 0.4, 49.5, 33.5, 0.4, 36.25, 31.75, 0.4, 36, -5.75, 0.4, 36.5, -23.5, 2.9, 25, -23.5, 2.9, 28.5, -18.75, 2.9, 28.5, -18.75, 2.9, 25, -23.25, 0.4, 25.25, -23.25, 0.4, 28.25, -19, 0.4, 28.25, -19, 0.4, 25.25, -22.25, 0.4, 49.5, -22.25, 0.4, 29.5, -24.5, 0.4, 29.25, -49.5, 0.4, 49.5, -11.5, 0.4, 41, -18, 0.4, 29.5, -11.5, 0.4, 36.5, 32.75, 5.4, 29.5, 32.75, 5.4, 35.25, 35.75, 5.4, 35.25, 35.75, 5.4, 29.5, 33, 0.4, 29.75, 33, 0.4, 35, 35.5, 0.4, 35, 35.5, 0.4, 29.75, 36.75, 0.4, 34.5, 49.5, 0.4, 34.75, 36.5, 0.4, 36.25, 49.5, 0.4, 49.5, -10.5, 2.65, 37.25, -10.5, 2.65, 40.25, -6.75, 2.65, 40.25, -6.75, 2.65, 37.25, -10.25, 0.4, 37.5, -10.25, 0.4, 40, -7, 0.4, 40, -7, 0.4, 37.5)
+polygons = [PackedInt32Array(0, 2, 1), PackedInt32Array(4, 3, 5), PackedInt32Array(5, 3, 6), PackedInt32Array(0, 8, 7), PackedInt32Array(5, 6, 7), PackedInt32Array(7, 6, 0), PackedInt32Array(0, 6, 2), PackedInt32Array(10, 9, 11), PackedInt32Array(11, 9, 12), PackedInt32Array(13, 12, 2), PackedInt32Array(2, 12, 1), PackedInt32Array(12, 13, 14), PackedInt32Array(12, 9, 1), PackedInt32Array(17, 16, 15), PackedInt32Array(18, 14, 13), PackedInt32Array(20, 19, 17), PackedInt32Array(17, 15, 20), PackedInt32Array(20, 15, 18), PackedInt32Array(20, 18, 13), PackedInt32Array(22, 21, 15), PackedInt32Array(15, 21, 18), PackedInt32Array(23, 19, 20), PackedInt32Array(26, 25, 24), PackedInt32Array(26, 24, 23), PackedInt32Array(20, 27, 23), PackedInt32Array(23, 27, 26), PackedInt32Array(31, 30, 28), PackedInt32Array(28, 30, 29), PackedInt32Array(35, 34, 32), PackedInt32Array(32, 34, 33), PackedInt32Array(39, 38, 36), PackedInt32Array(36, 38, 37), PackedInt32Array(41, 40, 42), PackedInt32Array(42, 40, 43), PackedInt32Array(44, 42, 45), PackedInt32Array(45, 42, 43), PackedInt32Array(49, 48, 46), PackedInt32Array(46, 48, 47), PackedInt32Array(53, 52, 50), PackedInt32Array(50, 52, 51), PackedInt32Array(56, 55, 54), PackedInt32Array(11, 57, 10), PackedInt32Array(10, 57, 58), PackedInt32Array(59, 58, 60), PackedInt32Array(60, 58, 61), PackedInt32Array(60, 61, 54), PackedInt32Array(54, 61, 22), PackedInt32Array(22, 56, 54), PackedInt32Array(58, 57, 61), PackedInt32Array(62, 58, 63), PackedInt32Array(63, 58, 59), PackedInt32Array(61, 21, 22), PackedInt32Array(65, 64, 66), PackedInt32Array(66, 64, 67), PackedInt32Array(69, 66, 68), PackedInt32Array(68, 66, 67), PackedInt32Array(73, 72, 70), PackedInt32Array(70, 72, 71), PackedInt32Array(75, 74, 76), PackedInt32Array(76, 74, 77), PackedInt32Array(79, 76, 78), PackedInt32Array(78, 76, 77), PackedInt32Array(83, 82, 80), PackedInt32Array(80, 82, 81), PackedInt32Array(84, 25, 85), PackedInt32Array(85, 25, 26), PackedInt32Array(87, 86, 88), PackedInt32Array(88, 86, 89), PackedInt32Array(54, 55, 85), PackedInt32Array(85, 26, 54), PackedInt32Array(54, 26, 86), PackedInt32Array(86, 26, 89), PackedInt32Array(89, 26, 90), PackedInt32Array(90, 91, 89), PackedInt32Array(63, 92, 62), PackedInt32Array(62, 92, 8), PackedInt32Array(95, 94, 93), PackedInt32Array(92, 95, 8), PackedInt32Array(8, 95, 93), PackedInt32Array(8, 93, 7), PackedInt32Array(97, 96, 98), PackedInt32Array(98, 96, 60), PackedInt32Array(98, 60, 54), PackedInt32Array(98, 54, 86), PackedInt32Array(102, 101, 99), PackedInt32Array(99, 101, 100), PackedInt32Array(106, 105, 103), PackedInt32Array(103, 105, 104), PackedInt32Array(3, 4, 107), PackedInt32Array(107, 4, 108), PackedInt32Array(112, 111, 109), PackedInt32Array(109, 111, 110), PackedInt32Array(116, 115, 113), PackedInt32Array(113, 115, 114), PackedInt32Array(94, 95, 117), PackedInt32Array(117, 95, 118), PackedInt32Array(108, 119, 107), PackedInt32Array(107, 119, 120), PackedInt32Array(123, 122, 121), PackedInt32Array(121, 124, 123), PackedInt32Array(123, 124, 119), PackedInt32Array(119, 124, 120), PackedInt32Array(126, 125, 118), PackedInt32Array(118, 125, 121), PackedInt32Array(118, 121, 122), PackedInt32Array(118, 122, 117), PackedInt32Array(126, 128, 125), PackedInt32Array(125, 128, 127), PackedInt32Array(130, 129, 97), PackedInt32Array(97, 129, 96), PackedInt32Array(131, 133, 132), PackedInt32Array(130, 133, 129), PackedInt32Array(129, 133, 128), PackedInt32Array(128, 133, 127), PackedInt32Array(127, 133, 131), PackedInt32Array(137, 136, 134), PackedInt32Array(134, 136, 135), PackedInt32Array(141, 140, 138), PackedInt32Array(138, 140, 139), PackedInt32Array(145, 144, 142), PackedInt32Array(142, 144, 143), PackedInt32Array(149, 148, 146), PackedInt32Array(146, 148, 147), PackedInt32Array(132, 87, 88), PackedInt32Array(88, 150, 132), PackedInt32Array(132, 150, 131), PackedInt32Array(131, 150, 151), PackedInt32Array(154, 153, 152), PackedInt32Array(156, 155, 157), PackedInt32Array(157, 155, 151), PackedInt32Array(152, 157, 154), PackedInt32Array(154, 157, 151), PackedInt32Array(154, 151, 150), PackedInt32Array(154, 150, 158), PackedInt32Array(162, 161, 159), PackedInt32Array(159, 161, 160), PackedInt32Array(166, 165, 163), PackedInt32Array(163, 165, 164), PackedInt32Array(91, 90, 167), PackedInt32Array(167, 90, 168), PackedInt32Array(155, 156, 124), PackedInt32Array(124, 156, 169), PackedInt32Array(170, 120, 169), PackedInt32Array(169, 120, 124), PackedInt32Array(169, 171, 170), PackedInt32Array(174, 173, 172), PackedInt32Array(175, 167, 176), PackedInt32Array(176, 167, 172), PackedInt32Array(174, 172, 168), PackedInt32Array(168, 172, 167), PackedInt32Array(175, 176, 177), PackedInt32Array(177, 176, 178), PackedInt32Array(181, 180, 179), PackedInt32Array(184, 183, 182), PackedInt32Array(177, 178, 158), PackedInt32Array(158, 178, 184), PackedInt32Array(179, 185, 158), PackedInt32Array(158, 185, 154), PackedInt32Array(184, 182, 158), PackedInt32Array(158, 182, 179), PackedInt32Array(179, 182, 181), PackedInt32Array(189, 188, 186), PackedInt32Array(186, 188, 187), PackedInt32Array(193, 192, 190), PackedInt32Array(190, 192, 191), PackedInt32Array(195, 194, 196), PackedInt32Array(196, 194, 197), PackedInt32Array(196, 197, 170), PackedInt32Array(170, 171, 196), PackedInt32Array(180, 181, 198), PackedInt32Array(198, 181, 194), PackedInt32Array(200, 199, 153), PackedInt32Array(153, 199, 152), PackedInt32Array(199, 200, 195), PackedInt32Array(195, 200, 198), PackedInt32Array(195, 198, 194), PackedInt32Array(204, 203, 201), PackedInt32Array(201, 203, 202), PackedInt32Array(208, 207, 205), PackedInt32Array(205, 207, 206), PackedInt32Array(173, 174, 209), PackedInt32Array(209, 174, 210), PackedInt32Array(211, 209, 210), PackedInt32Array(182, 183, 211), PackedInt32Array(210, 212, 211), PackedInt32Array(211, 212, 182), PackedInt32Array(216, 215, 213), PackedInt32Array(213, 215, 214), PackedInt32Array(220, 219, 217), PackedInt32Array(217, 219, 218)]
+agent_height = 1.8
+agent_radius = 0.4
+
+[sub_resource type="StandardMaterial3D" id="GroundMat"]
+albedo_color = Color(0.15, 0.15, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_0"]
+albedo_color = Color(0.184, 0.131, 0.192, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_1"]
+albedo_color = Color(0.178, 0.191, 0.334, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_2"]
+albedo_color = Color(0.273, 0.105, 0.225, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_3"]
+albedo_color = Color(0.288, 0.131, 0.155, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_4"]
+albedo_color = Color(0.202, 0.151, 0.234, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_5"]
+albedo_color = Color(0.168, 0.191, 0.289, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_6"]
+albedo_color = Color(0.161, 0.142, 0.241, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_7"]
+albedo_color = Color(0.245, 0.104, 0.193, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_8"]
+albedo_color = Color(0.281, 0.12, 0.158, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_9"]
+albedo_color = Color(0.245, 0.197, 0.229, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_10"]
+albedo_color = Color(0.118, 0.194, 0.186, 1)
+
+[sub_resource type="StandardMaterial3D" id="BldgMat_11"]
+albedo_color = Color(0.209, 0.139, 0.271, 1)
+
+[sub_resource type="StandardMaterial3D" id="ActMat_patrol"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 1, 0, 0.4)
+
+[sub_resource type="SphereMesh" id="Sphere_08"]
+radius = 0.8
+height = 1.6
+
+[sub_resource type="StandardMaterial3D" id="ActMat_socialize"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0, 1, 0, 0.4)
+
+[sub_resource type="SphereMesh" id="Sphere_06"]
+radius = 0.6
+height = 1.2
+
+[sub_resource type="StandardMaterial3D" id="ActMat_guard"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.5, 0, 1, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="ActMat_work"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0, 0.8, 1, 0.4)
+
+[sub_resource type="SphereMesh" id="Sphere_05"]
+
+[sub_resource type="StandardMaterial3D" id="ActMat_deal"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.5, 0, 0.4)
+
+[sub_resource type="SphereMesh" id="Sphere_04"]
+radius = 0.4
+height = 0.8
+
+[sub_resource type="StandardMaterial3D" id="ActMat_idle"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.5, 0.5, 0.5, 0.4)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cuwji"]
+sky_top_color = Color(0.3, 0.5, 0.9, 1)
+sky_horizon_color = Color(0.7, 0.8, 0.9499999, 1)
+ground_bottom_color = Color(0.4, 0.35, 0.3, 1)
+ground_horizon_color = Color(0.48999998, 0.56, 0.66499996, 0.7)
+sun_angle_max = 1.0
+
+[sub_resource type="Sky" id="Sky_g0ieu"]
+sky_material = SubResource("ProceduralSkyMaterial_cuwji")
+
+[sub_resource type="Environment" id="Environment_mfgvs"]
+background_mode = 2
+sky = SubResource("Sky_g0ieu")
+ambient_light_source = 3
+ambient_light_color = Color(0.85, 0.9, 0.97499996, 1)
+reflected_light_source = 2
+tonemap_mode = 2
+fog_light_color = Color(0.7, 0.7, 0.75, 1)
+fog_density = 0.0
+fog_aerial_perspective = 0.5
+
+[node name="DemoScene" type="Node3D" unique_id=1907801176]
+script = ExtResource("1_demo")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="." unique_id=972196186]
+navigation_mesh = SubResource("NavMesh_1")
+
+[node name="Ground" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1470640017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+use_collision = true
+size = Vector3(100, 0.1, 100)
+material = SubResource("GroundMat")
+
+[node name="Building_0" type="CSGBox3D" parent="NavigationRegion3D" unique_id=79788778]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.619, 1.082, 38.772)
+use_collision = true
+size = Vector3(4.264, 2.165, 3.919)
+material = SubResource("BldgMat_0")
+
+[node name="Building_1" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1712031789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.239, 2.522, 32.403)
+use_collision = true
+size = Vector3(3.802, 5.044, 6.34)
+material = SubResource("BldgMat_1")
+
+[node name="Building_2" type="CSGBox3D" parent="NavigationRegion3D" unique_id=329601869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.828, 2.226, 11.389)
+use_collision = true
+size = Vector3(6.595, 4.451, 7.105)
+material = SubResource("BldgMat_2")
+
+[node name="Building_3" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1810189415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.63, 1.404, -33.164)
+use_collision = true
+size = Vector3(5.076, 2.808, 6.293)
+material = SubResource("BldgMat_3")
+
+[node name="Building_4" type="CSGBox3D" parent="NavigationRegion3D" unique_id=83106627]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.019, 2.416, 4.334)
+use_collision = true
+size = Vector3(4.555, 4.833, 4.671)
+material = SubResource("BldgMat_4")
+
+[node name="Building_5" type="CSGBox3D" parent="NavigationRegion3D" unique_id=6470751]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.309, 2.074, -15.311)
+use_collision = true
+size = Vector3(3.95, 4.148, 6.253)
+material = SubResource("BldgMat_5")
+
+[node name="Building_6" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1391181139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.329, 2.479, -35.722)
+use_collision = true
+size = Vector3(4.749, 4.958, 6.322)
+material = SubResource("BldgMat_6")
+
+[node name="Building_7" type="CSGBox3D" parent="NavigationRegion3D" unique_id=909383121]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.111, 1.305, 26.764)
+use_collision = true
+size = Vector3(5.44, 2.61, 4.393)
+material = SubResource("BldgMat_7")
+
+[node name="Building_8" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1442529842]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.045, 1.724, -12.8)
+use_collision = true
+size = Vector3(7.035, 3.449, 7.884)
+material = SubResource("BldgMat_8")
+
+[node name="Building_9" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1885548265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.278, 1.456, -34.511)
+use_collision = true
+size = Vector3(4.772, 2.912, 7.129)
+material = SubResource("BldgMat_9")
+
+[node name="Building_10" type="CSGBox3D" parent="NavigationRegion3D" unique_id=616735447]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.485, 1.109, 7.82)
+use_collision = true
+size = Vector3(4.051, 2.218, 3.336)
+material = SubResource("BldgMat_10")
+
+[node name="Building_11" type="CSGBox3D" parent="NavigationRegion3D" unique_id=1775942794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.827, 2.971, -39.15)
+use_collision = true
+size = Vector3(3.672, 5.943, 7.833)
+material = SubResource("BldgMat_11")
+
+[node name="NeonLights" type="Node3D" parent="." unique_id=487518810]
+
+[node name="NeonLight_0" type="OmniLight3D" parent="NeonLights" unique_id=230751859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.716, 3, -19.631)
+light_color = Color(1, 0, 0.5, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="NeonLight_1" type="OmniLight3D" parent="NeonLights" unique_id=1109213134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.378, 3, 4.699)
+light_color = Color(0, 0.8, 1, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="NeonLight_2" type="OmniLight3D" parent="NeonLights" unique_id=821766110]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.364, 3, -27.308)
+light_color = Color(1, 0.4, 0, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="NeonLight_3" type="OmniLight3D" parent="NeonLights" unique_id=1569528072]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.565, 3, 3.093)
+light_color = Color(0.5, 0, 1, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="NeonLight_4" type="OmniLight3D" parent="NeonLights" unique_id=2097649509]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.164, 3, -27.282)
+light_color = Color(1, 0, 0.5, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="NeonLight_5" type="OmniLight3D" parent="NeonLights" unique_id=935976107]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.723, 3, -18.483)
+light_color = Color(0, 0.8, 1, 1)
+light_energy = 2.0
+omni_range = 15.0
+omni_attenuation = 1.5
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=2064321335]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+script = ExtResource("2_player")
+
+[node name="ActivityNodes" type="Node3D" parent="." unique_id=1215477828]
+
+[node name="patrol_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=798264337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.522, 0, -15.846)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 36.8
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_0" unique_id=532397405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_0" unique_id=849977827]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=1195238000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.187, 0, -20.151)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 35.0
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_1" unique_id=1758602696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_1" unique_id=1057950138]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=629460505]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.734, 0, 34.668)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 43.4
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_2" unique_id=216770931]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_2" unique_id=1009168764]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_3" type="Marker3D" parent="ActivityNodes" unique_id=1830944370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.92, 0, 22.195)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 39.2
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_3" unique_id=2026970260]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_3" unique_id=2092550153]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_4" type="Marker3D" parent="ActivityNodes" unique_id=1180543097]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.474, 0, 36.761)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 33.5
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_4" unique_id=1309257781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_4" unique_id=1075251830]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_5" type="Marker3D" parent="ActivityNodes" unique_id=1606717239]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.566, 0, 23.142)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 50.6
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_5" unique_id=1850803096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_5" unique_id=254551731]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_6" type="Marker3D" parent="ActivityNodes" unique_id=423462264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.622, 0, -5.565)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 23.6
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_6" unique_id=572922853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_6" unique_id=1468951411]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="patrol_spot_7" type="Marker3D" parent="ActivityNodes" unique_id=1357065539]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.069, 0, -7.418)
+script = ExtResource("4_activity")
+activity_type = "patrol"
+typical_duration = 38.1
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/patrol_spot_7" unique_id=102852189]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+material_override = SubResource("ActMat_patrol")
+mesh = SubResource("Sphere_08")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/patrol_spot_7" unique_id=490423495]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 1, 0, 1)
+text = "patrol"
+
+[node name="socialize_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=1092313334]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.264, 0, 33.174)
+script = ExtResource("4_activity")
+activity_type = "socialize"
+typical_duration = 37.4
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/socialize_spot_0" unique_id=2001163735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_socialize")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/socialize_spot_0" unique_id=193406099]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 1, 0, 1)
+text = "socialize"
+
+[node name="socialize_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=1434938247]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.841, 0, 15.09)
+script = ExtResource("4_activity")
+activity_type = "socialize"
+typical_duration = 58.1
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/socialize_spot_1" unique_id=1187288869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_socialize")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/socialize_spot_1" unique_id=514735937]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 1, 0, 1)
+text = "socialize"
+
+[node name="socialize_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=1693791216]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.516, 0, -9.568)
+script = ExtResource("4_activity")
+activity_type = "socialize"
+typical_duration = 25.6
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/socialize_spot_2" unique_id=1951493465]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_socialize")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/socialize_spot_2" unique_id=1568703622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 1, 0, 1)
+text = "socialize"
+
+[node name="socialize_spot_3" type="Marker3D" parent="ActivityNodes" unique_id=1517294608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.091, 0, 25.217)
+script = ExtResource("4_activity")
+activity_type = "socialize"
+typical_duration = 26.7
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/socialize_spot_3" unique_id=1276101695]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_socialize")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/socialize_spot_3" unique_id=1795774001]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 1, 0, 1)
+text = "socialize"
+
+[node name="socialize_spot_4" type="Marker3D" parent="ActivityNodes" unique_id=127060290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.409, 0, 35.735)
+script = ExtResource("4_activity")
+activity_type = "socialize"
+typical_duration = 46.5
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/socialize_spot_4" unique_id=1887074742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_socialize")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/socialize_spot_4" unique_id=252663554]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 1, 0, 1)
+text = "socialize"
+
+[node name="guard_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=1139290475]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.393, 0, -9.849)
+script = ExtResource("4_activity")
+activity_type = "guard"
+typical_duration = 49.9
+allowed_factions = PackedStringArray("la_mirada", "lapd")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/guard_spot_0" unique_id=1074840505]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_guard")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/guard_spot_0" unique_id=982599251]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0, 1, 1)
+text = "guard"
+
+[node name="guard_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=676235696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36.091, 0, -16.751)
+script = ExtResource("4_activity")
+activity_type = "guard"
+typical_duration = 38.7
+allowed_factions = PackedStringArray("la_mirada", "lapd")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/guard_spot_1" unique_id=470865977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_guard")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/guard_spot_1" unique_id=1255379812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0, 1, 1)
+text = "guard"
+
+[node name="guard_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=1054560897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.368, 0, -17.324)
+script = ExtResource("4_activity")
+activity_type = "guard"
+typical_duration = 16.2
+allowed_factions = PackedStringArray("la_mirada", "lapd")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/guard_spot_2" unique_id=164265394]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_guard")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/guard_spot_2" unique_id=117429492]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0, 1, 1)
+text = "guard"
+
+[node name="guard_spot_3" type="Marker3D" parent="ActivityNodes" unique_id=1112895753]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.519, 0, 26.534)
+script = ExtResource("4_activity")
+activity_type = "guard"
+typical_duration = 28.8
+allowed_factions = PackedStringArray("la_mirada", "lapd")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/guard_spot_3" unique_id=1904538120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+material_override = SubResource("ActMat_guard")
+mesh = SubResource("Sphere_06")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/guard_spot_3" unique_id=211567779]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0, 1, 1)
+text = "guard"
+
+[node name="work_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=1244556216]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.397, 0, -34.178)
+script = ExtResource("4_activity")
+activity_type = "work"
+typical_duration = 58.0
+allowed_factions = PackedStringArray("civilian")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/work_spot_0" unique_id=774756888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_work")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/work_spot_0" unique_id=1604125754]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 0.8, 1, 1)
+text = "work"
+
+[node name="work_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=726239465]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.316, 0, -34.266)
+script = ExtResource("4_activity")
+activity_type = "work"
+typical_duration = 36.9
+allowed_factions = PackedStringArray("civilian")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/work_spot_1" unique_id=1629684481]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_work")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/work_spot_1" unique_id=356984893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 0.8, 1, 1)
+text = "work"
+
+[node name="work_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=1432379472]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.258, 0, -26.14)
+script = ExtResource("4_activity")
+activity_type = "work"
+typical_duration = 55.1
+allowed_factions = PackedStringArray("civilian")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/work_spot_2" unique_id=66572858]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_work")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/work_spot_2" unique_id=1071960696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 0.8, 1, 1)
+text = "work"
+
+[node name="work_spot_3" type="Marker3D" parent="ActivityNodes" unique_id=368946128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.504, 0, 12.005)
+script = ExtResource("4_activity")
+activity_type = "work"
+typical_duration = 42.4
+allowed_factions = PackedStringArray("civilian")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/work_spot_3" unique_id=725499429]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_work")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/work_spot_3" unique_id=772160446]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0, 0.8, 1, 1)
+text = "work"
+
+[node name="deal_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=2118045321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.133, 0, -27.053)
+script = ExtResource("4_activity")
+activity_type = "deal"
+typical_duration = 18.3
+allowed_factions = PackedStringArray("la_mirada", "los_angeles_death_squad")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/deal_spot_0" unique_id=657121661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+material_override = SubResource("ActMat_deal")
+mesh = SubResource("Sphere_04")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/deal_spot_0" unique_id=1053008454]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 0.5, 0, 1)
+text = "deal"
+
+[node name="deal_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=237283055]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.319, 0, -36.42)
+script = ExtResource("4_activity")
+activity_type = "deal"
+typical_duration = 24.7
+allowed_factions = PackedStringArray("la_mirada", "los_angeles_death_squad")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/deal_spot_1" unique_id=341740455]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+material_override = SubResource("ActMat_deal")
+mesh = SubResource("Sphere_04")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/deal_spot_1" unique_id=196540020]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 0.5, 0, 1)
+text = "deal"
+
+[node name="deal_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=386182631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.88, 0, 19.445)
+script = ExtResource("4_activity")
+activity_type = "deal"
+typical_duration = 16.6
+allowed_factions = PackedStringArray("la_mirada", "los_angeles_death_squad")
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/deal_spot_2" unique_id=607762686]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+material_override = SubResource("ActMat_deal")
+mesh = SubResource("Sphere_04")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/deal_spot_2" unique_id=1156869514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(1, 0.5, 0, 1)
+text = "deal"
+
+[node name="idle_spot_0" type="Marker3D" parent="ActivityNodes" unique_id=854824852]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.86, 0, 14.726)
+script = ExtResource("4_activity")
+typical_duration = 19.8
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_0" unique_id=1433508484]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_0" unique_id=1956333181]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="idle_spot_1" type="Marker3D" parent="ActivityNodes" unique_id=1558552956]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.115, 0, 33.366)
+script = ExtResource("4_activity")
+typical_duration = 17.7
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_1" unique_id=398218474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_1" unique_id=2024383502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="idle_spot_2" type="Marker3D" parent="ActivityNodes" unique_id=1194341275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.748, 0, 36.47)
+script = ExtResource("4_activity")
+typical_duration = 44.0
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_2" unique_id=1594292006]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_2" unique_id=1024088657]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="idle_spot_3" type="Marker3D" parent="ActivityNodes" unique_id=16488120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.3, 0, 28.181)
+script = ExtResource("4_activity")
+typical_duration = 25.8
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_3" unique_id=1154595689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_3" unique_id=1256896991]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="idle_spot_4" type="Marker3D" parent="ActivityNodes" unique_id=743634339]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.505, 0, 19.728)
+script = ExtResource("4_activity")
+typical_duration = 51.6
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_4" unique_id=56713940]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_4" unique_id=1583945516]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="idle_spot_5" type="Marker3D" parent="ActivityNodes" unique_id=900119442]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.032, 0, 35.296)
+script = ExtResource("4_activity")
+typical_duration = 57.0
+allowed_factions = PackedStringArray()
+
+[node name="MarkerMesh" type="MeshInstance3D" parent="ActivityNodes/idle_spot_5" unique_id=2096743239]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+material_override = SubResource("ActMat_idle")
+mesh = SubResource("Sphere_05")
+
+[node name="ActivityLabel" type="Label3D" parent="ActivityNodes/idle_spot_5" unique_id=2113796357]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+billboard = 1
+no_depth_test = true
+modulate = Color(0.5, 0.5, 0.5, 1)
+text = "idle"
+
+[node name="DemoHUD" type="CanvasLayer" parent="." unique_id=1321543057]
+script = ExtResource("3_hud")
+
+[node name="TestVisualizer" type="CanvasLayer" parent="." unique_id=1340983265]
+layer = 10
+script = ExtResource("5_testvis")
+
+[node name="NPCDataGraphs" parent="." unique_id=1031253252 instance=ExtResource("6_graphs")]
+
+[node name="SkyWeather" type="Node3D" parent="." unique_id=1554144012]
+script = ExtResource("7_5tlye")
+metadata/_custom_type_script = "uid://cvsl1e0je7jf6"
+
+[node name="Sun" type="DirectionalLight3D" parent="SkyWeather" unique_id=25015193]
+transform = Transform3D(1, 0, 0, 0, 0.39874908, 0.9170601, 0, -0.9170601, 0.39874908, 0, 0, 0)
+light_color = Color(0.90999997, 0.905, 0.91499996, 1)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SkyWeather" unique_id=1810794970]
+environment = SubResource("Environment_mfgvs")

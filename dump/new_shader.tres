@@ -1,0 +1,23 @@
+[gd_resource type="VisualShader" format=3 uid="uid://b77sxb0yve76h"]
+
+[sub_resource type="VisualShaderNodeInput" id="VisualShaderNodeInput_pilbn"]
+output_port_for_preview = 0
+input_name = "normal"
+
+[sub_resource type="VisualShaderNodeInput" id="VisualShaderNodeInput_e84s0"]
+output_port_for_preview = 0
+input_name = "uv"
+
+[sub_resource type="VisualShaderNodeReroute" id="VisualShaderNodeReroute_lo2gf"]
+default_input_values = [0, Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)]
+port_type = 7
+
+[resource]
+nodes/vertex/0/position = Vector2(866.6667, 53.333332)
+nodes/vertex/2/node = SubResource("VisualShaderNodeInput_pilbn")
+nodes/vertex/2/position = Vector2(200, -66.666664)
+nodes/vertex/3/node = SubResource("VisualShaderNodeInput_e84s0")
+nodes/vertex/3/position = Vector2(226.66667, 306.66666)
+nodes/vertex/4/node = SubResource("VisualShaderNodeReroute_lo2gf")
+nodes/vertex/4/position = Vector2(733.3333, 453.33334)
+nodes/vertex/connections = PackedInt32Array(2, 0, 0, 0, 3, 0, 0, 4, 4, 0, 0, 11)

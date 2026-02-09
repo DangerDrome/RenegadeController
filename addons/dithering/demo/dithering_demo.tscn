@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://bjh8mxkpqrf32"]
+
+[ext_resource type="Script" uid="uid://def730oplbqtg" path="res://addons/dithering/demo/dithering_demo.gd" id="1_demo"]
+[ext_resource type="Script" uid="uid://bm7c44yc0v2eu" path="res://addons/dithering/src/dithering_overlay.gd" id="2_overlay"]
+[ext_resource type="Texture2D" uid="uid://q5ux1bhwdc7h" path="res://addons/dithering/assets/patterns/blue_noise.png" id="3_duq8w"]
+[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dithering/assets/palettes/palette_mono.png" id="4_fk0pw"]
+[ext_resource type="Texture2D" uid="uid://cxqhqybdnjcd7" path="res://addons/dithering/assets/patterns/bayer16tile2.png" id="5_abl7f"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(25, 25)
+
+[sub_resource type="SphereMesh" id="SphereMesh_sphere"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_cube"]
+
+[sub_resource type="PrismMesh" id="PrismMesh_prism"]
+
+[node name="DitheringDemo" type="Node3D" unique_id=1796289633]
+script = ExtResource("1_demo")
+
+[node name="DitheringOverlay" type="CanvasLayer" parent="." unique_id=1695645243 node_paths=PackedStringArray("source_camera")]
+script = ExtResource("2_overlay")
+screen_dither_texture = ExtResource("3_duq8w")
+screen_palette_texture = ExtResource("4_fk0pw")
+world_dither_texture = ExtResource("5_abl7f")
+world_palette_texture = ExtResource("4_fk0pw")
+source_camera = NodePath("../Camera3D")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=2010525291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 6.5)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=183663743]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 7.3, 0)
+shadow_enabled = true
+
+[node name="Primitives" type="Node3D" parent="." unique_id=929392243]
+
+[node name="Ground" type="MeshInstance3D" parent="Primitives" unique_id=1336666689]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="Sphere" type="MeshInstance3D" parent="Primitives" unique_id=61243974]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0.7, 2.5, 1.4)
+mesh = SubResource("SphereMesh_sphere")
+
+[node name="Cube" type="MeshInstance3D" parent="Primitives" unique_id=332385877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 2.5, 0)
+mesh = SubResource("BoxMesh_cube")
+
+[node name="Prism" type="MeshInstance3D" parent="Primitives" unique_id=475536616]
+transform = Transform3D(0.895, 0, 0.446, 0, 1, 0, -0.446, 0, 0.895, 4.2, 2.5, 1)
+mesh = SubResource("PrismMesh_prism")

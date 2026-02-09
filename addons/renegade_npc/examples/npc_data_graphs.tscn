@@ -1,0 +1,103 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" uid="uid://bxnfiedt28101" path="res://addons/renegade_npc/examples/npc_data_graphs.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://addons/renegade_npc/examples/npc_graph_panel.tscn" id="2_graph_panel"]
+[ext_resource type="PackedScene" path="res://addons/renegade_npc/examples/npc_legend_panel.tscn" id="3_legend_panel"]
+[ext_resource type="FontFile" uid="uid://csxjb5w7toka4" path="res://addons/modular_hud/fonts/VT323-Regular.ttf" id="4_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_root"]
+bg_color = Color(0, 0, 0, 0.875)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+corner_detail = 9
+
+[node name="NPCDataGraphs" type="CanvasLayer"]
+layer = 11
+script = ExtResource("1_script")
+
+[node name="Root" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_root")
+
+[node name="Margin" type="MarginContainer" parent="Root"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="Root/Margin"]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Root/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Root/Margin/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0, 0.83, 1, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 25
+text = "NPC DATA GRAPHS"
+
+[node name="Spacer" type="Control" parent="Root/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CloseHint" type="Label" parent="Root/Margin/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.4, 0.4, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 25
+text = "[F6 close]"
+
+[node name="Grid" type="GridContainer" parent="Root/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="DriveDistribution" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 0
+title_text = "Drive Distribution"
+
+[node name="ModuleSparklines" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 1
+title_text = "Module Sparklines"
+
+[node name="AggregateThreat" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 2
+title_text = "Aggregate Threat"
+
+[node name="ReputationTimeline" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 3
+title_text = "Reputation Timeline"
+
+[node name="SocialMemory" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 4
+title_text = "Social Memory"
+
+[node name="HealthDistribution" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 5
+title_text = "Health Distribution"
+
+[node name="SystemMetrics" parent="Root/Margin/VBox/Grid" instance=ExtResource("2_graph_panel")]
+layout_mode = 2
+graph_type = 6
+title_text = "System Metrics"
+
+[node name="Legend" parent="Root/Margin/VBox/Grid" instance=ExtResource("3_legend_panel")]
+layout_mode = 2

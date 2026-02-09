@@ -77,6 +77,15 @@ var requested_buffer: BufferType = BufferType.NONE:
 		depth_curve = value
 		_update_curve_texture()
 
+@export_group("World Position Settings")
+
+## World position encoding range. Positions from -world_range to +world_range are encoded.
+## Increase this if your scene is larger than the default 100 unit range.
+@export_range(10.0, 1000.0, 10.0) var world_range: float = 100.0:
+	set(value):
+		world_range = value
+		_update_shader_params()
+
 @export_group("Advanced")
 
 ## Resolution divisor (1 = full, 2 = half, etc.)
@@ -354,6 +363,7 @@ func _update_shader_params() -> void:
 	var shader_mode := maxi(0, effective - 1)
 	_material.set_shader_parameter("buffer_mode", shader_mode)
 	_material.set_shader_parameter("max_depth", max_depth)
+	_material.set_shader_parameter("world_range", world_range)
 	_material.set_shader_parameter("use_curve", depth_curve != null)
 	if _curve_texture:
 		_material.set_shader_parameter("depth_curve", _curve_texture)

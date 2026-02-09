@@ -1,0 +1,35 @@
+[gd_scene load_steps=2 format=3 uid="uid://equip_slot_ui"]
+
+[ext_resource type="Script" path="res://addons/renegade_customizer/ui/equipment_slot_ui.gd" id="1_slot"]
+
+[node name="EquipmentSlotUI" type="PanelContainer"]
+custom_minimum_size = Vector2(80, 80)
+script = ExtResource("1_slot")
+
+[node name="RarityBorder" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+color = Color(1, 1, 1, 0.3)
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="SlotIcon" type="TextureRect" parent="MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
+[node name="Highlight" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+color = Color(0.4, 1, 0.4, 0.15)
+mouse_filter = 2

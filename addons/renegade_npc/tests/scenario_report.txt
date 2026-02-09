@@ -1,0 +1,103 @@
+==============================================
+  RenegadeNPC Scenario Test Report
+  2026-02-08T15:28:03
+==============================================
+
+
+── Scenario 1: Soak Test (50 NPCs, 60s, no events) ──
+  [PASS] No NPCs in threat/flee (no events fired) (got 50, expected 50)
+  [PASS] Max drive changes without events < 5 (1.000 < 5.000)
+  Drive distribution: { "socialize": 12, "idle": 38 }
+  50 NPCs ran for 60s with no events. All stable (no threat/flee).
+  2/2 passed (82ms)
+
+── Scenario 2: Gunfire → Threat → Recovery ──
+  [PASS] Phase 1: Starts peaceful (drive=idle)
+  [PASS] Phase 2: Entered threat state after gunfire
+  [PASS] Phase 3: Recovered from threat after gunfire decay (drive=idle)
+  Recovery time after gunfire decay: 0.0s sim-time
+  Drive history: ["threat", "idle"]
+  3/3 passed (1ms)
+
+── Scenario 3: Damage → Flee → Heal → Recovery ──
+  [PASS] Phase 1: Starts peaceful (drive=idle)
+  [PASS] Phase 2: Entered flee after taking damage
+  [PASS] Phase 3: Left flee after healing (drive=idle)
+  Drive history: ["flee", "idle"]
+  3/3 passed (0ms)
+
+── Scenario 4: Repeated Gunfire Stress (10 shots over 20s) ──
+  [PASS] Not in threat/flee after all gunfire stops (drive=socialize)
+  Time in threat: 59.4%  Time not-threat: 40.6%  Total ticks: 160
+  Drive history (3 changes): ["socialize", "threat", "socialize"]
+  [PASS] Spent meaningful time in threat during gunfire (59.375 > 5.000)
+  [PASS] Recovered from threat after gunfire stops (40.625 > 10.000)
+  3/3 passed (1ms)
+
+── Scenario 5: Drive Distribution by Archetype (no events) ──
+  [PASS] Civilian: avg threat+flee% < 1% (no events) (0.000 < 1.000)
+  Civilian: final drives={ "socialize": 15, "idle": 15 }, avg threat+flee=0.0%
+  [PASS] Gang: avg threat+flee% < 1% (no events) (0.000 < 1.000)
+  Gang: final drives={ "idle": 30 }, avg threat+flee=0.0%
+  [PASS] Cop: avg threat+flee% < 1% (no events) (0.000 < 1.000)
+  Cop: final drives={ "idle": 30 }, avg threat+flee=0.0%
+  [PASS] Vendor: avg threat+flee% < 1% (no events) (0.000 < 1.000)
+  Vendor: final drives={ "socialize": 13, "idle": 17 }, avg threat+flee=0.0%
+  4/4 passed (140ms)
+
+── Scenario 6: Personality Extremes (anxiety vs grit) ──
+  High-anxiety NPCs (n=39): avg threat score = 0.611
+  High-grit NPCs (n=87): avg threat score = 0.467
+  [PASS] High-anxiety NPCs perceive more threat than high-grit NPCs (0.611 > 0.467)
+  1/1 passed (9ms)
+
+── Scenario 7: Social Memory Decay Over Simulated Time ──
+  [PASS] Initial disposition strongly negative (-0.900 < -0.500)
+  Initial: disp=-0.900 temp_fear=0.900 fear=0.270
+  Decay over time:
+    t=5s: disp=-0.760 temp_fear=0.000
+    t=10s: disp=-0.620 temp_fear=0.000
+    t=15s: disp=-0.480 temp_fear=0.000
+    t=20s: disp=-0.340 temp_fear=0.000
+    t=25s: disp=-0.270 temp_fear=0.000
+    t=30s: disp=-0.270 temp_fear=0.000
+  [PASS] Disposition improved after 30s decay (-0.270 > -0.900)
+  [PASS] Disposition recovered past -0.5 threshold (-0.270 > -0.500)
+  Final: disp=-0.270 temp_fear=0.000 fear=0.270
+  3/3 passed (3ms)
+
+── Scenario 8: Non-combatant vs Combatant Flee at 20% HP ──
+  Avg civilian flee score at 20% HP (n=50): 0.466
+  Avg gang flee score at 20% HP (n=50): 0.340
+  [PASS] Civilians flee more readily than gang on average (0.466 > 0.340)
+  Civilians that entered flee: 50/50 (100%)
+  [PASS] Majority of civilians enter flee at 20%% HP (100.000 > 50.000)
+  2/2 passed (5ms)
+
+── Scenario 9: Simultaneous Threats (gunfire + damage + memory) ──
+  [PASS] Phase 1: Starts peaceful (drive=socialize)
+  [PASS] Phase 2: In threat or flee during multi-threat (drive=threat)
+  Module scores during panic: { "idle": 0.0, "threat": 0.86484969507917, "flee": 0.55156527626292, "socialize": 0.15 }
+  [PASS] Phase 3: Recovered from threats (drive=socialize)
+  Total recovery time: 0.0s
+  Drive history: ["socialize", "threat", "socialize"]
+  3/3 passed (1ms)
+
+── Scenario 10: Long Soak (20 NPCs, 600s, random events) ──
+  Total events fired: 39
+  Simulation: 20 NPCs x 600s = 12000 NPC-seconds
+    Civilian: idle=50.3%, flee=20.7%, threat=21.5%, socialize=7.4%
+    Gang: idle=34.5%, threat=34.1%, flee=31.4%
+    Cop: idle=66.3%, threat=33.7%
+    Vendor: idle=49.3%, threat=26.3%, socialize=24.3%
+  Max time stuck in one drive: 599.8s (NPC #2)
+  [PASS] All 20 NPCs still alive after soak (got 20, expected 20)
+  [PASS] No NPC stuck for entire simulation (599.750 < 601.000)
+  Total drive transitions: 21
+  [PASS] At least some drive transitions occurred (21.000 > 5.000)
+  3/3 passed (555ms)
+
+==============================================
+  ✓ FINAL: 27 passed / 27 total
+==============================================
+

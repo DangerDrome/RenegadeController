@@ -20,13 +20,14 @@
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/kevlar_vest.tres" id="15"]
 [ext_resource type="Resource" path="res://addons/renegade_controller/presets/items/security_keycard.tres" id="16"]
 [ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="21_cqtiy"]
-[ext_resource type="PackedScene" path="res://addons/dither_shader/presets/dither_overlay.tscn" id="22_rrlp6"]
-[ext_resource type="Texture2D" uid="uid://bjmj1ko4h8hgp" path="res://addons/dither_shader/assets/patterns/bayer2tile16.png" id="23_8xg2k"]
 [ext_resource type="Shader" uid="uid://dccqiutbxhyal" path="res://addons/pixel_upscale/src/pixel_upscale.gdshader" id="23_upscale"]
-[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="24_8xg2k"]
 [ext_resource type="Script" uid="uid://bmbdn0pxo661h" path="res://addons/pixel_upscale/src/pixel_upscale_material.gd" id="24_upscale_script"]
-[ext_resource type="Script" uid="uid://dy01qjfn6o7m3" path="res://addons/dither_shader/src/world_label.gd" id="25_worldlabel"]
+[ext_resource type="PackedScene" path="res://addons/dithering/presets/dithering_overlay.tscn" id="25_5yu0b"]
+[ext_resource type="Script" uid="uid://bs8gc0w44v0ds" path="res://addons/dithering/src/world_label.gd" id="25_worldlabel"]
+[ext_resource type="Texture2D" uid="uid://bjmj1ko4h8hgp" path="res://addons/dither_shader/assets/patterns/bayer2tile16.png" id="26_57hkg"]
 [ext_resource type="Script" uid="uid://dovt6df6nclb2" path="res://addons/dither_shader/src/scene_buffers.gd" id="26_buffers"]
+[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="27_xywv1"]
+[ext_resource type="PackedScene" uid="uid://cu8hdyktqsgo3" path="res://dump/trees/palm/tree_coconut_palm.tscn" id="29_5yu0b"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8xg2k"]
 shader = ExtResource("23_upscale")
@@ -41,10 +42,11 @@ script = ExtResource("3_xcchm")
 metadata/_custom_type_script = "uid://cm5kxrnpxcdnn"
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_xcchm"]
-sky_top_color = Color(0.3, 0.5, 0.9, 1)
-sky_horizon_color = Color(0.7, 0.8, 0.9499999, 1)
-ground_bottom_color = Color(0.4, 0.35, 0.3, 1)
-ground_horizon_color = Color(0.48999998, 0.56, 0.66499996, 0.7)
+sky_top_color = Color(0.3, 0.455, 0.765, 1)
+sky_horizon_color = Color(0.835, 0.71000004, 0.7025, 1)
+sky_energy_multiplier = 0.91
+ground_bottom_color = Color(0.35500002, 0.305, 0.255, 1)
+ground_horizon_color = Color(0.58449996, 0.497, 0.49174997, 0.7)
 sun_angle_max = 1.0
 
 [sub_resource type="Sky" id="Sky_cqtiy"]
@@ -54,7 +56,8 @@ sky_material = SubResource("ProceduralSkyMaterial_xcchm")
 background_mode = 2
 sky = SubResource("Sky_cqtiy")
 ambient_light_source = 3
-ambient_light_color = Color(0.85, 0.9, 0.97499996, 1)
+ambient_light_color = Color(0.9175, 0.855, 0.85125, 1)
+ambient_light_energy = 0.73
 reflected_light_source = 2
 tonemap_mode = 2
 fog_light_color = Color(0.7, 0.7, 0.75, 1)
@@ -79,7 +82,6 @@ uv1_triplanar = true
 
 [sub_resource type="StandardMaterial3D" id="7"]
 albedo_color = Color(1, 0.45184767, 0.29403642, 1)
-albedo_texture = ExtResource("2_ms7ms")
 uv1_scale = Vector3(0.5, 0.5, 0.5)
 uv1_triplanar = true
 uv1_world_triplanar = true
@@ -140,12 +142,11 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 stretch = true
-stretch_shrink = 3
 script = ExtResource("24_upscale_script")
 
 [node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=736108026]
 handle_input_locally = false
-size = Vector2i(640, 360)
+size = Vector2i(1920, 1080)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport" unique_id=78664980]
@@ -158,13 +159,16 @@ depth_curve = SubResource("Curve_nufa0")
 
 [node name="SkyWeather" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1023465616]
 script = ExtResource("2_0c8yo")
-time = 9.58
+time = 8.1
+time_scale = 0
 weather = SubResource("Resource_cqtiy")
+sun_path_rotation = -61.384
+axial_tilt = 31.308999999999997
 metadata/_custom_type_script = "uid://cvsl1e0je7jf6"
 
 [node name="Sun" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D/SkyWeather" unique_id=2128512171]
-transform = Transform3D(0.8059283, 0.47647235, -0.35135972, 0, 0.59349996, 0.8048339, 0.5920132, -0.6486385, 0.4783183, 0, 0, 0)
-light_color = Color(0.90999997, 0.905, 0.91499996, 1)
+transform = Transform3D(-0.49824563, 0.44221604, -0.74578553, 0, 0.8601552, 0.51003194, 0.8670359, 0.25412118, -0.42856857, 0, 0, 0)
+light_color = Color(0.9505, 0.878, 0.84075, 1)
 shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/World3D/SkyWeather" unique_id=328367757]
@@ -174,7 +178,7 @@ environment = SubResource("Environment_rrlp6")
 navigation_mesh = SubResource("4")
 
 [node name="Ground" type="CSGBox3D" parent="SubViewportContainer/SubViewport/World3D/NavRegion" unique_id=1429176654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.4, 0)
 use_collision = true
 size = Vector3(60, 1, 60)
 material = SubResource("5")
@@ -320,9 +324,6 @@ transition_curve_in = SubResource("Curve_ms7ms")
 transition_curve_out = SubResource("Curve_0c8yo")
 cursor_reenable_percent = 0.3
 
-[node name="Camera3D" parent="SubViewportContainer/SubViewport/World3D/CameraSystem/CameraRig/Pivot/SpringArm3D" parent_id_path=PackedInt32Array(1562357881, 1254927577) index="0" unique_id=298327191]
-cull_mask = 524287
-
 [node name="Cursor3D" parent="SubViewportContainer/SubViewport/World3D/CameraSystem" index="3" unique_id=2083170300]
 sticky_radius = 20.0
 
@@ -411,22 +412,57 @@ item = ExtResource("15")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 item = ExtResource("16")
 
-[node name="Node3D" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1831620052]
+[node name="Tests" type="Node3D" parent="SubViewportContainer/SubViewport/World3D" unique_id=1831620052]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.484007, 0, 0.99864197)
 
-[node name="DitherOverlay" parent="SubViewportContainer/SubViewport" unique_id=1437343066 node_paths=PackedStringArray("scene_buffers") instance=ExtResource("22_rrlp6")]
-pattern_preset = 3
-dither_pattern = ExtResource("23_8xg2k")
-color_palette = ExtResource("24_8xg2k")
-bit_depth = 8
-lum_offset = 0.25
-dither_size = 1
-blend_mode = 6
-scene_buffers = NodePath("../World3D/SceneBuffers")
-dither_buffer = 5
-world_dither_scale = 1.0
-world_dither_projection = 1
-effect_enabled = false
+[node name="tree_test" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=2116302554 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.076814, 0.10012373, 4.379014)
+
+[node name="tree_test2" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=824597078 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.34706, 0.10012373, -18.021202)
+
+[node name="tree_test3" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=1704671380 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(0.35703143, 0, 0.93409234, 0, 1, 0, -0.93409234, 0, 0.35703143, -41.34706, 0.10012373, -20.68059)
+
+[node name="tree_test4" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=1325649737 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(-0.2399061, 0, -0.97079617, 0, 1, 0, 0.97079617, 0, -0.2399061, -41.34706, 0.10012373, -24.221352)
+
+[node name="tree_test5" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=1839830194 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.039448, 0.10798964, -18.022556)
+
+[node name="tree_test6" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=1840099993 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(0.35703143, 0, 0.93409234, 0, 1, 0, -0.93409234, 0, 0.35703143, -31.694946, 0.10798964, -25.986443)
+
+[node name="tree_test7" parent="SubViewportContainer/SubViewport/World3D/Tests" unique_id=246652965 instance=ExtResource("29_5yu0b")]
+transform = Transform3D(-0.2399061, 0, -0.97079617, 0, 1, 0, 0.97079617, 0, -0.2399061, -22.039448, 0.10798964, -24.222706)
+
+[node name="DitheringOverlay" parent="SubViewportContainer/SubViewport" unique_id=616906728 node_paths=PackedStringArray("source_camera") instance=ExtResource("25_5yu0b")]
+screen_space_enabled = true
+screen_algorithm = 2
+screen_error_strength = 2.0
+screen_pattern = 3
+screen_dither_texture = ExtResource("26_57hkg")
+screen_palette_texture = ExtResource("27_xywv1")
+screen_bit_depth = 64
+screen_contrast = 0.94
+screen_lum_offset = -0.46
+screen_blend_mode = 3
+screen_mask_highlights_softness = 0.0
+world_algorithm = 2
+world_error_strength = 2.0
+world_pattern = 3
+world_dither_texture = ExtResource("26_57hkg")
+world_palette_texture = ExtResource("27_xywv1")
+world_bit_depth = 2
+world_contrast = 2.7800000000000002
+world_lum_offset = 0.30000000000000004
+world_dither_size = 1
+world_blend_mode = 5
+source_camera = NodePath("../World3D/CameraSystem/CameraRig/Pivot/SpringArm3D/Camera3D")
+world_scale = 0.2
+triplanar_sharpness = 6.0
+moire_reduction = 1.0
+pattern_filtering = false
 
 [node name="GameHUD" parent="." unique_id=426183297 instance=ExtResource("21_cqtiy")]
 font_size = 48

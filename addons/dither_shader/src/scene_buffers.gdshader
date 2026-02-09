@@ -10,6 +10,7 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest;
 uniform sampler2D depth_curve : filter_linear;
 uniform bool use_curve = false;
 uniform float max_depth : hint_range(1.0, 500.0) = 100.0;
+uniform float world_range : hint_range(10.0, 1000.0) = 100.0;
 
 // Buffer modes: 0=Depth, 1=Depth Inverted, 2=Normals, 3=Normals Raw, 4=World Position
 uniform int buffer_mode : hint_range(0, 4) = 0;
@@ -94,10 +95,10 @@ void fragment() {
 	}
 	else {
 		// World-space position (RGB = XYZ)
-		// Output world position normalized to 0-1 range (assuming scene is within -50 to +50)
+		// Output world position normalized to 0-1 range based on world_range
 		vec3 world_pos = world_position_from_depth(SCREEN_UV, inv_proj, INV_VIEW_MATRIX);
-		// Map -50..+50 to 0..1
-		output_color = clamp(world_pos / 100.0 + 0.5, 0.0, 1.0);
+		// Map -world_range..+world_range to 0..1
+		output_color = clamp(world_pos / (world_range * 2.0) + 0.5, 0.0, 1.0);
 	}
 
 	ALBEDO = output_color;

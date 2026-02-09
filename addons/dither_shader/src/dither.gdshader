@@ -1,10 +1,9 @@
 /*
-Obra Dinn-style dither shader for Godot 4.x
+Obra Dinn-style dither shader for Godot 4.x (Screen-Space Version)
 Original by Sam Bigos (MIT license) - https://github.com/samuelbigos/godot_dither_shader
-Converted to Godot 4.x plugin format
 
-This shader is under MIT license. Feel free to use, improve and
-change this shader according to your needs.
+This is the SCREEN-SPACE dither shader using canvas_item.
+For WORLD-SPACE dithering, use dither_world.gdshader with a fullscreen quad instead.
 */
 
 shader_type canvas_item;
@@ -20,12 +19,13 @@ uniform int u_dither_size : hint_range(1, 8) = 2;
 uniform float u_mix : hint_range(0.0, 1.0) = 1.0;
 uniform int u_blend_mode : hint_range(0, 10) = 0;
 
-// World-space dithering
-uniform sampler2D u_world_pos_tex : filter_nearest;
-uniform bool u_world_dither = false;
-uniform float u_world_dither_scale : hint_range(0.01, 10.0) = 1.0;
-// Projection plane: 0 = XZ (floors), 1 = XY (Z-facing walls), 2 = YZ (X-facing walls)
-uniform int u_world_dither_projection : hint_range(0, 2) = 0;
+// Masking - luminance-based (screen-space only has access to color)
+uniform bool u_mask_shadows_enabled = false;
+uniform float u_mask_shadows_threshold : hint_range(0.0, 1.0) = 0.5;
+uniform float u_mask_shadows_softness : hint_range(0.0, 0.5) = 0.1;
+uniform bool u_mask_highlights_enabled = false;
+uniform float u_mask_highlights_threshold : hint_range(0.0, 1.0) = 0.5;
+uniform float u_mask_highlights_softness : hint_range(0.0, 0.5) = 0.1;
 
 // Blend mode functions
 vec3 blend_normal(vec3 base, vec3 blend) { return blend; }
@@ -87,52 +87,10 @@ void fragment() {
 	float lum_upper = (floor(lum * col_x) + 1.0) * col_texel_size;
 	float lum_scaled = lum * col_x - floor(lum * col_x);
 
-	// Map the dither texture onto the screen or world geometry
+	// Screen-space dithering
 	ivec2 noise_size = textureSize(u_dither_tex, 0);
-	vec2 noise_uv;
-
-	if (u_world_dither) {
-		// Sample world position
-		vec3 world_encoded = texture(u_world_pos_tex, SCREEN_UV).rgb;
-
-		// Decode world position (was encoded as pos/100 + 0.5)
-		vec3 world_pos = (world_encoded - 0.5) * 100.0;
-
-		// Divide by scale so bigger scale = bigger pattern (more world units per tile)
-		vec3 scaled_pos = world_pos / max(u_world_dither_scale, 1.0);
-
-		if (u_world_dither_projection == 3) {
-			// AUTO: Use screen-space derivatives to find surface normal
-			vec3 ddx = dFdx(world_pos);
-			vec3 ddy = dFdy(world_pos);
-			vec3 normal = normalize(cross(ddy, ddx));
-
-			// Get dominant axis (which component of normal is largest)
-			vec3 abs_normal = abs(normal);
-
-			// Hard switch based on dominant axis (no blending = no swirls)
-			if (abs_normal.y >= abs_normal.x && abs_normal.y >= abs_normal.z) {
-				// Y is dominant - horizontal surface, use XZ
-				noise_uv = scaled_pos.xz;
-			} else if (abs_normal.x >= abs_normal.z) {
-				// X is dominant - X-facing wall, use YZ
-				noise_uv = scaled_pos.yz;
-			} else {
-				// Z is dominant - Z-facing wall, use XY
-				noise_uv = scaled_pos.xy;
-			}
-		} else if (u_world_dither_projection == 0) {
-			noise_uv = scaled_pos.xz; // XZ for floors/ceilings
-		} else if (u_world_dither_projection == 1) {
-			noise_uv = scaled_pos.xy; // XY for Z-facing walls
-		} else {
-			noise_uv = scaled_pos.yz; // YZ for X-facing walls
-		}
-	} else {
-		// Screen-space dithering (default)
-		vec2 inv_noise_size = vec2(1.0 / float(noise_size.x), 1.0 / float(noise_size.y));
-		noise_uv = SCREEN_UV * inv_noise_size * vec2(float(screen_size.x), float(screen_size.y));
-	}
+	vec2 inv_noise_size = vec2(1.0 / float(noise_size.x), 1.0 / float(noise_size.y));
+	vec2 noise_uv = SCREEN_UV * inv_noise_size * vec2(float(screen_size.x), float(screen_size.y));
 
 	float threshold = texture(u_dither_tex, noise_uv).r;
 
@@ -164,8 +122,32 @@ void fragment() {
 		default: blended_col = dither_col; break;
 	}
 
-	// Mix between original and blended result
-	vec3 final_col = mix(original_col, blended_col, u_mix);
+	// === MASKING ===
+	float mask = 1.0;
+	float raw_lum = dot(original_col, vec3(0.299, 0.587, 0.114));
+
+	// Luminance masking - shadows
+	if (u_mask_shadows_enabled) {
+		float shadow_mask = smoothstep(
+			u_mask_shadows_threshold + u_mask_shadows_softness,
+			u_mask_shadows_threshold - u_mask_shadows_softness,
+			raw_lum
+		);
+		mask *= shadow_mask;
+	}
+
+	// Luminance masking - highlights
+	if (u_mask_highlights_enabled) {
+		float highlight_mask = smoothstep(
+			u_mask_highlights_threshold - u_mask_highlights_softness,
+			u_mask_highlights_threshold + u_mask_highlights_softness,
+			raw_lum
+		);
+		mask *= highlight_mask;
+	}
+
+	// Mix between original and blended result with mask
+	vec3 final_col = mix(original_col, blended_col, u_mix * mask);
 
 	COLOR.rgb = final_col;
 }

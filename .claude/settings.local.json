@@ -21,7 +21,21 @@
       "Bash(unzip:*)",
       "mcp__ide__getDiagnostics",
       "Bash(sort:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "mcp__filesystem__list_directory",
+      "mcp__godot-mcp-docs__get_documentation_file",
+      "mcp__filesystem__directory_tree",
+      "mcp__filesystem__write_file",
+      "Bash(/home/danger/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)",
+      "mcp__godot-mcp__run_project",
+      "mcp__godot-mcp__get_debug_output",
+      "Bash(../../../Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)",
+      "mcp__filesystem__read_text_file",
+      "mcp__godot-mcp__get_uid",
+      "mcp__filesystem__read_multiple_files",
+      "WebFetch(domain:rainworldmodding.miraheze.org)",
+      "WebFetch(domain:rainworld.miraheze.org)",
+      "Bash(/home/danger/Documents/GitHub/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)"
     ]
   },
   "outputStyle": "default"

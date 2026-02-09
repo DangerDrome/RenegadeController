@@ -1,0 +1,30 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dkw2lpv5rh6xc"]
+
+[ext_resource type="Shader" uid="uid://d1vr35supbg04" path="res://dump/trees/tree_wind.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://cp5ovivsbiltw" path="res://dump/trees/palm/coconut_palm2.png" id="2_m43pb"]
+[ext_resource type="Texture2D" uid="uid://cllfent58olxr" path="res://dump/trees/palm/coconut_palm2_Translucency.png" id="3_rtpgl"]
+[ext_resource type="Texture2D" uid="uid://cefaxbuvbbfjt" path="res://dump/trees/palm/coconut_palm2_Normal.png" id="4_3twih"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/albedo = Color(1, 1, 1, 1)
+shader_parameter/texture_albedo = ExtResource("2_m43pb")
+shader_parameter/backlight_color = Color(0.8, 1, 0.6, 1)
+shader_parameter/texture_backlight = ExtResource("3_rtpgl")
+shader_parameter/texture_normal = ExtResource("4_3twih")
+shader_parameter/normal_scale = 1.0
+shader_parameter/roughness = 0.8
+shader_parameter/specular = 0.3
+shader_parameter/uv1_scale = Vector2(1, 1)
+shader_parameter/uv1_offset = Vector2(0, 0)
+shader_parameter/uv2_scale = Vector2(1, 1)
+shader_parameter/uv2_offset = Vector2(0, 0)
+shader_parameter/alpha_scissor_threshold = 0.5
+shader_parameter/max_distance = 100.0
+shader_parameter/is_branch = true
+shader_parameter/wind_enabled = true
+shader_parameter/fallback_flutter = 0.5
+shader_parameter/fallback_branch_sway = 0.3
+shader_parameter/tree_wind_size = Vector4(10, 10, 1, 4)
+shader_parameter/tree_wind_power = Vector3(0.1, 0.1, 0.1)

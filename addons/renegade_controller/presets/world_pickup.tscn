@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://gf2468sxbsh3"]
 
 [ext_resource type="Script" uid="uid://cwatvc2e01qpd" path="res://addons/renegade_controller/src/inventory/world_pickup.gd" id="1"]
-[ext_resource type="Script" uid="uid://dy01qjfn6o7m3" path="res://addons/dither_shader/src/world_label.gd" id="2_worldlabel"]
+[ext_resource type="Script" uid="uid://bs8gc0w44v0ds" path="res://addons/dithering/src/world_label.gd" id="2_worldlabel"]
 [ext_resource type="Texture2D" uid="uid://bgvsnqccjra7a" path="res://addons/renegade_controller/textures/dark/texture_06.png" id="2_yh2xy"]
 
 [sub_resource type="SphereShape3D" id="1"]

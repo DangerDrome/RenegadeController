@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://cu8hdyktqsgo3"]
+
+[ext_resource type="PackedScene" uid="uid://b7yu5yth1i34a" path="res://dump/trees/palm/tree_test.fbx" id="1_5tqpp"]
+
+[sub_resource type="StandardMaterial3D" id="7"]
+albedo_color = Color(0.4099064, 0.35344723, 0.1572383, 1)
+uv1_scale = Vector3(0.5, 0.5, 0.5)
+uv1_triplanar = true
+uv1_world_triplanar = true
+
+[node name="tree_test" unique_id=824597078 instance=ExtResource("1_5tqpp")]
+
+[node name="coconut_palm1_0" parent="." index="0" unique_id=901779570]
+surface_material_override/0 = SubResource("7")
+
+[node name="coconut_palm2_1" parent="coconut_palm1_0" index="0" unique_id=166033478]
+surface_material_override/0 = SubResource("7")

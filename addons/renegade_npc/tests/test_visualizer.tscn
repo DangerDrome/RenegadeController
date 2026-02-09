@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d0e5prf1hnt5r"]
+
+[ext_resource type="Script" uid="uid://bdwpd4hf170tm" path="res://addons/renegade_npc/tests/test_visualizer.gd" id="1"]
+
+[node name="TestVisualizer" type="CanvasLayer"]
+script = ExtResource("1")
