@@ -327,9 +327,12 @@ func _create_cursor_visual() -> void:
 	mesh.size = Vector3(cursor_size, cursor_size, cursor_size)
 	_cursor_mesh.mesh = mesh
 
-	# Simple material - just like inventory items
+	# Material - occluded by surfaces so we see the half-through effect.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = default_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.disable_receive_shadows = true
 	_cursor_mesh.material_override = mat
 	_cursor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
@@ -382,8 +385,11 @@ func _create_aim_line_visual() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_line_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_aim_line_mesh.material_override = mat
-	_aim_line_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	add_child(_aim_line_mesh)
 
@@ -510,6 +516,12 @@ func _create_aim_plane_visual() -> void:
 
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_plane_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.disable_receive_shadows = true
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	mat.render_priority = 1
 	_aim_plane_mesh.material_override = mat
 	_aim_plane_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
