@@ -16,7 +16,7 @@ signal interactable_unhovered(target: Node3D)
 ## The camera to raycast from.
 @export var camera: Camera3D
 ## Maximum raycast distance.
-@export var ray_length: float = 100.0
+@export var ray_length: float = 500.0
 ## Collision mask for the raycast (what layers it hits).
 @export_flags_3d_physics var collision_mask: int = 0xFFFFFFFF
 ## Collision mask specifically for interactable detection (set to your interactable layer).
@@ -222,7 +222,7 @@ func _do_raycast() -> void:
 	has_hit = true
 	world_position = result.position
 	world_normal = result.normal
-	
+
 	# Check if the hit object is an interactable.
 	var collider: Node3D = result.collider
 	hovered_object = collider
@@ -327,17 +327,22 @@ func _create_cursor_visual() -> void:
 	mesh.size = Vector3(cursor_size, cursor_size, cursor_size)
 	_cursor_mesh.mesh = mesh
 
-	# Material - occluded by surfaces so we see the half-through effect.
+	# Material - always visible, renders on top of dithering (priority 100).
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = default_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
 	mat.disable_receive_shadows = true
+	mat.render_priority = 127
 	_cursor_mesh.material_override = mat
 	_cursor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Top-level so it doesn't inherit parent transforms weirdly.
 	_cursor_mesh.top_level = true
+	# Push forward in sorting to ensure visibility
+	_cursor_mesh.sorting_offset = 100.0
 	add_child(_cursor_mesh)
 
 
@@ -386,10 +391,13 @@ func _create_aim_line_visual() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_line_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.render_priority = 127
 	_aim_line_mesh.material_override = mat
+	_aim_line_mesh.sorting_offset = 100.0
 
 	add_child(_aim_line_mesh)
 
@@ -517,13 +525,15 @@ func _create_aim_plane_visual() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_plane_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.disable_receive_shadows = true
-	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
-	mat.render_priority = 1
+	mat.render_priority = 127
 	_aim_plane_mesh.material_override = mat
 	_aim_plane_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_aim_plane_mesh.sorting_offset = 100.0
 
 	add_child(_aim_plane_mesh)
 

@@ -62,16 +62,6 @@ func _ready() -> void:
 	# Create inventory system nodes.
 	_setup_inventory_system()
 
-	# Debug overlay — wired through GameHUD.
-	game_hud.debug_character = player
-	game_hud.debug_camera_rig = cam_rig
-	game_hud.debug_cursor = cursor_3d
-	game_hud.debug_zone_manager = zone_mgr
-	game_hud.debug_inventory = player_inventory
-	game_hud.debug_equipment_manager = player_equipment
-	game_hud.debug_weapon_manager = player_weapons
-	game_hud.debug_item_slots = player_item_slots
-
 	# Interaction signal.
 	player.ready_to_interact.connect(_on_interact)
 

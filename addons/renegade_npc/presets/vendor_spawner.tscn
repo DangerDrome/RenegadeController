@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://vendor_spawner_001"]
+
+[ext_resource type="Script" uid="uid://npc_spawner_001" path="res://addons/renegade_npc/presets/npc_spawner.gd" id="1_spawner"]
+
+[node name="VendorSpawner" type="Marker3D"]
+script = ExtResource("1_spawner")
+archetype = "Vendor"
+spawn_count = 1
+spawn_radius = 0.0
+block_id = "market_district"
+preview_color = Color(0.2, 1.0, 0.5, 1.0)

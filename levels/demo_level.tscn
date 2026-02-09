@@ -1,0 +1,228 @@
+[gd_scene format=3 uid="uid://8n14b1wnfh8l"]
+
+[ext_resource type="Script" uid="uid://lebrlqlx82dg" path="res://levels/demo_level.gd" id="1_setup"]
+[ext_resource type="PackedScene" uid="uid://b3uw4wuhb7dx7" path="res://addons/renegade_controller/presets/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://cpo2fvv3xhi2y" path="res://addons/renegade_controller/presets/camera_system.tscn" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="4_hud"]
+[ext_resource type="PackedScene" path="res://addons/sky_weather/presets/sky_weather.tscn" id="5_sky"]
+[ext_resource type="PackedScene" path="res://addons/dithering/presets/dithering_overlay.tscn" id="6_dither"]
+[ext_resource type="Texture2D" uid="uid://q5ux1bhwdc7h" path="res://addons/dither_shader/assets/patterns/blue_noise.png" id="7_lih0g"]
+[ext_resource type="Script" uid="uid://rctv356mlsyg" path="res://addons/renegade_npc/presets/npc_spawner.gd" id="7_spawner"]
+[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="8_677m7"]
+[ext_resource type="Script" uid="uid://bxwmu2kdgsynx" path="res://addons/renegade_npc/nodes/activity_node.gd" id="8_activity"]
+[ext_resource type="Texture2D" uid="uid://cxqhqybdnjcd7" path="res://addons/dither_shader/assets/patterns/bayer16tile2.png" id="9_dvlyx"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1lt1y"]
+sky_top_color = Color(0.3, 0.5, 0.9, 1)
+sky_horizon_color = Color(0.7, 0.8, 0.9499999, 1)
+ground_bottom_color = Color(0.4, 0.35, 0.3, 1)
+ground_horizon_color = Color(0.48999998, 0.56, 0.66499996, 0.7)
+sun_angle_max = 1.0
+
+[sub_resource type="Sky" id="Sky_t3n8c"]
+sky_material = SubResource("ProceduralSkyMaterial_1lt1y")
+
+[sub_resource type="Environment" id="Environment_bindi"]
+background_mode = 2
+sky = SubResource("Sky_t3n8c")
+ambient_light_source = 3
+ambient_light_color = Color(0.85, 0.9, 0.97499996, 1)
+reflected_light_source = 2
+tonemap_mode = 2
+fog_light_color = Color(0.7, 0.7, 0.75, 1)
+fog_density = 0.0
+fog_aerial_perspective = 0.5
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+cell_height = 0.2
+agent_height = 1.8
+agent_radius = 1.0
+agent_max_climb = 0.4
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(60, 1, 60)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.3, 0.3, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(60, 1, 60)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_building"]
+albedo_color = Color(0.4, 0.35, 0.3, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_building"]
+size = Vector3(8, 6, 8)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_building"]
+size = Vector3(8, 6, 8)
+
+[node name="DemoLevel" type="Node3D" unique_id=1202866625]
+script = ExtResource("1_setup")
+
+[node name="SkyWeather" parent="." unique_id=78234464 instance=ExtResource("5_sky")]
+time = 10.0
+
+[node name="Sun" type="DirectionalLight3D" parent="SkyWeather" unique_id=200623014]
+transform = Transform3D(0.8660254, 0.42212042, -0.267982, 0, 0.535964, 0.84424084, 0.5, -0.731134, 0.46415845, 0, 0, 0)
+light_color = Color(0.90999997, 0.905, 0.91499996, 1)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SkyWeather" unique_id=511595944]
+environment = SubResource("Environment_bindi")
+
+[node name="CameraSystem" parent="." unique_id=1120995253 instance=ExtResource("3_camera")]
+
+[node name="GameHUD" parent="." unique_id=26457105 instance=ExtResource("4_hud")]
+
+[node name="DitheringOverlay" parent="." unique_id=625577618 instance=ExtResource("6_dither")]
+screen_dither_texture = ExtResource("7_lih0g")
+screen_palette_texture = ExtResource("8_677m7")
+world_dither_texture = ExtResource("9_dvlyx")
+world_palette_texture = ExtResource("8_677m7")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="." unique_id=1338023549]
+navigation_mesh = SubResource("NavigationMesh_1")
+
+[node name="Environment" type="Node3D" parent="NavigationRegion3D" unique_id=309228541]
+
+[node name="Floor" type="StaticBody3D" parent="NavigationRegion3D/Environment" unique_id=879836926]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Floor" unique_id=2030480132]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Environment/Floor" unique_id=1546211491]
+material_override = SubResource("StandardMaterial3D_floor")
+mesh = SubResource("BoxMesh_floor")
+
+[node name="Building1" type="StaticBody3D" parent="NavigationRegion3D/Environment" unique_id=1889695466]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 3, -15)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Environment/Building1" unique_id=1015737200]
+material_override = SubResource("StandardMaterial3D_building")
+mesh = SubResource("BoxMesh_building")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Building1" unique_id=1534864105]
+shape = SubResource("BoxShape3D_building")
+
+[node name="Building2" type="StaticBody3D" parent="NavigationRegion3D/Environment" unique_id=2029903840]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 3, -15)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Environment/Building2" unique_id=1872545189]
+material_override = SubResource("StandardMaterial3D_building")
+mesh = SubResource("BoxMesh_building")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Building2" unique_id=1920370084]
+shape = SubResource("BoxShape3D_building")
+
+[node name="Building3" type="StaticBody3D" parent="NavigationRegion3D/Environment" unique_id=1961043809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 3, 15)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Environment/Building3" unique_id=2045472230]
+material_override = SubResource("StandardMaterial3D_building")
+mesh = SubResource("BoxMesh_building")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Building3" unique_id=596959845]
+shape = SubResource("BoxShape3D_building")
+
+[node name="Building4" type="StaticBody3D" parent="NavigationRegion3D/Environment" unique_id=462497324]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 3, 15)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="NavigationRegion3D/Environment/Building4" unique_id=1307161984]
+material_override = SubResource("StandardMaterial3D_building")
+mesh = SubResource("BoxMesh_building")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Building4" unique_id=856947628]
+shape = SubResource("BoxShape3D_building")
+
+[node name="NPCSpawners" type="Node3D" parent="." unique_id=899662163]
+
+[node name="CopSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1256697379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)
+script = ExtResource("7_spawner")
+archetype = "Cop"
+spawn_count = 4
+
+[node name="CivilianSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1872227310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -5)
+script = ExtResource("7_spawner")
+spawn_count = 8
+spawn_radius = 10.0
+
+[node name="GangSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1573859512]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 10)
+script = ExtResource("7_spawner")
+archetype = "Gang"
+spawn_count = 4
+
+[node name="VendorSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1925820287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10)
+script = ExtResource("7_spawner")
+archetype = "Vendor"
+spawn_radius = 0.0
+
+[node name="ActivityNodes" type="Node3D" parent="." unique_id=1078959702]
+
+[node name="PatrolNode1" type="Marker3D" parent="ActivityNodes" unique_id=47249734 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
+script = ExtResource("8_activity")
+activity_type = "patrol"
+allowed_factions = PackedStringArray()
+
+[node name="PatrolNode2" type="Marker3D" parent="ActivityNodes" unique_id=1310886148 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 0)
+script = ExtResource("8_activity")
+activity_type = "patrol"
+allowed_factions = PackedStringArray()
+
+[node name="PatrolNode3" type="Marker3D" parent="ActivityNodes" unique_id=746152022 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
+script = ExtResource("8_activity")
+activity_type = "patrol"
+allowed_factions = PackedStringArray()
+
+[node name="PatrolNode4" type="Marker3D" parent="ActivityNodes" unique_id=201890460 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10)
+script = ExtResource("8_activity")
+activity_type = "patrol"
+allowed_factions = PackedStringArray()
+
+[node name="IdleNode1" type="Marker3D" parent="ActivityNodes" unique_id=1037301234 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -5)
+script = ExtResource("8_activity")
+allowed_factions = PackedStringArray()
+
+[node name="IdleNode2" type="Marker3D" parent="ActivityNodes" unique_id=818780759 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 5)
+script = ExtResource("8_activity")
+allowed_factions = PackedStringArray()
+
+[node name="SocializeNode1" type="Marker3D" parent="ActivityNodes" unique_id=1178069163 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -8)
+script = ExtResource("8_activity")
+activity_type = "socialize"
+allowed_factions = PackedStringArray()
+
+[node name="WorkNode1" type="Marker3D" parent="ActivityNodes" unique_id=571902347 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12)
+script = ExtResource("8_activity")
+activity_type = "work"
+allowed_factions = PackedStringArray()
+
+[node name="GuardNode1" type="Marker3D" parent="ActivityNodes" unique_id=137046930 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 12)
+script = ExtResource("8_activity")
+activity_type = "guard"
+allowed_factions = PackedStringArray()
+
+[node name="DealNode1" type="Marker3D" parent="ActivityNodes" unique_id=1300692086 groups=["activity_nodes"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, 5)
+script = ExtResource("8_activity")
+activity_type = "deal"
+allowed_factions = PackedStringArray()
+
+[node name="Player" parent="." unique_id=680105507 instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 5)
+
+[editable path="Player"]

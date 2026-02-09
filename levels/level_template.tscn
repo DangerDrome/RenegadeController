@@ -1,0 +1,42 @@
+[gd_scene load_steps=9 format=3 uid="uid://level_template_001"]
+
+[ext_resource type="Script" path="res://levels/level_setup.gd" id="1_setup"]
+[ext_resource type="PackedScene" uid="uid://b3uw4wuhb7dx7" path="res://addons/renegade_controller/presets/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://cpo2fvv3xhi2y" path="res://addons/renegade_controller/presets/camera_system.tscn" id="3_camera"]
+[ext_resource type="PackedScene" uid="uid://c2f8hbmb1xyii" path="res://addons/modular_hud/examples/game_hud.tscn" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://sky_weather_prefab_001" path="res://addons/sky_weather/presets/sky_weather.tscn" id="5_sky"]
+[ext_resource type="PackedScene" uid="uid://d2p4cjqkm3vsp" path="res://addons/dithering/presets/dithering_overlay.tscn" id="6_dither"]
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+agent_radius = 1.0
+agent_max_climb = 0.5
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_1"]
+
+[node name="Level" type="Node3D"]
+script = ExtResource("1_setup")
+
+[node name="SkyWeather" parent="." instance=ExtResource("5_sky")]
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="CameraSystem" parent="." instance=ExtResource("3_camera")]
+
+[node name="GameHUD" parent="." instance=ExtResource("4_hud")]
+
+[node name="DitheringOverlay" parent="." instance=ExtResource("6_dither")]
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_1")
+
+[node name="Environment" type="Node3D" parent="NavigationRegion3D"]
+
+[node name="Floor" type="StaticBody3D" parent="NavigationRegion3D/Environment"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Floor"]
+shape = SubResource("WorldBoundaryShape3D_1")
+
+[node name="NPCSpawners" type="Node3D" parent="."]
+
+[node name="ActivityNodes" type="Node3D" parent="."]

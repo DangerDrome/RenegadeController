@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://sky_weather_prefab_001"]
+
+[ext_resource type="Script" uid="uid://dyhyqvbgljuap" path="res://addons/sky_weather/sky_weather.gd" id="1_sky"]
+[ext_resource type="Resource" uid="uid://busmfcn7njkwf" path="res://addons/sky_weather/presets/clear.tres" id="2_clear"]
+
+[node name="SkyWeather" type="Node3D"]
+script = ExtResource("1_sky")
+time = 12.0
+day_duration_minutes = 24.0
+time_scale = 1
+weather = ExtResource("2_clear")

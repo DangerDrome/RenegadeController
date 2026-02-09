@@ -332,10 +332,14 @@ func _execute_drive(delta: float) -> void:
 func _do_idle(delta: float) -> void:
 	_wander_timer -= delta
 	if _wander_timer <= 0.0:
-		# Pick a random nearby point and wander to it
-		_wander_target = global_position + Vector3(
+		# Pick a random nearby point and snap to navmesh
+		var random_offset := Vector3(
 			randf_range(-5.0, 5.0), 0.0, randf_range(-5.0, 5.0)
 		)
+		var desired_pos := global_position + random_offset
+		# Snap to closest point on navmesh
+		var map := get_world_3d().navigation_map
+		_wander_target = NavigationServer3D.map_get_closest_point(map, desired_pos)
 		_navigate_to(_wander_target)
 		_wander_timer = randf_range(3.0, 8.0)
 
@@ -489,8 +493,11 @@ func _start_flee() -> void:
 				avg_threat_pos += source.global_position
 			avg_threat_pos /= float(sources.size())
 			flee_dir = (global_position - avg_threat_pos).normalized()
-	
+
 	var flee_target := global_position + flee_dir * 20.0
+	# Snap to closest point on navmesh
+	var map := get_world_3d().navigation_map
+	flee_target = NavigationServer3D.map_get_closest_point(map, flee_target)
 	_navigate_to(flee_target)
 
 

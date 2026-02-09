@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://cop_spawner_001"]
+
+[ext_resource type="Script" uid="uid://npc_spawner_001" path="res://addons/renegade_npc/presets/npc_spawner.gd" id="1_spawner"]
+
+[node name="CopSpawner" type="Marker3D"]
+script = ExtResource("1_spawner")
+archetype = "Cop"
+spawn_count = 2
+spawn_radius = 3.0
+block_id = "downtown_east"
+partner_chance = 0.8
+preview_color = Color(0.2, 0.5, 1.0, 1.0)

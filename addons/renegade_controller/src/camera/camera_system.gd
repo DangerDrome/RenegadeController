@@ -296,6 +296,8 @@ var _cursor: Cursor3D
 
 
 func _ready() -> void:
+	add_to_group("camera_system")
+
 	# Resolve template cameras.
 	var tp_cam := get_node_or_null("ThirdPersonCamera") as Camera3D
 	var fp_cam := get_node_or_null("FirstPersonCamera") as Camera3D
