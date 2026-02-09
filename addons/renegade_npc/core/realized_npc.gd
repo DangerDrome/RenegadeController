@@ -13,6 +13,10 @@
 class_name RealizedNPC
 extends CharacterBody3D
 
+const DetectionSystemScript = preload("res://addons/renegade_npc/core/detection_system.gd")
+const PursuitModuleScript = preload("res://addons/renegade_npc/modules/pursuit_module.gd")
+const StateRecorderScript = preload("res://addons/renegade_npc/core/npc_state_recorder.gd")
+
 ## Emitted when the NPC's active drive changes.
 signal drive_changed(drive_name: String)
 ## Emitted when the player enters interaction range.
@@ -40,6 +44,10 @@ var UTILITY_EVAL_INTERVAL: float = NPCConfig.Realized.UTILITY_EVAL_INTERVAL
 var nav_agent: NavigationAgent3D = null
 var _move_target: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
+## How many times we've timed out navigating in a row.
+var _consecutive_nav_timeouts: int = 0
+## After this many consecutive timeouts, teleport to destination.
+const MAX_CONSECUTIVE_TIMEOUTS: int = 2
 
 ## --- Activity ---
 var _current_activity_node: Node3D = null
@@ -48,12 +56,26 @@ var _activity_timer: float = 0.0
 var _activity_cooldown: float = 0.0
 var _last_completed_activity: String = ""
 var _visited_patrol_nodes: Array[Node3D] = []
-var _nav_elapsed: float = 0.0
+
+## --- Stuck Detection ---
+## Position at last progress check - used to detect if NPC is stuck.
+var _last_progress_pos: Vector3 = Vector3.ZERO
+## Time spent without making progress (actual stuck time, not navigation time).
+var _stuck_timer: float = 0.0
+## Minimum distance to count as "making progress".
+const PROGRESS_THRESHOLD: float = 0.3
 
 ## --- State ---
 var _player_nearby: bool = false
 var _wander_timer: float = 0.0
 var _wander_target: Vector3 = Vector3.ZERO
+
+## --- Detection ---
+var detection: RefCounted = null  ## DetectionSystem instance
+var _player_ref: Node3D = null  ## Cached player reference for detection
+
+## --- State Recording (for time reversal) ---
+var state_recorder: RefCounted = null  ## NPCStateRecorder instance
 
 
 func _ready() -> void:
@@ -72,6 +94,12 @@ func initialize(p_abstract: AbstractNPC) -> void:
 	# Apply data
 	if abstract.world_position != Vector3.ZERO:
 		global_position = abstract.world_position
+
+	# Setup detection system
+	detection = DetectionSystemScript.new(self)
+
+	# Setup state recorder for time reversal
+	state_recorder = StateRecorderScript.new(self)
 
 	# Modules need abstract to be set (e.g. for personality)
 	_setup_modules()
@@ -130,6 +158,7 @@ func _setup_modules() -> void:
 		OpportunityModule,
 		SocialModule,
 		FleeModule,
+		PursuitModuleScript,
 	]
 	
 	for ModuleClass: Variant in module_classes:
@@ -148,9 +177,21 @@ func _physics_process(delta: float) -> void:
 	if not abstract or not abstract.is_alive:
 		return
 
+	# Update state recorder - handles recording and playback for time reversal
+	if state_recorder:
+		state_recorder.update(delta)
+		# If rewinding, skip ALL processing - state recorder handles everything
+		if state_recorder.is_rewinding():
+			return
+
 	# Gravity
 	if not is_on_floor():
 		velocity.y -= 9.8 * delta
+
+	# Update detection system (LOS checks, sound tracking)
+	if detection:
+		_update_player_ref()
+		detection.update(delta, _player_ref)
 
 	# Tick down activity cooldown
 	_activity_cooldown = maxf(_activity_cooldown - delta, 0.0)
@@ -174,6 +215,10 @@ func _physics_process(delta: float) -> void:
 
 ## --- UTILITY AI CORE ---
 
+## Drives that can interrupt any activity (urgent/reactive).
+const URGENT_DRIVES: Array[String] = ["flee", "threat", "pursue"]
+
+
 func _evaluate_utilities() -> void:
 	# Decay short-term emotions in real time so flee/threat states recover
 	# without waiting for the game clock cycle_tick (which can be minutes).
@@ -191,16 +236,51 @@ func _evaluate_utilities() -> void:
 		if score > best_score:
 			best_score = score
 			best_module = module
-	
+
 	if best_module and best_module != _active_module:
-		_active_module = best_module
 		var new_drive: String = best_module.get_drive_name()
 		if new_drive != _active_drive:
+			# Check if we should complete current destination first
+			if not _should_interrupt_for_drive(new_drive):
+				return  # Stay on current drive until destination reached
+
+			_active_module = best_module
 			var old_drive := _active_drive
 			_active_drive = new_drive
 			abstract.current_drive = new_drive
 			drive_changed.emit(new_drive)
 			_on_drive_changed(old_drive, new_drive)
+
+
+## Determines if the current activity should be interrupted for a new drive.
+## Urgent drives (flee, threat, pursue) always interrupt.
+## Non-urgent drives only take over when the NPC has reached their destination.
+func _should_interrupt_for_drive(new_drive: String) -> bool:
+	# Urgent drives always interrupt
+	if new_drive in URGENT_DRIVES:
+		return true
+
+	# If current drive is urgent, don't interrupt for non-urgent
+	if _active_drive in URGENT_DRIVES:
+		return false
+
+	# If not moving, safe to switch
+	if not _is_moving:
+		return true
+
+	# If we have a destination and haven't reached it, don't interrupt
+	if nav_agent and not nav_agent.is_navigation_finished():
+		return false
+
+	# If at an activity node but not done with the activity, don't interrupt
+	if _current_activity_node and _activity_timer > 0.0:
+		var duration: float = 0.0
+		if _current_activity_node.has_method("get_activity_type"):
+			duration = _current_activity_node.typical_duration if "typical_duration" in _current_activity_node else 30.0
+		if duration > 0.0 and _activity_timer < duration:
+			return false
+
+	return true
 
 
 func _on_drive_changed(old_drive: String, new_drive: String) -> void:
@@ -234,6 +314,8 @@ func _execute_drive(delta: float) -> void:
 			_do_socialize(delta)
 		"work", "deal", "guard":
 			_do_activity(delta)
+		"pursue":
+			_do_pursue(delta)
 
 
 func _do_idle(delta: float) -> void:
@@ -252,6 +334,26 @@ func _do_flee(delta: float) -> void:
 		_start_flee()  # Keep fleeing until threat subsides
 
 
+func _do_pursue(delta: float) -> void:
+	if not detection:
+		return
+
+	var target: Node3D = detection.target as Node3D if detection.target else null
+	if not target or not is_instance_valid(target):
+		return
+
+	# Navigate to target's current position
+	var target_pos: Vector3 = target.global_position
+	var dist: float = global_position.distance_to(target_pos)
+
+	if dist > 2.0:
+		# Keep chasing - update nav target to follow moving target
+		_navigate_to(target_pos)
+	else:
+		# Close enough - stop (combat would happen here when implemented)
+		_is_moving = false
+
+
 func _do_patrol(delta: float) -> void:
 	if _current_activity_node and not is_instance_valid(_current_activity_node):
 		_current_activity_node = null
@@ -261,17 +363,25 @@ func _do_patrol(delta: float) -> void:
 		# We have a patrol point — navigate or dwell
 		var dist: float = global_position.distance_to(_current_activity_node.global_position)
 		if dist > 1.5:
-			# Timeout — node is unreachable (inside geometry, bad navmesh, etc.)
-			if _nav_elapsed >= NPCConfig.Realized.NAV_TIMEOUT:
+			# Check if actually stuck (not making progress) rather than just navigating
+			if _stuck_timer >= NPCConfig.Realized.NAV_TIMEOUT:
+				_consecutive_nav_timeouts += 1
+				if _consecutive_nav_timeouts >= MAX_CONSECUTIVE_TIMEOUTS:
+					push_warning("NPC %s stuck %d times, teleporting" % [get_npc_id(), _consecutive_nav_timeouts])
+					_try_unstick()
+					_consecutive_nav_timeouts = 0
 				_visited_patrol_nodes.append(_current_activity_node)
 				_release_current_activity()
 				_activity_timer = 0.0
+				_stuck_timer = 0.0
 				_find_patrol_node()
 				return
 			if not _is_moving:
 				_navigate_to(_current_activity_node.global_position)
 		else:
 			_is_moving = false
+			_stuck_timer = 0.0  # Arrived successfully.
+			_consecutive_nav_timeouts = 0
 			if _current_activity_node.has_method("occupy"):
 				_current_activity_node.occupy(self)
 			_activity_timer += delta
@@ -303,16 +413,24 @@ func _do_activity(delta: float) -> void:
 	if _current_activity_node:
 		var dist: float = global_position.distance_to(_current_activity_node.global_position)
 		if dist > 1.5:
-			# Timeout — node is unreachable
-			if _nav_elapsed >= NPCConfig.Realized.NAV_TIMEOUT:
+			# Check if actually stuck (not making progress) rather than just navigating
+			if _stuck_timer >= NPCConfig.Realized.NAV_TIMEOUT:
+				_consecutive_nav_timeouts += 1
+				if _consecutive_nav_timeouts >= MAX_CONSECUTIVE_TIMEOUTS:
+					push_warning("NPC %s stuck %d times during activity, teleporting" % [get_npc_id(), _consecutive_nav_timeouts])
+					_try_unstick()
+					_consecutive_nav_timeouts = 0
 				_release_current_activity()
 				_activity_timer = 0.0
+				_stuck_timer = 0.0
 				_utility_eval_timer = UTILITY_EVAL_INTERVAL
 				return
 			if not _is_moving:
 				_navigate_to(_current_activity_node.global_position)
 		else:
 			_is_moving = false
+			_stuck_timer = 0.0  # Arrived successfully.
+			_consecutive_nav_timeouts = 0
 			if _current_activity_node.has_method("occupy"):
 				_current_activity_node.occupy(self)
 			_activity_timer += delta
@@ -406,16 +524,31 @@ func _find_activity_for_drive(drive: String, exclude_nodes: Array[Node3D] = []) 
 ## --- NAVIGATION ---
 
 func _navigate_to(target: Vector3) -> void:
+	# Only reset stuck tracking if this is a NEW target.
+	var is_same_target := _move_target.distance_squared_to(target) < 1.0
+	if not is_same_target:
+		_stuck_timer = 0.0
+		_last_progress_pos = global_position
+		_move_target = target
 	nav_agent.target_position = target
-	_move_target = target
 	_is_moving = true
-	_nav_elapsed = 0.0
 
 
 func _process_movement(delta: float) -> void:
-	_nav_elapsed += delta
+	# Track if we're making progress or stuck
+	var current_pos := global_position
+	var distance_moved := current_pos.distance_to(_last_progress_pos)
+	if distance_moved >= PROGRESS_THRESHOLD:
+		# Making progress - reset stuck timer
+		_stuck_timer = 0.0
+		_last_progress_pos = current_pos
+	else:
+		# Not making progress - increment stuck timer
+		_stuck_timer += delta
+
 	if nav_agent.is_navigation_finished():
 		_is_moving = false
+		_stuck_timer = 0.0
 		if not is_on_floor():
 			move_and_slide()
 		return
@@ -461,6 +594,47 @@ func _on_velocity_computed(safe_velocity: Vector3) -> void:
 
 func _on_navigation_finished() -> void:
 	_is_moving = false
+	_stuck_timer = 0.0
+	_consecutive_nav_timeouts = 0  # Reset on successful arrival.
+
+
+## Try to unstick by navigating to a random nearby point on the navmesh.
+func _try_unstick() -> void:
+	var nav_map: RID = nav_agent.get_navigation_map()
+
+	# Pick a random direction, biased away from our last movement direction
+	var escape_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+
+	# If we have a current target, bias away from the direction we were trying to go
+	if _move_target != Vector3.ZERO:
+		var stuck_dir := (_move_target - global_position).normalized()
+		# Perpendicular directions (rotate 90 degrees left or right)
+		var perp_left := Vector3(-stuck_dir.z, 0, stuck_dir.x)
+		var perp_right := Vector3(stuck_dir.z, 0, -stuck_dir.x)
+		escape_dir = perp_left if randf() > 0.5 else perp_right
+		# Add some randomness
+		escape_dir = (escape_dir + Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3))).normalized()
+
+	# Find a valid point on navmesh in that direction
+	var escape_distance := randf_range(3.0, 6.0)
+	var escape_target := global_position + escape_dir * escape_distance
+	var valid_point := NavigationServer3D.map_get_closest_point(nav_map, escape_target)
+
+	# Navigate to the escape point
+	_stuck_timer = 0.0
+	_last_progress_pos = global_position
+	nav_agent.target_position = valid_point
+	_move_target = valid_point
+	_is_moving = true
+
+
+## Force unstick the NPC by trying a different direction.
+func force_unstick() -> void:
+	push_warning("Force unsticking NPC %s" % get_npc_id())
+	_try_unstick()
+	_consecutive_nav_timeouts = 0
+	_release_current_activity()
+	_utility_eval_timer = UTILITY_EVAL_INTERVAL  # Re-evaluate drives
 
 
 ## --- INTERACTION ---
@@ -512,10 +686,12 @@ func take_damage(amount: int, source: Node = null) -> void:
 			var time: float = clock.get_total_hours() if clock else 0.0
 			memory.add_negative(0.3, time)
 	
-	# Notify threat module
+	# Notify threat module and detection system
 	var threat_mod: ThreatModule = _get_module(ThreatModule) as ThreatModule
 	if threat_mod and source is Node3D:
 		threat_mod.notify_gunfire(source.global_position)
+	if detection and source is Node3D:
+		detection.notify_sound(source.global_position, 1.0)
 	
 	if abstract.current_health <= 0:
 		_die()
@@ -533,6 +709,16 @@ func get_npc_id() -> String:
 
 func is_player_nearby() -> bool:
 	return _player_nearby
+
+
+## Get cached player reference, update if needed.
+func _update_player_ref() -> void:
+	if _player_ref and is_instance_valid(_player_ref):
+		return
+	# Find player in scene
+	var players: Array[Node] = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		_player_ref = players[0] as Node3D
 
 
 ## Serialize back to abstract when being despawned.
@@ -555,6 +741,13 @@ func _get_module(module_class: Variant) -> UtilityModule:
 
 ## Notify all threat modules of a world event (gunfire, explosion).
 func on_threat_event(event_data: Dictionary) -> void:
+	if not event_data.has("position"):
+		return
+	var position: Vector3 = event_data["position"]
+	var loudness: float = event_data.get("loudness", 1.0)
+
 	var threat_mod: ThreatModule = _get_module(ThreatModule) as ThreatModule
-	if threat_mod and event_data.has("position"):
-		threat_mod.notify_gunfire(event_data["position"])
+	if threat_mod:
+		threat_mod.notify_gunfire(position)
+	if detection:
+		detection.notify_sound(position, loudness)

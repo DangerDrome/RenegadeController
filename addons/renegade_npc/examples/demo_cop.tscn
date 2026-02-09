@@ -2,10 +2,14 @@
 
 [ext_resource type="PackedScene" uid="uid://bka836ycluhoe" path="res://addons/renegade_npc/examples/demo_scene.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bxwmu2kdgsynx" path="res://addons/renegade_npc/nodes/activity_node.gd" id="2_activity"]
+[ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="3_l8qlp"]
 
 [node name="DemoScene" unique_id=1467996543 instance=ExtResource("1_base")]
 cop_count = 6
 focus_archetype = "Cop"
+
+[node name="MarkerMesh" parent="ActivityNodes/patrol_spot_0" parent_id_path=PackedInt32Array(798264337) index="0" unique_id=532397405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -3.8869257)
 
 [node name="extra_guard_0" type="Marker3D" parent="ActivityNodes" parent_id_path=PackedInt32Array(1215477828) index="30" unique_id=1927071788]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 0, 35)
@@ -20,3 +24,11 @@ script = ExtResource("2_activity")
 activity_type = "guard"
 typical_duration = 38.0
 allowed_factions = PackedStringArray("la_mirada", "lapd")
+
+[node name="DemoHUD" parent="." index="4" unique_id=1321543057]
+visible = false
+
+[node name="NPCDataGraphs" parent="." index="6" unique_id=1031253252]
+visible = false
+
+[node name="GameHUD" parent="." index="8" unique_id=791584683 instance=ExtResource("3_l8qlp")]

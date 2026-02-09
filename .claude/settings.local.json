@@ -35,7 +35,10 @@
       "mcp__filesystem__read_multiple_files",
       "WebFetch(domain:rainworldmodding.miraheze.org)",
       "WebFetch(domain:rainworld.miraheze.org)",
-      "Bash(/home/danger/Documents/GitHub/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)"
+      "Bash(/home/danger/Documents/GitHub/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)",
+      "mcp__serena__search_for_pattern",
+      "WebFetch(domain:gamerant.com)",
+      "mcp__serena__get_symbols_overview"
     ]
   },
   "outputStyle": "default"

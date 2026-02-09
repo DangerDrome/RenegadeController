@@ -1,4 +1,4 @@
-## NPCDataGraphs: Real-time NPC data visualization overlay toggled with F6.
+## NPCDataGraphs: Real-time NPC data visualization overlay (always visible).
 ## Shows 7 graph panels: drive distribution, module sparklines, aggregate threat,
 ## reputation timeline, social memory, health distribution, and system metrics.
 ## Samples data every 0.25s (matching UTILITY_EVAL_INTERVAL).
@@ -104,7 +104,7 @@ const MEMORY_COLORS := {
 
 # --- State ---
 var _sample_timer: float = 0.0
-var _visible: bool = false
+var _visible: bool = true  # Always visible
 
 # Nearest NPC tracking
 var _nearest_npc: RealizedNPC = null
@@ -145,16 +145,9 @@ func _ready() -> void:
 		if panel.has_method("set_data_source"):
 			panel.set_data_source(self)
 
-	_root_panel.visible = false
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and event.keycode == KEY_F6:
-		_visible = not _visible
-		_root_panel.visible = _visible
-		if _visible and _legend_panel and _legend_panel.has_method("redraw"):
-			_legend_panel.redraw()
-		get_viewport().set_input_as_handled()
+	_root_panel.visible = true
+	if _legend_panel and _legend_panel.has_method("redraw"):
+		_legend_panel.redraw()
 
 
 func _process(delta: float) -> void:

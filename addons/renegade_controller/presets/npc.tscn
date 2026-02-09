@@ -43,3 +43,7 @@ mesh = SubResource("SphereMesh_1")
 
 [node name="AIController" type="Node" parent="."]
 script = ExtResource("2")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.5
+target_desired_distance = 1.0

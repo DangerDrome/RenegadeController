@@ -5,23 +5,42 @@ extends Node3D
 ## Creates its own WorldEnvironment and DirectionalLight3D as children.
 
 ## Time of day in hours (0-24). Wraps automatically.
+var _time: float = 12.0
 @export_range(0, 24, 0.01) var time: float = 12.0:
+	get:
+		return _time
 	set(v):
-		var old_time := time
-		# Check for day wrap before normalizing
+		var old_time := _time
+		var new_day := day_count
+
+		# Calculate day wrap
 		if v >= 24.0 and old_time < 24.0:
-			day_count += 1
-			day_changed.emit(day_count)
+			new_day += 1
 		elif v < 0.0 and old_time >= 0.0:
-			day_count -= 1
+			new_day -= 1
+
+		# Normalize time to 0-24 range first
+		var new_time := fmod(v, 24.0)
+		if new_time < 0:
+			new_time += 24.0
+
+		# Clamp to session start - can't rewind before game began
+		if _session_initialized:
+			if new_day < _session_start_day:
+				new_day = _session_start_day
+				new_time = _session_start_time
+			elif new_day == _session_start_day and new_time < _session_start_time:
+				new_time = _session_start_time
+
+		# Apply changes
+		if new_day != day_count:
+			day_count = new_day
 			day_changed.emit(day_count)
-		# Normalize to 0-24 range
-		time = fmod(v, 24.0)
-		if time < 0:
-			time += 24.0
+
+		_time = new_time
 		_update_sky()
 		var current_period := get_period()
-		time_changed.emit(time, current_period)
+		time_changed.emit(_time, current_period)
 		if current_period != _last_period:
 			_last_period = current_period
 			period_changed.emit(current_period)
@@ -35,6 +54,11 @@ extends Node3D
 @export_range(-300, 300) var time_scale: int = 1:
 	set(v):
 		time_scale = v
+
+# Session start tracking - can't rewind before this
+var _session_start_time: float = -1.0
+var _session_start_day: int = 0
+var _session_initialized: bool = false
 
 ## Current weather preset
 @export var weather: WeatherPreset:
@@ -109,6 +133,13 @@ func _ready() -> void:
 	_update_sky()
 	_register_npc_hooks()
 
+	# Record session start time (can't rewind before this)
+	if not Engine.is_editor_hint():
+		_session_start_time = _time
+		_session_start_day = day_count
+		_session_initialized = true
+		print("[SkyWeather] Session start recorded: day %d, time %.2f" % [_session_start_day, _session_start_time])
+
 
 func _register_npc_hooks() -> void:
 	if Engine.is_editor_hint():
@@ -140,7 +171,22 @@ func _process(delta: float) -> void:
 	# Advance time based on time_scale
 	if day_duration_minutes > 0 and not Engine.is_editor_hint():
 		var base_speed := (delta / 60.0) * (24.0 / day_duration_minutes)
-		time += base_speed * time_scale  # This calls _update_sky() via setter
+		var time_delta := base_speed * time_scale
+
+		# Block rewinding past session start - use total hours for simple comparison
+		if _session_initialized and time_delta < 0:
+			var current_total: float = day_count * 24.0 + _time
+			var start_total: float = _session_start_day * 24.0 + _session_start_time
+			if current_total <= start_total:
+				# At or before session start - STOP
+				time_delta = 0
+				# Snap to exact start
+				_time = _session_start_time
+				day_count = _session_start_day
+				_update_sky()
+
+		if time_delta != 0:
+			time += time_delta
 		time_updated = true
 
 	# Weather transition - only update if time didn't already trigger it

@@ -4,6 +4,8 @@
 ## Autoloaded by the plugin.
 extends Node
 
+const WantedSystemScript = preload("res://addons/renegade_npc/core/wanted_system.gd")
+
 ## Emitted when an NPC is realized (spawned into the world).
 signal npc_realized(abstract: AbstractNPC, realized: RealizedNPC)
 ## Emitted when an NPC is abstractized (removed from the world).
@@ -36,8 +38,15 @@ var _abstract_update_index: int = 0
 ## The base scene used to instantiate realized NPCs.
 var _realized_npc_scene: PackedScene = preload("res://addons/renegade_npc/presets/realized_npc.tscn")
 
+## --- Wanted System ---
+## Tracks player heat level with law enforcement.
+var wanted_system: RefCounted = null  ## WantedSystem instance
+
 
 func _ready() -> void:
+	# Initialize wanted system
+	wanted_system = WantedSystemScript.new()
+
 	# Connect to GameClock
 	var clock = get_node_or_null("/root/GameClock")
 	if clock:
@@ -47,10 +56,14 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_cache_player()
-	
+
 	if _player:
 		_update_realization()
-	
+		# Update wanted system with observation status
+		if wanted_system:
+			var is_observed := _is_player_observed_by_cops()
+			wanted_system.update(delta, is_observed)
+
 	_update_abstract_npcs(delta)
 
 
@@ -279,6 +292,30 @@ func set_realized_scene(scene: PackedScene) -> void:
 	_realized_npc_scene = scene
 
 
+## --- WANTED SYSTEM ---
+
+## Report a crime committed by the player.
+func report_crime(crime_type: String) -> void:
+	if wanted_system:
+		wanted_system.report_crime(crime_type)
+
+
+## Get the current wanted level (0-5).
+func get_wanted_level() -> int:
+	return wanted_system.current_level if wanted_system else 0
+
+
+## Check if cops should pursue the player on sight.
+func should_cops_pursue() -> bool:
+	return wanted_system.should_pursue() if wanted_system else false
+
+
+## Clear all wanted status.
+func clear_wanted() -> void:
+	if wanted_system:
+		wanted_system.clear()
+
+
 ## --- INTERNAL ---
 
 func _cache_player() -> void:
@@ -296,23 +333,38 @@ func _get_npc_container() -> Node:
 	return container
 
 
+## Check if any LAPD cop has line-of-sight on the player.
+func _is_player_observed_by_cops() -> bool:
+	for npc_id: String in _realized_npcs:
+		var realized: RealizedNPC = _realized_npcs[npc_id]
+		if not realized or not is_instance_valid(realized):
+			continue
+		# Check if this is a cop (LAPD faction)
+		if realized.data and realized.data.faction == NPCConfig.Factions.LAPD:
+			# Check if they have LOS on player
+			if realized.detection and realized.detection.has_line_of_sight:
+				return true
+	return false
+
+
 ## --- SAVE/LOAD ---
 
 func save_all() -> Dictionary:
 	var npc_states: Dictionary = {}
 	for npc_id: String in _all_npcs:
 		npc_states[npc_id] = (_all_npcs[npc_id] as AbstractNPC).to_dict()
-	
+
 	return {
 		"npcs": npc_states,
 		"reputation": ReputationManager.save_state() if ReputationManager else {},
+		"wanted": wanted_system.save() if wanted_system else {},
 	}
 
 
 func load_all(save_data: Dictionary, npc_data_registry: Dictionary) -> void:
 	# npc_data_registry: npc_id -> NPCData resource
 	var npc_states: Dictionary = save_data.get("npcs", {})
-	
+
 	for npc_id: String in npc_states:
 		var state: Dictionary = npc_states[npc_id]
 		var data: NPCData = npc_data_registry.get(npc_id)
@@ -320,6 +372,9 @@ func load_all(save_data: Dictionary, npc_data_registry: Dictionary) -> void:
 			var abstract := AbstractNPC.new(data)
 			abstract.load_from_dict(state)
 			_all_npcs[npc_id] = abstract
-	
+
 	if ReputationManager and save_data.has("reputation"):
 		ReputationManager.load_state(save_data["reputation"])
+
+	if wanted_system and save_data.has("wanted"):
+		wanted_system.load_state(save_data["wanted"])

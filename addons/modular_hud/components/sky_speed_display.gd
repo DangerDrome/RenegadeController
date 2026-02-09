@@ -1,50 +1,72 @@
 extends Control
-## Time speed slider - controls time_scale on SkyWeather.
-## Hides if no SkyWeather found.
-## Range: -100 (reverse x100) to 0 (paused) to +100 (forward x100)
+## Time speed slider - controls ENTIRE GAME speed.
+## Sets Engine.time_scale for simulation AND SkyWeather.time_scale for day/night.
+## Range: -10 (rewind) to +10 (fast forward). Rewind stops at session start.
 
 @onready var slider: HSlider = $VBox/Slider
 @onready var label: Label = $VBox/Label
 
 var _sky_weather: Node
 var _updating := false
+var _at_session_start := false
 
 
 func _ready() -> void:
-	visible = false
+	# Always visible - controls game speed even without SkyWeather
+	visible = true
 	await get_tree().process_frame
 	_find_sky_weather()
+
+	# Sync slider with current Engine.time_scale
+	_updating = true
+	slider.value = Engine.time_scale
+	_updating = false
+	_update_label()
+
+
+func _process(_delta: float) -> void:
+	# Check if we've hit session start while rewinding
+	if Engine.time_scale < 0 and _sky_weather and _sky_weather._session_initialized:
+		var same_day: bool = _sky_weather.day_count == _sky_weather._session_start_day
+		var at_start_time: bool = _sky_weather.time <= _sky_weather._session_start_time + 0.01
+		var at_start: bool = same_day and at_start_time
+		if at_start and not _at_session_start:
+			_at_session_start = true
+			# Stop rewinding - we've hit the start
+			Engine.time_scale = 0
+			_updating = true
+			slider.value = 0
+			_updating = false
+			_update_label()
+		elif not at_start:
+			_at_session_start = false
 
 
 func _find_sky_weather() -> void:
 	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
-	if not _sky_weather:
-		return
-
-	visible = true
-
-	# Set slider to match current time_scale
-	if "time_scale" in _sky_weather:
-		_updating = true
-		slider.value = _sky_weather.time_scale
-		_updating = false
-
-	_update_label()
 
 
 func _on_slider_value_changed(value: float) -> void:
-	if _updating or not _sky_weather:
+	if _updating:
 		return
 
-	var scale := int(value)
-	# Skip 0 - snap to 1 or -1
-	if scale == 0:
-		scale = 1 if slider.value >= 0 else -1
-		_updating = true
-		slider.value = scale
-		_updating = false
+	var scale := value
 
-	_sky_weather.time_scale = scale
+	# Engine.time_scale only supports positive values (0 = pause, 1+ = speed)
+	# Use absolute value for engine, but SkyWeather can go negative for rewind
+	Engine.time_scale = absf(scale)
+
+	# SkyWeather time_scale controls day/night direction (negative = rewind)
+	if _sky_weather and "time_scale" in _sky_weather:
+		if absf(scale) >= 1:
+			_sky_weather.time_scale = int(scale)
+		elif scale > 0:
+			_sky_weather.time_scale = 1
+		elif scale < 0:
+			_sky_weather.time_scale = -1
+		else:
+			_sky_weather.time_scale = 0
+
 	_update_label()
 
 
@@ -52,11 +74,16 @@ func _update_label() -> void:
 	if not is_inside_tree() or not label:
 		return
 
-	var scale := int(slider.value)
+	var scale := slider.value
 	if scale == 0:
-		scale = 1
-
-	if scale >= 1:
-		label.text = "x%d" % scale
+		label.text = "PAUSED"
+	elif scale < 0:
+		# Negative = rewind
+		if scale > -1:
+			label.text = "◀ %.1f" % absf(scale)
+		else:
+			label.text = "◀ %d" % int(absf(scale))
+	elif scale < 1:
+		label.text = "▶ %.1f" % scale
 	else:
-		label.text = "%d" % scale
+		label.text = "▶ %d" % int(scale)

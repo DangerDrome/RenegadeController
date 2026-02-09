@@ -23,6 +23,7 @@ extends MeshInstance3D
 @export var color_work: Color = Color(0.0, 0.8, 1.0, 0.6)
 @export var color_deal: Color = Color(1.0, 0.5, 0.0, 0.6)
 @export var color_guard: Color = Color(0.5, 0.0, 1.0, 0.6)
+@export var color_rewind: Color = Color(0.0, 1.0, 1.0, 0.6)  ## Cyan for time reversal
 @export_group("Editor Preview")
 @export var preview_length: float = 5.0
 @export var preview_color: Color = Color(1.0, 1.0, 0.0, 0.6)
@@ -73,6 +74,17 @@ func _process(delta: float) -> void:
 		return
 	if not _npc or not is_instance_valid(_npc):
 		return
+
+	# Check if we're rewinding time
+	var is_rewinding: bool = _npc.state_recorder != null and _npc.state_recorder.is_rewinding()
+
+	if is_rewinding:
+		_draw_rewind_trajectory()
+	else:
+		_draw_forward_trajectory()
+
+
+func _draw_forward_trajectory() -> void:
 	if not _npc._is_moving or not _npc.nav_agent:
 		return
 
@@ -88,7 +100,55 @@ func _process(delta: float) -> void:
 	_mat.albedo_color = color
 
 	_build_ribbon(path)
-	_build_arrowheads(path)
+	_build_arrowheads(path, false)
+
+
+func _draw_rewind_trajectory() -> void:
+	if not _npc.state_recorder:
+		return
+
+	# Get path from recorded snapshots - this shows where we're going back to
+	var path: Array[Vector3] = _get_rewind_path()
+	if path.size() < 2:
+		return
+
+	_mat.albedo_color = color_rewind
+	_build_ribbon(path)
+	_build_arrowheads(path, true)  ## Reversed arrows for rewind
+
+
+## Get the rewind path from state recorder snapshots.
+## Returns positions from current time going backward in the recording.
+func _get_rewind_path() -> Array[Vector3]:
+	var recorder: RefCounted = _npc.state_recorder
+	var snapshots: Array = recorder._snapshots
+	if snapshots.is_empty():
+		return []
+
+	# Find current position in the timeline
+	var current_time: float = recorder._get_current_time()
+	var current_idx: int = recorder._find_snapshot_index(current_time)
+	if current_idx < 0:
+		current_idx = 0
+
+	# Build path from current position back to earlier snapshots
+	var path: Array[Vector3] = []
+	var sample_interval: int = 3  ## Sample every N snapshots for cleaner line
+
+	# Start from current NPC position
+	path.append(_npc.global_position + Vector3.UP * floor_offset)
+
+	# Add historical positions going backward
+	var i: int = current_idx
+	while i >= 0 and path.size() < 50:  ## Limit path length
+		var snap: RefCounted = snapshots[i]
+		var pos: Vector3 = snap.position + Vector3.UP * floor_offset
+		# Only add if sufficiently different from last point
+		if path.back().distance_to(pos) > 0.3:
+			path.append(pos)
+		i -= sample_interval
+
+	return path
 
 
 ## --- EDITOR PREVIEW ---
@@ -105,7 +165,7 @@ func _build_preview() -> void:
 		path.append(Vector3(0.0, floor_offset, -t * preview_length))
 
 	_build_ribbon(path)
-	_build_arrowheads(path)
+	_build_arrowheads(path, false)
 
 
 ## --- RUNTIME PATH ---
@@ -142,7 +202,7 @@ func _build_ribbon(path: Array[Vector3]) -> void:
 	_imm.surface_end()
 
 
-func _build_arrowheads(path: Array[Vector3]) -> void:
+func _build_arrowheads(path: Array[Vector3], reverse: bool = false) -> void:
 	# Cumulative distance along the path
 	var cum_dist: Array[float] = [0.0]
 	for i: int in range(1, path.size()):
@@ -161,6 +221,11 @@ func _build_arrowheads(path: Array[Vector3]) -> void:
 			var t: float = (next_arrow - cum_dist[i - 1]) / (cum_dist[i] - cum_dist[i - 1])
 			var pos: Vector3 = path[i - 1].lerp(path[i], t)
 			var fwd: Vector3 = (path[i] - path[i - 1]).normalized()
+
+			# Reverse direction for rewind arrows
+			if reverse:
+				fwd = -fwd
+
 			var right: Vector3 = fwd.cross(Vector3.UP).normalized()
 
 			var base_l: Vector3 = pos - right * arrow_half_width - fwd * arrow_length * 0.5

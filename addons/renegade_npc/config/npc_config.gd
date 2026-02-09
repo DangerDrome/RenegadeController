@@ -52,6 +52,7 @@ class Drives:
 	const GUARD: String = "guard"
 	const FLEE: String = "flee"
 	const THREAT: String = "threat"
+	const PURSUE: String = "pursue"
 
 
 # ==========================================================================
@@ -141,6 +142,43 @@ class Blocks:
 
 
 # ==========================================================================
+# DETECTION SYSTEM
+# ==========================================================================
+class Detection:
+	## Maximum distance for visual detection (meters).
+	const SIGHT_RANGE: float = 30.0
+	## Maximum distance for hearing sounds (meters).
+	const HEARING_RANGE: float = 50.0
+	## Field of view in degrees (centered on forward).
+	const FOV_DEGREES: float = 120.0
+	## Seconds between line-of-sight raycast checks (for performance).
+	const LOS_CHECK_INTERVAL: float = 0.1
+
+
+# ==========================================================================
+# WANTED SYSTEM
+# ==========================================================================
+class Wanted:
+	## Heat required per wanted level (level = heat / HEAT_PER_LEVEL).
+	const HEAT_PER_LEVEL: float = 20.0
+	## Heat decay per second when not observed.
+	const DECAY_RATE: float = 1.0
+	## Seconds after crime before decay starts.
+	const DECAY_DELAY: float = 30.0
+	## Save key for persistence.
+	const SAVE_KEY: String = "player_wanted"
+	## Heat values for different crime types.
+	static var CRIMES: Dictionary = {
+		"trespass": 5.0,
+		"assault": 15.0,
+		"murder": 30.0,
+		"vehicle_theft": 10.0,
+		"cop_assault": 25.0,
+		"cop_murder": 50.0,
+	}
+
+
+# ==========================================================================
 # THREAT MODULE SCORING
 # ==========================================================================
 class Threat:
@@ -153,6 +191,10 @@ class Threat:
 	const GRIT_REDUCER: float = 0.2
 	const HOSTILE_DISP_THRESHOLD: float = -0.3
 	const PLAYER_HOSTILE_THRESHOLD: float = -0.5
+	## Weight for wanted level in threat scoring (cops only).
+	const WANTED_WEIGHT: float = 0.4
+	## Weight for having line-of-sight to hostile.
+	const LOS_HOSTILE_WEIGHT: float = 0.5
 
 
 # ==========================================================================
@@ -217,7 +259,7 @@ class Realized:
 	## Brief pause at each patrol point before moving to the next.
 	const PATROL_PAUSE: float = 3.0
 	## Seconds before giving up on reaching an unreachable activity node.
-	const NAV_TIMEOUT: float = 15.0
+	const NAV_TIMEOUT: float = 5.0
 
 
 # ==========================================================================

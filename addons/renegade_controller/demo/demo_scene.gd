@@ -45,11 +45,12 @@ func _ready() -> void:
 	npc.visual_root = get_node(WORLD_PATH + "/PatrolNPC/Mesh")
 	patrol.ai_controller = ai_ctrl
 	patrol.character = npc
+	# Patrol points in open central area, avoiding ramp and cover boxes.
 	patrol.set_patrol_points([
-		Vector3(8, 0, -8),
-		Vector3(8, 0, 5),
-		Vector3(-3, 0, 5),
-		Vector3(-3, 0, -8),
+		Vector3(3, 0, -2),
+		Vector3(3, 0, 7),
+		Vector3(-2, 0, 7),
+		Vector3(-2, 0, -2),
 	] as Array[Vector3])
 
 	# Cursor needs the camera — wait one frame for CameraRig to initialize.

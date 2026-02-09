@@ -30,6 +30,18 @@ func evaluate() -> float:
 	_current_threat_level = 0.0
 	_threat_sources.clear()
 
+	# Get detection system for LOS checks
+	var detection: RefCounted = npc.detection if "detection" in npc else null
+
+	# For cops: factor in player's wanted level
+	if abstract.data.faction == NPCConfig.Factions.LAPD:
+		var npc_mgr: Node = Engine.get_main_loop().root.get_node_or_null("NPCManager") if Engine.get_main_loop() else null
+		if npc_mgr and npc_mgr.has_method("get_wanted_level"):
+			var wanted_level: int = npc_mgr.get_wanted_level()
+			if wanted_level > 0:
+				var wanted_factor: float = float(wanted_level) / 5.0
+				_current_threat_level += wanted_factor * NPCConfig.Threat.WANTED_WEIGHT
+
 	# Check for hostile entities in detection range
 	var detection_area: Area3D = npc.get_node_or_null("DetectionArea")
 	if detection_area:
@@ -40,7 +52,22 @@ func evaluate() -> float:
 				_threat_sources.append(body)
 				var distance: float = npc.global_position.distance_to(body.global_position)
 				var proximity_score: float = 1.0 - clampf(distance / scan_range, 0.0, 1.0)
-				_current_threat_level += proximity_score * NPCConfig.Threat.PROXIMITY_WEIGHT
+
+				# Boost threat score if we have line-of-sight to this specific threat
+				var los_multiplier: float = 1.0
+				if detection and detection.target == body and detection.has_line_of_sight:
+					los_multiplier = 1.5  # 50% boost for confirmed visual
+					_current_threat_level += NPCConfig.Threat.LOS_HOSTILE_WEIGHT
+
+				_current_threat_level += proximity_score * NPCConfig.Threat.PROXIMITY_WEIGHT * los_multiplier
+
+	# Check if we have LOS on the player specifically (even if not in DetectionArea)
+	if detection and detection.has_line_of_sight:
+		var target: Node3D = detection.target as Node3D
+		if target and target.is_in_group("player") and _is_threat(target):
+			if not _threat_sources.has(target):
+				_threat_sources.append(target)
+				_current_threat_level += NPCConfig.Threat.LOS_HOSTILE_WEIGHT
 
 	# Health factor - lower health = higher threat perception
 	var health_ratio: float = float(abstract.current_health) / float(abstract.data.max_health)
@@ -48,10 +75,19 @@ func evaluate() -> float:
 		_current_threat_level += (1.0 - health_ratio) * NPCConfig.Threat.HEALTH_WEIGHT
 
 	# Recent gunfire nearby — uses real-time seconds for responsive decay
+	# Also check detection system for recent sounds
+	var gunfire_score: float = 0.0
 	var now: float = Time.get_ticks_msec() / 1000.0
 	var time_since_gunfire: float = now - _last_gunfire_time
 	if time_since_gunfire < GUNFIRE_DECAY_SECONDS:
-		_current_threat_level += (1.0 - time_since_gunfire / GUNFIRE_DECAY_SECONDS) * NPCConfig.Threat.GUNFIRE_WEIGHT
+		gunfire_score = (1.0 - time_since_gunfire / GUNFIRE_DECAY_SECONDS) * NPCConfig.Threat.GUNFIRE_WEIGHT
+
+	# Also factor in detection system's sound tracking
+	if detection and detection.heard_recently(GUNFIRE_DECAY_SECONDS):
+		var sound_decay: float = 1.0 - (detection.time_since_sound / GUNFIRE_DECAY_SECONDS)
+		gunfire_score = maxf(gunfire_score, sound_decay * NPCConfig.Threat.GUNFIRE_WEIGHT)
+
+	_current_threat_level += gunfire_score
 
 	# Personality modifies threat perception
 	# High anxiety = perceive more threat; high grit = perceive less

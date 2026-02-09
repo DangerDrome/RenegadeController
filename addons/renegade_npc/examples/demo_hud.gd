@@ -68,7 +68,7 @@ func _ready() -> void:
 
 	# Instructions label at the bottom
 	var help := Label.new()
-	help.text = "F1: Detail | F2: Gunshot | F3: Rep | F4: Dmg | F5: Trajectories | F7: Kill | F8: Heal | F9: Drive | [ ]: Time | \\: Reset | F10: Fly cam"
+	help.text = "F1: Detail | F2: Gunshot | F3: Rep | F4: Dmg | F5: Trajectories | F6: Crime | F7: Kill | F8: Heal | F9: Drive | [ ]: Time | \\: Reset | F10: Fly cam"
 	help.position = Vector2(10, 0)
 	help.anchor_top = 1.0
 	help.anchor_bottom = 1.0
@@ -119,6 +119,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_damage_nearest_npc()
 			KEY_F5:
 				_toggle_trajectories()
+			KEY_F6:
+				_report_crime()
 			KEY_F7:
 				_kill_nearest_npc()
 			KEY_F8:
@@ -384,6 +386,24 @@ func _fire_test_gunshot() -> void:
 		print("[Demo] Gunshot event at ", pos)
 
 
+## Cycle through crime types to test wanted system.
+var _crime_index: int = 0
+const CRIME_TYPES: Array[String] = ["trespass", "assault", "murder", "cop_assault", "cop_murder"]
+
+func _report_crime() -> void:
+	var crime_type: String = CRIME_TYPES[_crime_index]
+	_crime_index = (_crime_index + 1) % CRIME_TYPES.size()
+
+	var manager = get_node_or_null("/root/NPCManager")
+	if manager and manager.has_method("report_crime"):
+		manager.report_crime(crime_type)
+		var wanted_level: int = manager.get_wanted_level() if manager.has_method("get_wanted_level") else 0
+		var heat: float = manager.wanted_system.heat if manager.wanted_system else 0.0
+		print("[Demo] Reported crime: %s → Wanted level: %d (heat: %.1f)" % [crime_type, wanted_level, heat])
+	else:
+		print("[Demo] NPCManager.report_crime() not available")
+
+
 func _toggle_trajectories() -> void:
 	_show_trajectories = not _show_trajectories
 	for node: Node in get_tree().get_nodes_in_group("trajectory_lines"):
@@ -563,6 +583,7 @@ func _drive_color(drive: String) -> String:
 		"idle": return "gray"
 		"patrol": return "yellow"
 		"flee", "threat": return "red"
+		"pursue": return "magenta"
 		"socialize": return "lime"
 		"work": return "cyan"
 		"deal": return "orange"

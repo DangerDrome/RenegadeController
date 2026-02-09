@@ -37,12 +37,11 @@ vertical_alignment = 1
 [node name="Slider" type="HSlider" parent="VBox"]
 layout_mode = 2
 size_flags_vertical = 1
-min_value = -300.0
-max_value = 300.0
-step = 10.0
+min_value = -10.0
+max_value = 10.0
+step = 0.5
 value = 1.0
-tick_count = 10
+tick_count = 21
 ticks_on_borders = true
-ticks_position = 3
 
 [connection signal="value_changed" from="VBox/Slider" to="." method="_on_slider_value_changed"]
