@@ -94,6 +94,55 @@ func unregister_npc(npc_id: String) -> void:
 	_all_npcs.erase(npc_id)
 
 
+## --- PARTNER SYSTEM ---
+
+## Register a cop pair (lead + subordinate). Returns [lead, subordinate] AbstractNPCs.
+## Both share the same position and block, linked by partner_id.
+## partner_chance: probability (0.0-1.0) that this cop actually gets a partner.
+func register_cop_pair(lead_data: NPCData, subordinate_data: NPCData, block_id: String = "",
+		position: Vector3 = Vector3.ZERO, partner_chance: float = 0.8) -> Array[AbstractNPC]:
+	var lead := register_npc(lead_data, block_id, position)
+	lead.is_partner_lead = true
+
+	# Roll to see if this cop gets a partner
+	if randf() > partner_chance:
+		# Solo cop - no partner
+		return [lead]
+
+	# Spawn subordinate close beside lead (use lead's snapped position)
+	var offset := Vector3(randf_range(0.8, 1.2), 0.0, randf_range(-0.3, 0.3))
+	var sub := register_npc(subordinate_data, block_id, lead.world_position + offset)
+	sub.is_partner_lead = false
+
+	# Link them
+	lead.partner_id = sub.npc_id
+	sub.partner_id = lead.npc_id
+
+	return [lead, sub]
+
+
+## Register a cop pair using the same NPCData for both (randomized names/IDs).
+func register_cop_pair_same_data(data: NPCData, block_id: String = "",
+		position: Vector3 = Vector3.ZERO, partner_chance: float = 0.8) -> Array[AbstractNPC]:
+	return register_cop_pair(data, data, block_id, position, partner_chance)
+
+
+## Get the partner of an NPC (null if no partner or partner doesn't exist).
+func get_partner(npc_id: String) -> AbstractNPC:
+	var npc: AbstractNPC = _all_npcs.get(npc_id)
+	if not npc or npc.partner_id.is_empty():
+		return null
+	return _all_npcs.get(npc.partner_id)
+
+
+## Get the realized partner of an NPC (null if partner not realized).
+func get_realized_partner(npc_id: String) -> RealizedNPC:
+	var partner: AbstractNPC = get_partner(npc_id)
+	if not partner:
+		return null
+	return _realized_npcs.get(partner.npc_id)
+
+
 ## --- BLOCK DATA ---
 
 ## Register a city block for abstract simulation.
@@ -142,6 +191,31 @@ func _realize_npc(npc_id: String) -> void:
 	if not abstract or abstract.is_realized:
 		return
 
+	# Realize the NPC
+	var realized := _create_realized_npc(abstract)
+	if not realized:
+		return
+
+	_realized_npcs[npc_id] = realized
+	npc_realized.emit(abstract, realized)
+
+	# Also realize partner if they have one and they're not already realized
+	if not abstract.partner_id.is_empty():
+		var partner: AbstractNPC = _all_npcs.get(abstract.partner_id)
+		if partner and partner.is_alive and not partner.is_realized:
+			# Budget check - only if we have room
+			if _realized_npcs.size() < max_realized:
+				var partner_realized := _create_realized_npc(partner)
+				if partner_realized:
+					_realized_npcs[partner.npc_id] = partner_realized
+					npc_realized.emit(partner, partner_realized)
+
+
+## Internal: Creates and initializes a RealizedNPC from an AbstractNPC.
+func _create_realized_npc(abstract: AbstractNPC) -> RealizedNPC:
+	if abstract.is_realized:
+		return null
+
 	# Instantiate from the NPC scene (editable in editor)
 	var realized: RealizedNPC = null
 	if _realized_npc_scene:
@@ -166,15 +240,14 @@ func _realize_npc(npc_id: String) -> void:
 		var model: Node3D = abstract.data.model_scene.instantiate()
 		model_parent.add_child(model)
 
-	realized.died.connect(_on_npc_died.bind(npc_id))
+	realized.died.connect(_on_npc_died.bind(abstract.npc_id))
 
 	# Add to scene tree before initialize (global_position requires being in tree)
 	var npc_container := _get_npc_container()
 	npc_container.add_child(realized)
 	realized.initialize(abstract)
-	
-	_realized_npcs[npc_id] = realized
-	npc_realized.emit(abstract, realized)
+
+	return realized
 
 
 func _abstractize_npc(npc_id: String) -> void:

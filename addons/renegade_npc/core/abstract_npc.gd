@@ -27,6 +27,12 @@ var is_realized: bool = false  ## Whether a RealizedNPC scene exists for this
 ## Dictionary of target_id (String) -> SocialMemory
 var social_memories: Dictionary = {}
 
+## --- Partner System ---
+## Partner ID (empty if solo). Cops typically have partners.
+var partner_id: String = ""
+## True if this NPC is the lead of a partner pair. Lead makes decisions, subordinate follows.
+var is_partner_lead: bool = true
+
 ## --- Abstract simulation ---
 var _time_in_block: float = 0.0
 var _abstract_update_accumulator: float = 0.0
@@ -179,6 +185,8 @@ func to_dict() -> Dictionary:
 		"current_drive": current_drive,
 		"home_block": _home_block,
 		"social_memories": mem_dict,
+		"partner_id": partner_id,
+		"is_partner_lead": is_partner_lead,
 	}
 
 
@@ -189,7 +197,9 @@ func load_from_dict(dict: Dictionary) -> void:
 	world_position = str_to_var(dict.get("world_position", var_to_str(Vector3.ZERO)))
 	current_drive = dict.get("current_drive", "idle")
 	_home_block = dict.get("home_block", "")
-	
+	partner_id = dict.get("partner_id", "")
+	is_partner_lead = dict.get("is_partner_lead", true)
+
 	var mem_dict: Dictionary = dict.get("social_memories", {})
 	for target_id: String in mem_dict:
 		social_memories[target_id] = SocialMemory.from_dict(mem_dict[target_id])

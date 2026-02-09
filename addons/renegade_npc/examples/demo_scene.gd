@@ -165,7 +165,7 @@ func _spawn_npcs() -> void:
 
 	# --- Spawn ---
 	_spawn_group(gang_data, g_count, base_pos, 25.0, "downtown_east")
-	_spawn_group(cop_data, c_count, base_pos, 30.0, "downtown_east")
+	_spawn_cop_pairs(cop_data, c_count, base_pos, 30.0, "downtown_east")
 	_spawn_group(civ_data, ci_count, base_pos, 20.0, "downtown_east")
 	_spawn_group(vendor_data, v_count, base_pos, 15.0, "market_district")
 
@@ -215,6 +215,45 @@ func _generate_badge_number() -> int:
 	return 100 + randi_range(0, 899) + _next_badge
 
 
+## Spawn cops as partner pairs (lead + subordinate).
+func _spawn_cop_pairs(data: NPCData, count: int, center: Vector3, radius: float,
+		block: String) -> void:
+	var spawned: int = 0
+	while spawned < count:
+		# Each cop needs unique NPCData
+		var lead_data := data.duplicate() as NPCData
+		var sub_data := data.duplicate() as NPCData
+
+		# Assign unique badge numbers
+		var lead_badge: int = _generate_badge_number()
+		var sub_badge: int = _generate_badge_number()
+		lead_data.npc_name = "Officer #%03d" % lead_badge
+		sub_data.npc_name = "Officer #%03d" % sub_badge
+
+		# Force unique IDs
+		if _rng:
+			lead_data.npc_id = "%s_%s_lead_%d" % [lead_data.faction, lead_data.archetype, spawned]
+			sub_data.npc_id = "%s_%s_sub_%d" % [sub_data.faction, sub_data.archetype, spawned]
+		else:
+			lead_data.npc_id = ""
+			sub_data.npc_id = ""
+
+		var offset := Vector3(
+			_rng.randf_range(-radius, radius) if _rng else randf_range(-radius, radius),
+			0.0,
+			_rng.randf_range(-radius, radius) if _rng else randf_range(-radius, radius)
+		)
+		var pos := center + offset
+
+		# 80% chance of having a partner
+		var cops: Array[AbstractNPC] = NPCManager.register_cop_pair(lead_data, sub_data, block, pos, 0.8)
+		spawned += cops.size()
+
+		# Prevent infinite loop if we only need 1 more cop
+		if spawned >= count:
+			break
+
+
 func _on_npc_realized(abstract: AbstractNPC, realized: RealizedNPC) -> void:
 	var debug_color: Color = ARCHETYPE_COLORS.get(abstract.data.archetype, Color(0.7, 0.7, 0.7))
 
@@ -226,10 +265,13 @@ func _on_npc_realized(abstract: AbstractNPC, realized: RealizedNPC) -> void:
 		mat.albedo_color = debug_color
 		mesh_inst.material_override = mat
 
-	# Configure name label
+	# Configure name label - show partner status for cops
 	var label: Label3D = realized.get_node_or_null("NameLabel")
 	if label:
-		label.text = "%s\n[%s]" % [abstract.data.npc_name, abstract.data.faction]
+		var partner_info: String = ""
+		if not abstract.partner_id.is_empty():
+			partner_info = " [%s]" % ("Lead" if abstract.is_partner_lead else "Sub")
+		label.text = "%s%s\n[%s]" % [abstract.data.npc_name, partner_info, abstract.data.faction]
 		label.modulate = debug_color
 
 	# Configure drive label + connect update signal
@@ -246,6 +288,8 @@ func _on_npc_realized(abstract: AbstractNPC, realized: RealizedNPC) -> void:
 					"work": drive_label.modulate = Color(0.0, 0.8, 1.0)
 					"deal": drive_label.modulate = Color(1.0, 0.5, 0.0)
 					"guard": drive_label.modulate = Color(0.5, 0.0, 1.0)
+					"follow": drive_label.modulate = Color(0.3, 0.7, 1.0)  # Light blue for following
+					"pursue": drive_label.modulate = Color(1.0, 0.3, 0.0)  # Orange for pursuit
 					_: drive_label.modulate = Color.WHITE
 		)
 		drive_label.text = "► %s" % realized.get_active_drive()

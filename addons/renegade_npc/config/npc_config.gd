@@ -53,6 +53,7 @@ class Drives:
 	const FLEE: String = "flee"
 	const THREAT: String = "threat"
 	const PURSUE: String = "pursue"
+	const FOLLOW: String = "follow"
 
 
 # ==========================================================================
@@ -284,3 +285,21 @@ class BlockScoring:
 	const VENDOR_COMMERCE_MULT: float = 2.0
 	const VENDOR_CRIME_PENALTY: float = 0.5
 	const HOME_BLOCK_BONUS: float = 0.5
+
+
+# ==========================================================================
+# PARTNER/FOLLOW MODULE SCORING
+# ==========================================================================
+class Follow:
+	## Distance at which subordinate starts following lead (meters).
+	const MIN_FOLLOW_DISTANCE: float = 1.2
+	## Distance at which subordinate urgently follows lead.
+	const MAX_FOLLOW_DISTANCE: float = 4.0
+	## Base follow score when at max distance.
+	const BASE_FOLLOW_SCORE: float = 0.85
+	## Follow score ramps up as distance increases.
+	const DISTANCE_WEIGHT: float = 0.9
+	## How close subordinate tries to stay to lead.
+	const IDEAL_DISTANCE: float = 0.8
+	## Offset beside lead (tight shoulder-to-shoulder formation).
+	const FOLLOW_OFFSET: Vector3 = Vector3(0.8, 0.0, 0.2)

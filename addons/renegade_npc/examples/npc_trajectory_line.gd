@@ -24,6 +24,10 @@ extends MeshInstance3D
 @export var color_deal: Color = Color(1.0, 0.5, 0.0, 0.6)
 @export var color_guard: Color = Color(0.5, 0.0, 1.0, 0.6)
 @export var color_rewind: Color = Color(0.0, 1.0, 1.0, 0.6)  ## Cyan for time reversal
+@export var color_follow: Color = Color(0.3, 0.7, 1.0, 0.6)  ## Light blue for following
+@export_group("Partner Line")
+@export var partner_line_color: Color = Color(0.3, 0.7, 1.0, 0.8)  ## Connection to partner
+@export var partner_line_width: float = 0.08
 @export_group("Editor Preview")
 @export var preview_length: float = 5.0
 @export var preview_color: Color = Color(1.0, 1.0, 0.0, 0.6)
@@ -43,6 +47,7 @@ func _ready() -> void:
 	_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_mat.no_depth_test = true
 	_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_mat.vertex_color_use_as_albedo = true  # Enable vertex colors
 	material_override = _mat
 
 	if Engine.is_editor_hint():
@@ -83,6 +88,9 @@ func _process(delta: float) -> void:
 	else:
 		_draw_forward_trajectory()
 
+	# Always draw partner connection line if we have a partner
+	_draw_partner_line()
+
 
 func _draw_forward_trajectory() -> void:
 	if not _npc._is_moving or not _npc.nav_agent:
@@ -115,6 +123,54 @@ func _draw_rewind_trajectory() -> void:
 	_mat.albedo_color = color_rewind
 	_build_ribbon(path)
 	_build_arrowheads(path, true)  ## Reversed arrows for rewind
+
+
+## Draw a line connecting this NPC to their partner.
+func _draw_partner_line() -> void:
+	if not _npc.has_method("has_partner") or not _npc.has_partner():
+		return
+
+	var partner: Node3D = _npc.get_partner()
+	if not partner or not is_instance_valid(partner):
+		return
+
+	var start_pos: Vector3 = _npc.global_position + Vector3.UP * 1.0  # Chest height
+	var end_pos: Vector3 = partner.global_position + Vector3.UP * 1.0
+
+	# Get NPC's archetype color
+	var line_color: Color = _get_archetype_color()
+
+	# Draw a simple line between partners
+	_imm.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+
+	var direction: Vector3 = (end_pos - start_pos).normalized()
+	var right: Vector3 = direction.cross(Vector3.UP).normalized() * partner_line_width
+
+	# Use NPC's archetype color
+	_imm.surface_set_color(line_color)
+
+	# Start point
+	_imm.surface_add_vertex(start_pos - right)
+	_imm.surface_add_vertex(start_pos + right)
+
+	# End point
+	_imm.surface_add_vertex(end_pos - right)
+	_imm.surface_add_vertex(end_pos + right)
+
+	_imm.surface_end()
+
+
+## Get the color based on NPC's archetype - NEON colors.
+func _get_archetype_color() -> Color:
+	if not _npc or not _npc.data:
+		return partner_line_color
+
+	match _npc.data.archetype:
+		"Gang": return Color(1.0, 0.0, 0.3, 1.0)      # Neon pink/red
+		"Cop": return Color(0.0, 0.5, 1.0, 1.0)       # Neon blue
+		"Civilian": return Color(1.0, 1.0, 1.0, 1.0)  # Bright white
+		"Vendor": return Color(0.0, 1.0, 0.5, 1.0)    # Neon green
+		_: return partner_line_color
 
 
 ## Get the rewind path from state recorder snapshots.
@@ -197,7 +253,9 @@ func _build_ribbon(path: Array[Vector3]) -> void:
 		else:
 			fwd = (path[i] - path[i - 1]).normalized()
 		var right: Vector3 = fwd.cross(Vector3.UP).normalized() * ribbon_half_width
+		_imm.surface_set_color(_mat.albedo_color)
 		_imm.surface_add_vertex(path[i] - right)
+		_imm.surface_set_color(_mat.albedo_color)
 		_imm.surface_add_vertex(path[i] + right)
 	_imm.surface_end()
 
@@ -232,8 +290,11 @@ func _build_arrowheads(path: Array[Vector3], reverse: bool = false) -> void:
 			var base_r: Vector3 = pos + right * arrow_half_width - fwd * arrow_length * 0.5
 			var tip: Vector3 = pos + fwd * arrow_length * 0.5
 
+			_imm.surface_set_color(_mat.albedo_color)
 			_imm.surface_add_vertex(base_l)
+			_imm.surface_set_color(_mat.albedo_color)
 			_imm.surface_add_vertex(base_r)
+			_imm.surface_set_color(_mat.albedo_color)
 			_imm.surface_add_vertex(tip)
 
 			next_arrow += arrow_spacing
@@ -251,4 +312,6 @@ func _get_drive_color(drive: String) -> Color:
 		"work": return color_work
 		"deal": return color_deal
 		"guard": return color_guard
+		"follow": return color_follow
+		"pursue": return Color(1.0, 0.3, 0.0, 0.6)  # Orange
 		_: return Color(1.0, 1.0, 1.0, 0.6)

@@ -15,6 +15,7 @@ extends CharacterBody3D
 
 const DetectionSystemScript = preload("res://addons/renegade_npc/core/detection_system.gd")
 const PursuitModuleScript = preload("res://addons/renegade_npc/modules/pursuit_module.gd")
+const FollowModuleScript = preload("res://addons/renegade_npc/modules/follow_module.gd")
 const StateRecorderScript = preload("res://addons/renegade_npc/core/npc_state_recorder.gd")
 
 ## Emitted when the NPC's active drive changes.
@@ -91,7 +92,7 @@ func initialize(p_abstract: AbstractNPC) -> void:
 	abstract = p_abstract
 	abstract.is_realized = true
 
-	# Apply data
+	# Apply data - snap to navmesh to avoid spawning in geometry
 	if abstract.world_position != Vector3.ZERO:
 		global_position = abstract.world_position
 
@@ -110,12 +111,19 @@ func _setup_navigation() -> void:
 	if not nav_agent:
 		nav_agent = NavigationAgent3D.new()
 		nav_agent.name = "NavigationAgent3D"
-		nav_agent.path_desired_distance = 0.5
-		nav_agent.target_desired_distance = 1.0
-		nav_agent.avoidance_enabled = true
-		nav_agent.radius = 0.4
-		nav_agent.max_speed = data.run_speed if data else 6.0
 		add_child(nav_agent)
+
+	# Path settings - EDGECENTERED keeps paths away from navmesh boundaries
+	nav_agent.path_postprocessing = NavigationPathQueryParameters3D.PATH_POSTPROCESSING_EDGECENTERED
+	nav_agent.path_desired_distance = 0.5
+	nav_agent.target_desired_distance = 1.0
+
+	# Agent radius - larger = more buffer from walls/edges
+	nav_agent.radius = 0.6
+
+	# Avoidance
+	nav_agent.avoidance_enabled = true
+	nav_agent.max_speed = data.run_speed if data else 6.0
 
 	nav_agent.velocity_computed.connect(_on_velocity_computed)
 	nav_agent.navigation_finished.connect(_on_navigation_finished)
@@ -159,8 +167,9 @@ func _setup_modules() -> void:
 		SocialModule,
 		FleeModule,
 		PursuitModuleScript,
+		FollowModuleScript,
 	]
-	
+
 	for ModuleClass: Variant in module_classes:
 		var module: UtilityModule = ModuleClass.new()
 		module.setup(self, abstract)
@@ -316,6 +325,8 @@ func _execute_drive(delta: float) -> void:
 			_do_activity(delta)
 		"pursue":
 			_do_pursue(delta)
+		"follow":
+			_do_follow(delta)
 
 
 func _do_idle(delta: float) -> void:
@@ -446,6 +457,26 @@ func _do_activity(delta: float) -> void:
 				_utility_eval_timer = UTILITY_EVAL_INTERVAL
 
 
+func _do_follow(delta: float) -> void:
+	var follow_mod: UtilityModule = _get_module(FollowModuleScript)
+	if not follow_mod:
+		return
+
+	var lead: Node3D = follow_mod.get_lead() if follow_mod.has_method("get_lead") else null
+	if not lead or not is_instance_valid(lead):
+		return
+
+	var target_pos: Vector3 = follow_mod.get_follow_target() if follow_mod.has_method("get_follow_target") else lead.global_position
+	var dist: float = global_position.distance_to(target_pos)
+
+	if dist > NPCConfig.Follow.IDEAL_DISTANCE:
+		_navigate_to(target_pos)
+	else:
+		_is_moving = false
+		# Snap to lead's rotation when close
+		rotation.y = lerp_angle(rotation.y, lead.rotation.y, delta * 6.0)
+
+
 func _start_flee() -> void:
 	# Flee away from threat sources
 	var threat_mod: ThreatModule = _get_module(ThreatModule) as ThreatModule
@@ -524,7 +555,7 @@ func _find_activity_for_drive(drive: String, exclude_nodes: Array[Node3D] = []) 
 ## --- NAVIGATION ---
 
 func _navigate_to(target: Vector3) -> void:
-	# Only reset stuck tracking if this is a NEW target.
+	# Only reset stuck tracking if this is a NEW target
 	var is_same_target := _move_target.distance_squared_to(target) < 1.0
 	if not is_same_target:
 		_stuck_timer = 0.0
@@ -568,8 +599,13 @@ func _process_movement(delta: float) -> void:
 
 	# Choose speed based on drive
 	var speed: float = data.move_speed if data else 3.0
-	if _active_drive == "flee":
+	if _active_drive == "flee" or _active_drive == "pursue":
 		speed = data.run_speed if data else 6.0
+	elif _active_drive == "follow":
+		# Sprint to catch up when falling behind partner
+		var dist_to_target: float = global_position.distance_to(_move_target)
+		if dist_to_target > NPCConfig.Follow.MAX_FOLLOW_DISTANCE * 0.5:
+			speed = data.run_speed if data else 6.0
 
 	var desired_velocity: Vector3 = direction * speed
 
@@ -709,6 +745,26 @@ func get_npc_id() -> String:
 
 func is_player_nearby() -> bool:
 	return _player_nearby
+
+
+## Check if this NPC has a partner.
+func has_partner() -> bool:
+	return abstract and not abstract.partner_id.is_empty()
+
+
+## Check if this NPC is the lead of a partner pair.
+func is_partner_lead() -> bool:
+	return abstract and abstract.is_partner_lead
+
+
+## Get the realized partner NPC (null if no partner or partner not realized).
+func get_partner() -> RealizedNPC:
+	if not abstract or abstract.partner_id.is_empty():
+		return null
+	var npc_manager: Node = get_node_or_null("/root/NPCManager")
+	if npc_manager and npc_manager.has_method("get_realized_partner"):
+		return npc_manager.get_realized_partner(abstract.npc_id)
+	return null
 
 
 ## Get cached player reference, update if needed.

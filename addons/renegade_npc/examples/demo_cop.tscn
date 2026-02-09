@@ -5,8 +5,11 @@
 [ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="3_l8qlp"]
 
 [node name="DemoScene" unique_id=1467996543 instance=ExtResource("1_base")]
-cop_count = 6
+cop_count = 18
 focus_archetype = "Cop"
+
+[node name="Building_8" parent="NavigationRegion3D" parent_id_path=PackedInt32Array(972196186) index="9" unique_id=1442529842]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.954792, 1.724, -10.327719)
 
 [node name="MarkerMesh" parent="ActivityNodes/patrol_spot_0" parent_id_path=PackedInt32Array(798264337) index="0" unique_id=532397405]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -3.8869257)
