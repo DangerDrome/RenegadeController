@@ -57,7 +57,7 @@ const INPUT_THRESHOLD_SQ: float = 0.0001
 ## Size of the move-to marker cube.
 @export var move_marker_size: float = 0.25
 ## Color of the move-to marker.
-@export var move_marker_color: Color = Color(0.2, 0.6, 1.0, 0.8)
+@export var move_marker_color: Color = Color(0.0, 0.0, 0.0, 1.0)
 
 @export_group("Physics Interaction")
 ## Approximate mass of the character in kg. Used for push force ratio against RigidBody3D objects.
@@ -338,16 +338,19 @@ func _create_move_marker() -> void:
 	mesh.size = Vector3(move_marker_size, move_marker_size, move_marker_size)
 	_move_marker.mesh = mesh
 
+	# Material renders AFTER dithering (priority 100) so it's unaffected.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = move_marker_color
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.disable_receive_shadows = true
+	mat.no_depth_test = true
+	mat.render_priority = 127
 	_move_marker.material_override = mat
 	_move_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	_move_marker.top_level = true
 	_move_marker.visible = false
+	_move_marker.add_to_group("no_dither")
 	add_child(_move_marker)
 
 

@@ -6,11 +6,11 @@
 [ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="4_hud"]
 [ext_resource type="PackedScene" path="res://addons/sky_weather/presets/sky_weather.tscn" id="5_sky"]
 [ext_resource type="PackedScene" path="res://addons/dithering/presets/dithering_overlay.tscn" id="6_dither"]
-[ext_resource type="Texture2D" uid="uid://q5ux1bhwdc7h" path="res://addons/dither_shader/assets/patterns/blue_noise.png" id="7_lih0g"]
+[ext_resource type="Texture2D" uid="uid://bjmj1ko4h8hgp" path="res://addons/dither_shader/assets/patterns/bayer2tile16.png" id="6_lih0g"]
 [ext_resource type="Script" uid="uid://rctv356mlsyg" path="res://addons/renegade_npc/presets/npc_spawner.gd" id="7_spawner"]
 [ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="8_677m7"]
 [ext_resource type="Script" uid="uid://bxwmu2kdgsynx" path="res://addons/renegade_npc/nodes/activity_node.gd" id="8_activity"]
-[ext_resource type="Texture2D" uid="uid://cxqhqybdnjcd7" path="res://addons/dither_shader/assets/patterns/bayer16tile2.png" id="9_dvlyx"]
+[ext_resource type="Texture2D" uid="uid://cxqhqybdnjcd7" path="res://addons/dither_shader/assets/patterns/bayer16tile2.png" id="8_lih0g"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1lt1y"]
 sky_top_color = Color(0.3, 0.5, 0.9, 1)
@@ -71,15 +71,20 @@ shadow_enabled = true
 [node name="WorldEnvironment" type="WorldEnvironment" parent="SkyWeather" unique_id=511595944]
 environment = SubResource("Environment_bindi")
 
+[node name="DitheringOverlay" parent="." unique_id=625577618 instance=ExtResource("6_dither")]
+screen_pattern = 3
+screen_dither_texture = ExtResource("6_lih0g")
+screen_palette_texture = ExtResource("8_677m7")
+screen_contrast = 5.0
+screen_lum_offset = 0.1200000000000001
+world_dither_texture = ExtResource("8_lih0g")
+world_palette_texture = ExtResource("8_677m7")
+world_scale = 1.0
+moire_reduction = 1.5
+
 [node name="CameraSystem" parent="." unique_id=1120995253 instance=ExtResource("3_camera")]
 
 [node name="GameHUD" parent="." unique_id=26457105 instance=ExtResource("4_hud")]
-
-[node name="DitheringOverlay" parent="." unique_id=625577618 instance=ExtResource("6_dither")]
-screen_dither_texture = ExtResource("7_lih0g")
-screen_palette_texture = ExtResource("8_677m7")
-world_dither_texture = ExtResource("9_dvlyx")
-world_palette_texture = ExtResource("8_677m7")
 
 [node name="NavigationRegion3D" type="NavigationRegion3D" parent="." unique_id=1338023549]
 navigation_mesh = SubResource("NavigationMesh_1")

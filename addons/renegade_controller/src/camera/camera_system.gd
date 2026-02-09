@@ -198,7 +198,7 @@ class_name CameraSystem extends Node3D
 #region Collision
 @export_group("Collision")
 ## Enable collision for marker/zone cameras (pulls camera closer when blocked).
-@export var collision_enabled: bool = true:
+@export var collision_enabled: bool = false:
 	set(value):
 		collision_enabled = value
 		if _camera_rig:

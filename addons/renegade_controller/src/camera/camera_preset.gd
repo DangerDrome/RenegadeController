@@ -18,7 +18,7 @@ class_name CameraPreset extends Resource
 ## Distance from pivot to camera along spring arm.
 @export var spring_length: float = 5.0
 ## Enable collision detection on spring arm.
-@export var use_collision: bool = true
+@export var use_collision: bool = false
 
 @export_group("Rotation")
 ## Horizontal rotation offset in degrees (yaw). 0 = behind character.

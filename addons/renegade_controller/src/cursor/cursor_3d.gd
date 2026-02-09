@@ -28,7 +28,7 @@ signal interactable_unhovered(target: Node3D)
 ## Size of the cursor visual.
 @export var cursor_size: float = 0.3
 ## Default cursor color.
-@export var default_color: Color = Color(1.0, 1.0, 1.0, 0.7)
+@export var default_color: Color = Color(0.0, 0.0, 0.0, 1.0)
 ## Color when hovering an interactable.
 @export var interactable_color: Color = Color(0.2, 1.0, 0.4, 0.9)
 ## Color when aiming (holding aim action).
@@ -322,27 +322,22 @@ func _create_cursor_visual() -> void:
 	_cursor_mesh = MeshInstance3D.new()
 	_cursor_mesh.name = "CursorVisual"
 
-	# Cube mesh for better visibility.
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(cursor_size, cursor_size, cursor_size)
 	_cursor_mesh.mesh = mesh
 
-	# Material - always visible, renders on top of dithering (priority 100).
+	# Material renders AFTER dithering (priority 100) so it's unaffected.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = default_color
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
-	mat.disable_receive_shadows = true
 	mat.render_priority = 127
 	_cursor_mesh.material_override = mat
 	_cursor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-	# Top-level so it doesn't inherit parent transforms weirdly.
 	_cursor_mesh.top_level = true
-	# Push forward in sorting to ensure visibility
-	_cursor_mesh.sorting_offset = 100.0
+	_cursor_mesh.add_to_group("no_dither")
 	add_child(_cursor_mesh)
 
 
@@ -355,11 +350,8 @@ func _update_cursor_visual() -> void:
 		return
 
 	_set_cursor_visible(true)
-
-	# Position cube centered at hit point.
 	_cursor_mesh.global_position = world_position
 
-	# Color based on state.
 	var mat: StandardMaterial3D = _cursor_mesh.material_override
 	if mat:
 		if Input.is_action_pressed(aim_action):
@@ -388,17 +380,18 @@ func _create_aim_line_visual() -> void:
 	_aim_line_immediate = ImmediateMesh.new()
 	_aim_line_mesh.mesh = _aim_line_immediate
 
+	# Material renders AFTER dithering (priority 100) so it's unaffected.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_line_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.render_priority = 127
 	_aim_line_mesh.material_override = mat
-	_aim_line_mesh.sorting_offset = 100.0
+	_aim_line_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
+	_aim_line_mesh.add_to_group("no_dither")
 	add_child(_aim_line_mesh)
 
 
@@ -522,19 +515,18 @@ func _create_aim_plane_visual() -> void:
 	mesh.size = Vector3(aim_plane_size, aim_plane_size, 0.05)
 	_aim_plane_mesh.mesh = mesh
 
+	# Material renders AFTER dithering (priority 100) so it's unaffected.
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = aim_plane_color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.disable_receive_shadows = true
 	mat.render_priority = 127
 	_aim_plane_mesh.material_override = mat
 	_aim_plane_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_aim_plane_mesh.sorting_offset = 100.0
 
+	_aim_plane_mesh.add_to_group("no_dither")
 	add_child(_aim_plane_mesh)
 
 

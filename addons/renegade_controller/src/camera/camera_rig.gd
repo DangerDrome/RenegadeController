@@ -147,7 +147,7 @@ const COLLISION_OFFSET_THRESHOLD := 0.01
 
 @export_group("Collision")
 ## Enable collision for marker/zone cameras (pulls camera closer when blocked).
-@export var marker_collision_enabled: bool = true
+@export var marker_collision_enabled: bool = false
 ## Collision mask for camera blocking geometry.
 @export_flags_3d_physics var camera_collision_mask: int = 1:
 	set(value):
@@ -167,7 +167,7 @@ const COLLISION_OFFSET_THRESHOLD := 0.01
 		if _collision_handler:
 			_collision_handler.collision_speed = value
 ## Minimum distance camera can get to player during collision.
-@export var min_camera_distance: float = 1.5:
+@export var min_camera_distance: float = 5.0:
 	set(value):
 		min_camera_distance = value
 		if _collision_handler:

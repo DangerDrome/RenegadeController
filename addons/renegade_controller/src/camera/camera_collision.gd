@@ -11,7 +11,7 @@ var collision_margin: float = 0.3
 ## How fast the camera pulls in when blocked.
 var collision_speed: float = 15.0
 ## Minimum distance camera can get to player during collision.
-var min_camera_distance: float = 1.5
+var min_camera_distance: float = 5.0
 ## Distance at which the player model starts fading out.
 var player_fade_distance: float = 2.0
 ## Hide player when camera is closer than this distance.
