@@ -176,7 +176,7 @@ func _collect_sample() -> void:
 	_buf_alive.push(float(stats.get("alive", 0)))
 
 	# Iterate realized NPCs for drive counts, health, threat
-	var realized: Dictionary = manager._realized_npcs
+	var realized: Dictionary = manager.get_realized_npcs() if manager.has_method("get_realized_npcs") else {}
 	_drive_counts.clear()
 	_health_buckets.fill(0.0)
 	var threat_sum: float = 0.0

@@ -11,7 +11,7 @@ const WORLD_PATH := "SubViewportContainer/SubViewport/World3D"
 @onready var player_ctrl: PlayerController = get_node(WORLD_PATH + "/Player/PlayerController")
 @onready var cam_system: CameraSystem = get_node(WORLD_PATH + "/CameraSystem")
 @onready var cam_rig: CameraRig = get_node(WORLD_PATH + "/CameraSystem/CameraRig")
-@onready var cursor_3d: Cursor3D = get_node(WORLD_PATH + "/CameraSystem/Cursor3D")
+@onready var cursor_3d: Cursor3D = get_node(WORLD_PATH + "/Player/Cursor3D")
 @onready var zone_mgr: CameraZoneManager = get_node(WORLD_PATH + "/CameraSystem/CameraZoneManager")
 @onready var game_hud: CanvasLayer = $GameHUD
 @onready var npc: RenegadeCharacter = get_node(WORLD_PATH + "/PatrolNPC")
@@ -31,7 +31,7 @@ func _ready() -> void:
 	# Player wiring.
 	player.controller = player_ctrl
 	player.camera_rig = cam_rig
-	player.visual_root = get_node(WORLD_PATH + "/Player/Mesh")
+	player.visual_root = get_node(WORLD_PATH + "/Player/CharacterVisuals")
 
 	# Camera wiring - configure through CameraSystem (bubbles down to CameraRig).
 	cam_system.target = player
@@ -57,7 +57,6 @@ func _ready() -> void:
 	await get_tree().process_frame
 	cursor_3d.camera = cam_system.get_camera()
 	cursor_3d.aim_line_origin = player
-	player_ctrl.cursor = cursor_3d
 
 	# Create inventory system nodes.
 	_setup_inventory_system()
@@ -110,3 +109,43 @@ func _on_interact(target: Node3D) -> void:
 				return
 		# Fallback if method list check fails.
 		target.on_interact()
+
+
+# ============ Animation Retarget Test (?) ============
+var _test_anim_player: AnimationPlayer
+var _test_anim_idx: int = 0
+var _test_anim_names: Array[String] = []
+var _test_loaded: bool = false
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		# Debug: print once per key
+		print("[Input] keycode=", event.keycode, " unicode=", event.unicode, " char=", char(event.unicode))
+
+		# Check for / or ? key (keycode or unicode)
+		var is_slash: bool = event.keycode == KEY_SLASH or event.unicode == 47 or event.unicode == 63
+		if is_slash:
+			if not _test_loaded:
+				_test_retarget_animation()
+			else:
+				_test_next_animation()
+
+
+func _test_retarget_animation() -> void:
+	# TODO: AnimationRetargeter class not yet implemented
+	push_warning("Animation retargeting test disabled - AnimationRetargeter not implemented")
+	print("[Retarget Test] Skipped - requires AnimationRetargeter utility class")
+
+
+func _test_next_animation() -> void:
+	if _test_anim_names.is_empty():
+		print("[Retarget Test] No animations loaded. Press F5 first.")
+		return
+	_test_anim_idx = (_test_anim_idx + 1) % _test_anim_names.size()
+	_play_test_animation()
+
+
+func _play_test_animation() -> void:
+	var anim_name := _test_anim_names[_test_anim_idx]
+	print("[Retarget Test] Playing: ", anim_name)
+	_test_anim_player.play(anim_name)

@@ -1,6 +1,6 @@
 extends Control
 ## Time speed slider - controls ENTIRE GAME speed.
-## Sets Engine.time_scale for simulation AND SkyWeather.time_scale for day/night.
+## Sets Engine.time_scale for simulation AND Chronos.time_scale for day/night.
 ## Range: -10 (rewind) to +10 (fast forward). Rewind stops at session start.
 
 @onready var slider: HSlider = $VBox/Slider
@@ -12,7 +12,7 @@ var _at_session_start := false
 
 
 func _ready() -> void:
-	# Always visible - controls game speed even without SkyWeather
+	# Always visible - controls game speed even without Chronos
 	visible = true
 	await get_tree().process_frame
 	_find_sky_weather()
@@ -26,24 +26,23 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Check if we've hit session start while rewinding
-	if Engine.time_scale < 0 and _sky_weather and _sky_weather._session_initialized:
-		var same_day: bool = _sky_weather.day_count == _sky_weather._session_start_day
-		var at_start_time: bool = _sky_weather.time <= _sky_weather._session_start_time + 0.01
-		var at_start: bool = same_day and at_start_time
-		if at_start and not _at_session_start:
-			_at_session_start = true
-			# Stop rewinding - we've hit the start
-			Engine.time_scale = 0
-			_updating = true
-			slider.value = 0
-			_updating = false
-			_update_label()
-		elif not at_start:
-			_at_session_start = false
+	if Engine.time_scale < 0 and _sky_weather and _sky_weather.has_method("is_session_initialized"):
+		if _sky_weather.is_session_initialized():
+			var at_start: bool = _sky_weather.is_at_session_start()
+			if at_start and not _at_session_start:
+				_at_session_start = true
+				# Stop rewinding - we've hit the start
+				Engine.time_scale = 0
+				_updating = true
+				slider.value = 0
+				_updating = false
+				_update_label()
+			elif not at_start:
+				_at_session_start = false
 
 
 func _find_sky_weather() -> void:
-	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
+	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "Chronos")
 
 
 func _on_slider_value_changed(value: float) -> void:
@@ -53,10 +52,10 @@ func _on_slider_value_changed(value: float) -> void:
 	var scale := value
 
 	# Engine.time_scale only supports positive values (0 = pause, 1+ = speed)
-	# Use absolute value for engine, but SkyWeather can go negative for rewind
+	# Use absolute value for engine, but Chronos can go negative for rewind
 	Engine.time_scale = absf(scale)
 
-	# SkyWeather time_scale controls day/night direction (negative = rewind)
+	# Chronos time_scale controls day/night direction (negative = rewind)
 	if _sky_weather and "time_scale" in _sky_weather:
 		if absf(scale) >= 1:
 			_sky_weather.time_scale = int(scale)

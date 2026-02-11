@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="WeatherPreset" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/chronos/weather_preset.gd" id="1"]
+[ext_resource type="Texture2D" path="res://addons/chronos/icons/wbSunny.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1")
+name = "Clear"
+icon = ExtResource("2_icon")
+sky_tint = Color(1, 1, 1, 1)
+clouds = 0.0
+fog_density = 0.0
+fog_color = Color(0.7, 0.7, 0.75, 1)
+sun_intensity = 1.0

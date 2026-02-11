@@ -119,11 +119,13 @@ func _update_text() -> void:
 	# Zone state.
 	if zone_manager:
 		var zone_name := "Default"
-		if zone_manager._current_zone and zone_manager._current_zone.camera_preset:
-			zone_name = zone_manager._current_zone.camera_preset.preset_name
+		var current_zone: CameraZone = zone_manager.get_current_zone() if zone_manager.has_method("get_current_zone") else null
+		if current_zone and current_zone.camera_preset:
+			zone_name = current_zone.camera_preset.preset_name
 		lines.append("[b]Camera Zone[/b]")
 		lines.append("  Active: [color=cyan]%s[/color]" % zone_name)
-		lines.append("  Zones Overlapping: %d" % zone_manager._active_zones.size())
+		var zone_count: int = zone_manager.get_active_zone_count() if zone_manager.has_method("get_active_zone_count") else 0
+		lines.append("  Zones Overlapping: %d" % zone_count)
 		lines.append("")
 	
 	# Inventory state.

@@ -1,5 +1,5 @@
 extends Control
-## Time and weather display - connects to HUDEvents signals from SkyWeather.
+## Time and weather display - connects to HUDEvents signals from Chronos.
 
 @export var show_time: bool = true
 @export var show_period: bool = true
@@ -15,7 +15,7 @@ var _current_weather: String = "Clear"
 
 
 func _ready() -> void:
-	# Hide by default until we confirm SkyWeather exists
+	# Hide by default until we confirm Chronos exists
 	visible = false
 
 	# Connect to HUDEvents if available
@@ -27,18 +27,18 @@ func _ready() -> void:
 		if hud_events.has_signal("weather_changed"):
 			hud_events.weather_changed.connect(_on_weather_changed)
 
-	# Also try to find SkyWeather directly and connect
+	# Also try to find Chronos directly and connect
 	await get_tree().process_frame
 	_find_and_connect_sky_weather()
 
 
 func _find_and_connect_sky_weather() -> void:
-	# Search for SkyWeather node in the scene
-	var sky := _find_node_by_class(get_tree().root, "SkyWeather")
+	# Search for Chronos node in the scene
+	var sky := _find_node_by_class(get_tree().root, "Chronos")
 	if not sky:
 		return
 
-	# Found SkyWeather - show the widget
+	# Found Chronos - show the widget
 	visible = true
 
 	# Safely connect to signals if they exist
@@ -60,7 +60,7 @@ func _find_and_connect_sky_weather() -> void:
 
 
 func _find_node_by_class(node: Node, class_name_str: String) -> Node:
-	# Check by script class name (works even if SkyWeather plugin is disabled)
+	# Check by script class name (works even if Chronos plugin is disabled)
 	var script := node.get_script() as Script
 	if script and script.get_global_name() == class_name_str:
 		return node

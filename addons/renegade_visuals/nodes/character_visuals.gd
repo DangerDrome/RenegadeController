@@ -13,6 +13,11 @@ signal hit_received(bone_name: StringName, direction: Vector3, force: float)
 signal ragdoll_requested(direction: Vector3, force: float)
 ## Emitted when ragdoll recovery should begin.
 signal recovery_requested(face_up: bool)
+## Emitted when flinch state changes (for other components to pause)
+signal flinch_state_changed(is_flinching: bool)
+
+## True while hit reaction flinch is active (other components should pause)
+var is_flinching: bool = false
 
 ## The CharacterBody3D this visual system drives. Auto-detected from parent if null.
 @export var controller: CharacterBody3D
@@ -123,22 +128,22 @@ func _setup_character() -> void:
 		else:
 			push_warning("CharacterVisuals: No character_scene assigned and no Skeleton3D found in children.")
 		return
-	
+
 	_character_instance = character_scene.instantiate()
 	add_child(_character_instance)
-	
+
 	skeleton = _find_child_of_type(_character_instance, "Skeleton3D") as Skeleton3D
 	if skeleton == null:
 		push_error("CharacterVisuals: character_scene has no Skeleton3D.")
 		return
-	
+
 	_cache_anim_nodes()
 
 
 func _cache_anim_nodes() -> void:
 	animation_player = _find_child_of_type(skeleton.get_parent(), "AnimationPlayer") as AnimationPlayer
 	animation_tree = _find_child_of_type(skeleton.get_parent(), "AnimationTree") as AnimationTree
-	
+
 	# Find mesh for later use (material swaps, visibility, etc.)
 	mesh_instance = _find_child_of_type(skeleton, "MeshInstance3D") as MeshInstance3D
 

@@ -118,10 +118,12 @@ func _physics_process(delta: float) -> void:
 	_current_hip_offset = lerpf(_current_hip_offset, target_hip_offset, config.hip_smooth_speed * delta)
 	
 	# Apply hip offset to pelvis bone
-	if _pelvis_idx != -1:
-		var pelvis_pos := _skeleton.get_bone_pose_position(_pelvis_idx)
-		pelvis_pos.y += _current_hip_offset
-		_skeleton.set_bone_pose_position(_pelvis_idx, pelvis_pos)
+	# NOTE: Disabled - was causing -Z drift with UEFN skeleton
+	# TODO: Investigate proper way to apply hip drop without interfering with root motion
+	#if _pelvis_idx != -1:
+	#	var pelvis_pos := _skeleton.get_bone_pose_position(_pelvis_idx)
+	#	pelvis_pos.y += _current_hip_offset
+	#	_skeleton.set_bone_pose_position(_pelvis_idx, pelvis_pos)
 	
 	# Position IK targets (animated position + ground correction - hip compensation)
 	if _left_target:

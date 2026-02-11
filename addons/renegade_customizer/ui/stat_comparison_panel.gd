@@ -77,7 +77,7 @@ func _display_comparison(incoming: Resource, current: Resource) -> void:
 
 	# Item name.
 	if _item_name_label and incoming:
-		_item_name_label.text = incoming.get("display_name", "Unknown Item")
+		_item_name_label.text = incoming.get("display_name") if incoming.has("display_name") else "Unknown Item"
 		# Rarity color on name.
 		var rarity_colors := {
 			0: Color("#D4C5A9"),
@@ -86,18 +86,17 @@ func _display_comparison(incoming: Resource, current: Resource) -> void:
 			3: Color("#C0C0C0"),
 			4: Color("#FFD700"),
 		}
-		var rarity: int = incoming.get("rarity", 0)
-		_item_name_label.add_theme_color_override(
-			"font_color", rarity_colors.get(rarity, Color("#D4C5A9"))
-		)
+		var rarity: int = incoming.get("rarity") if incoming.has("rarity") else 0
+		var rarity_color: Color = rarity_colors.get(rarity) if rarity_colors.has(rarity) else Color("#D4C5A9")
+		_item_name_label.add_theme_color_override("font_color", rarity_color)
 
 	# Build stat rows.
 	for i in range(stat_names.size()):
 		var stat_name: StringName = stat_names[i]
 		var label_text: String = stat_labels[i] if i < stat_labels.size() else str(stat_name)
 
-		var incoming_val: float = incoming.get(stat_name, 0.0) if incoming else 0.0
-		var current_val: float = current.get(stat_name, 0.0) if current else 0.0
+		var incoming_val: float = incoming.get(stat_name) if incoming and incoming.has(stat_name) else 0.0
+		var current_val: float = current.get(stat_name) if current and current.has(stat_name) else 0.0
 
 		# Skip stats that are 0 on both items.
 		if incoming_val == 0.0 and current_val == 0.0:

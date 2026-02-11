@@ -1,6 +1,6 @@
 extends Control
-## Time display - shows current time from SkyWeather.
-## Hides if no SkyWeather found.
+## Time display - shows current time from Chronos.
+## Hides if no Chronos found.
 
 @onready var label: Label = $Label
 
@@ -14,7 +14,7 @@ func _ready() -> void:
 
 
 func _find_sky_weather() -> void:
-	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
+	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "Chronos")
 	if not _sky_weather:
 		return
 

@@ -29,7 +29,7 @@ albedo_color = Color(1, 1, 0, 0.6)
 
 [sub_resource type="ImmediateMesh" id="ImmediateMesh_4l61g"]
 
-[node name="RealizedNPC" type="CharacterBody3D" unique_id=1045757955]
+[node name="RealizedNPC" type="CharacterBody3D" unique_id=1045757955 groups=["npc"]]
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_realized")

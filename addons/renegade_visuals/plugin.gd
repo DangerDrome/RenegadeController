@@ -41,6 +41,18 @@ func _enter_tree() -> void:
 		preload("nodes/procedural_lean_component.gd"),
 		preload("icons/lean.svg")
 	)
+	add_custom_type(
+		"WallHandPlacement",
+		"Node",
+		preload("nodes/wall_hand_placement.gd"),
+		preload("icons/hand_ik.svg")
+	)
+	add_custom_type(
+		"ItemSlots",
+		"Node3D",
+		preload("nodes/item_slots.gd"),
+		null
+	)
 
 
 func _exit_tree() -> void:
@@ -50,3 +62,5 @@ func _exit_tree() -> void:
 	remove_custom_type("HandIKComponent")
 	remove_custom_type("HitReactionComponent")
 	remove_custom_type("ProceduralLeanComponent")
+	remove_custom_type("WallHandPlacement")
+	remove_custom_type("ItemSlots")

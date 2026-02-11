@@ -25,7 +25,7 @@ const DRIVE_CYCLE: Array[String] = ["idle", "patrol", "threat", "flee", "sociali
 ## Negative = sky rewinds, 0 = paused, positive = fast-forward.
 const TIME_STEPS: Array[int] = [-50, -20, -10, -5, -2, -1, 0, 1, 2, 5, 10, 20, 50]
 var _time_step_index: int = 7  # default = 1 (normal speed)
-var _sky_weather: SkyWeather = null
+var _sky_weather: Chronos = null
 
 ## --- Fly cam ---
 const FLY_SPEED: float = 20.0
@@ -77,8 +77,8 @@ func _ready() -> void:
 	help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	add_child(help)
 
-	# Cache SkyWeather reference (sibling node in the demo scene)
-	_sky_weather = get_parent().get_node_or_null("SkyWeather") as SkyWeather
+	# Cache Chronos reference (sibling node in the demo scene)
+	_sky_weather = get_parent().get_node_or_null("Chronos") as Chronos
 
 	# Start in fly cam mode by default (deferred so player node is ready)
 	_toggle_fly_cam.call_deferred()
@@ -286,7 +286,7 @@ func _update_hud() -> void:
 
 	text += "\n"
 
-	# Sky time (from SkyWeather directly)
+	# Sky time (from Chronos directly)
 	if _sky_weather:
 		text += "[color=yellow]Sky:[/color] %s  Day %d  (%s)\n" % [
 			_sky_weather.get_time_string(), _sky_weather.day_count, _sky_weather.get_period()
@@ -328,7 +328,7 @@ func _update_hud() -> void:
 	# Realized NPCs detail
 	if manager and _show_detail:
 		text += "\n[b][color=aqua]── Realized NPCs (F1 toggle) ──[/color][/b]\n"
-		var realized: Dictionary = manager._realized_npcs
+		var realized: Dictionary = manager.get_realized_npcs() if manager.has_method("get_realized_npcs") else {}
 		if realized.is_empty():
 			text += "  [color=gray](none realized - move closer to NPCs)[/color]\n"
 		else:
@@ -356,8 +356,9 @@ func _update_hud() -> void:
 		text += "\n[color=gray]Press F1 for per-NPC detail[/color]\n"
 		# Show drive summary
 		var drive_counts: Dictionary = {}
-		for npc_id: String in manager._realized_npcs:
-			var rnpc = manager._realized_npcs[npc_id]
+		var realized_summary: Dictionary = manager.get_realized_npcs() if manager.has_method("get_realized_npcs") else {}
+		for npc_id: String in realized_summary:
+			var rnpc = realized_summary[npc_id]
 			if is_instance_valid(rnpc):
 				var d: String = rnpc.get_active_drive()
 				drive_counts[d] = drive_counts.get(d, 0) + 1
@@ -504,7 +505,7 @@ func _check_invariants() -> void:
 		return
 
 	var now: float = Time.get_ticks_msec() / 1000.0
-	var realized: Dictionary = manager._realized_npcs
+	var realized: Dictionary = manager.get_realized_npcs() if manager.has_method("get_realized_npcs") else {}
 	var tracked_ids: Dictionary = {}
 
 	for npc_id: String in realized:

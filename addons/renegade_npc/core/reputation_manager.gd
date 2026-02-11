@@ -108,6 +108,24 @@ func get_player_standing(faction: String, district: String = "") -> String:
 	return _get_reputation_level(get_effective_reputation(faction, district))
 
 
+## Get all city-wide faction reputations. Returns a dictionary of faction -> reputation value.
+## This is a shallow copy - safe to iterate without modifying the internal state.
+func get_city_reputation() -> Dictionary:
+	return city_reputation.duplicate()
+
+
+## Get all district-level reputations. Returns a dictionary of "district:faction" -> reputation value.
+## This is a shallow copy - safe to iterate without modifying the internal state.
+func get_district_reputation() -> Dictionary:
+	return district_reputation.duplicate()
+
+
+## Get all faction dispositions. Returns a dictionary of "factionA:factionB" -> disposition value.
+## This is a shallow copy - safe to iterate without modifying the internal state.
+func get_faction_dispositions() -> Dictionary:
+	return faction_dispositions.duplicate()
+
+
 ## --- CYCLE DECAY ---
 
 func _on_cycle_tick() -> void:

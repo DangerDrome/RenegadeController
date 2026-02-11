@@ -4,13 +4,10 @@
 [ext_resource type="PackedScene" uid="uid://b3uw4wuhb7dx7" path="res://addons/renegade_controller/presets/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" uid="uid://cpo2fvv3xhi2y" path="res://addons/renegade_controller/presets/camera_system.tscn" id="3_camera"]
 [ext_resource type="PackedScene" uid="uid://c8xqm7v3k2nhp" path="res://addons/modular_hud/examples/game_hud.tscn" id="4_hud"]
-[ext_resource type="PackedScene" path="res://addons/sky_weather/presets/sky_weather.tscn" id="5_sky"]
-[ext_resource type="PackedScene" path="res://addons/dithering/presets/dithering_overlay.tscn" id="6_dither"]
-[ext_resource type="Texture2D" uid="uid://bjmj1ko4h8hgp" path="res://addons/dither_shader/assets/patterns/bayer2tile16.png" id="6_lih0g"]
+[ext_resource type="Texture2D" uid="uid://bgvsnqccjra7a" path="res://addons/renegade_controller/textures/dark/texture_06.png" id="5_a3way"]
+[ext_resource type="PackedScene" path="res://addons/chronos/presets/chronos.tscn" id="5_sky"]
 [ext_resource type="Script" uid="uid://rctv356mlsyg" path="res://addons/renegade_npc/presets/npc_spawner.gd" id="7_spawner"]
-[ext_resource type="Texture2D" uid="uid://c0o8nbhvetn4h" path="res://addons/dither_shader/assets/palettes/palette_mono.png" id="8_677m7"]
 [ext_resource type="Script" uid="uid://bxwmu2kdgsynx" path="res://addons/renegade_npc/nodes/activity_node.gd" id="8_activity"]
-[ext_resource type="Texture2D" uid="uid://cxqhqybdnjcd7" path="res://addons/dither_shader/assets/patterns/bayer16tile2.png" id="8_lih0g"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1lt1y"]
 sky_top_color = Color(0.3, 0.5, 0.9, 1)
@@ -34,6 +31,8 @@ fog_density = 0.0
 fog_aerial_perspective = 0.5
 
 [sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+vertices = PackedVector3Array(-29, 0.40000004, -17.25, -20, 0.40000004, -17.25, -20, 0.40000004, -19.25, -19.25, 0.40000004, -20, -17.25, 0.40000004, -20, -17.25, 0.40000004, -29, -29, 0.40000004, -29, -12.5, 0.40000004, -20, -12.5, 0.40000004, -29, 10.75, 0.40000004, -20, 12.75, 0.40000004, -20, 12.75, 0.40000004, -29, -10.5, 0.40000004, -20, -9.75, 0.40000004, -19.25, 10, 0.40000004, -19.25, -9.75, 0.40000004, -12.5, 10, 0.40000004, -12.25, 17.5, 0.40000004, -20, 17.5, 0.40000004, -29, 20.25, 0.40000004, -19.25, 20.25, 0.40000004, -17.75, 29, 0.40000004, -18, 19.5, 0.40000004, -20, 29, 0.40000004, -29, -18, 6.4, -18, -18, 6.4, -12, -12, 6.4, -12, -12, 6.4, -18, 12, 6.4, -18, 12, 6.4, -12, 18, 6.4, -12, 18, 6.4, -18, 20.25, 0.40000004, -12.25, 29, 0.40000004, -12, -17.75, 0.40000004, -17.75, -17.75, 0.40000004, -12, -12, 0.40000004, -12, -12, 0.40000004, -17.75, 12.25, 0.40000004, -17.75, 12.25, 0.40000004, -12, 18, 0.40000004, -12, 18, 0.40000004, -17.75, -29, 0.40000004, -12.5, -20, 0.40000004, -12.5, -29, 0.40000004, 12.75, -20, 0.40000004, 12.75, -20, 0.40000004, 10.75, -20, 0.40000004, -10.5, -19.25, 0.40000004, 10, -19.25, 0.40000004, -9.75, -12.25, 0.40000004, 10, -12.5, 0.40000004, -9.75, -9.75, 0.40000004, -10.75, 10, 0.40000004, -10.5, -10.5, 0.40000004, 10, -9.75, 0.40000004, 10.75, 10, 0.40000004, 10.75, -10.75, 0.40000004, -9.75, 10.75, 0.40000004, 10, 10.75, 0.40000004, -9.75, -9.75, 0.40000004, 12.5, 10, 0.40000004, 12.5, 12.5, 0.40000004, 10, 12.5, 0.40000004, -9.75, 20.25, 0.40000004, 10.75, 20.25, 0.40000004, 12.25, 29, 0.40000004, 12, 20.25, 0.40000004, -10.75, 19.5, 0.40000004, 10, 19.25, 0.40000004, -9.75, -18, 6.4, 12, -18, 6.4, 18, -12, 6.4, 18, -12, 6.4, 12, 12, 6.4, 12, 12, 6.4, 18, 18, 6.4, 18, 18, 6.4, 12, 20.25, 0.40000004, 17.75, 29, 0.40000004, 18, -17.75, 0.40000004, 12.25, -17.75, 0.40000004, 18, -12, 0.40000004, 18, -12, 0.40000004, 12.25, 12.25, 0.40000004, 12.25, 12.25, 0.40000004, 18, 18, 0.40000004, 18, 18, 0.40000004, 12.25, 12, 0.40000004, 29, 12.25, 0.40000004, 20.25, 10.75, 0.40000004, 20.25, -10.75, 0.40000004, 20.25, -12.25, 0.40000004, 20.25, -12, 0.40000004, 29, 10, 0.40000004, 19.5, -9.75, 0.40000004, 19.25, -29, 0.40000004, 17.5, -20, 0.40000004, 17.5, -18, 0.40000004, 29, -17.75, 0.40000004, 20.25, -19.25, 0.40000004, 20.25, -20, 0.40000004, 19.5, -29, 0.40000004, 29, 20.25, 0.40000004, 19.25, 19.25, 0.40000004, 20.25, 17.75, 0.40000004, 20.25, 18, 0.40000004, 29, 29, 0.40000004, 29)
+polygons = [PackedInt32Array(2, 1, 0), PackedInt32Array(5, 4, 3), PackedInt32Array(2, 0, 3), PackedInt32Array(3, 0, 6), PackedInt32Array(3, 6, 5), PackedInt32Array(5, 8, 4), PackedInt32Array(4, 8, 7), PackedInt32Array(11, 10, 9), PackedInt32Array(12, 7, 8), PackedInt32Array(12, 8, 13), PackedInt32Array(13, 8, 14), PackedInt32Array(14, 8, 9), PackedInt32Array(9, 8, 11), PackedInt32Array(13, 14, 15), PackedInt32Array(15, 14, 16), PackedInt32Array(11, 18, 10), PackedInt32Array(10, 18, 17), PackedInt32Array(21, 20, 19), PackedInt32Array(22, 17, 18), PackedInt32Array(19, 22, 21), PackedInt32Array(21, 22, 23), PackedInt32Array(23, 22, 18), PackedInt32Array(27, 26, 24), PackedInt32Array(24, 26, 25), PackedInt32Array(31, 30, 28), PackedInt32Array(28, 30, 29), PackedInt32Array(20, 21, 32), PackedInt32Array(32, 21, 33), PackedInt32Array(37, 36, 34), PackedInt32Array(34, 36, 35), PackedInt32Array(41, 40, 38), PackedInt32Array(38, 40, 39), PackedInt32Array(0, 1, 42), PackedInt32Array(42, 1, 43), PackedInt32Array(46, 45, 44), PackedInt32Array(42, 43, 47), PackedInt32Array(47, 49, 42), PackedInt32Array(42, 49, 48), PackedInt32Array(42, 48, 46), PackedInt32Array(42, 46, 44), PackedInt32Array(49, 51, 48), PackedInt32Array(48, 51, 50), PackedInt32Array(53, 52, 16), PackedInt32Array(16, 52, 15), PackedInt32Array(54, 56, 55), PackedInt32Array(54, 50, 57), PackedInt32Array(57, 50, 51), PackedInt32Array(56, 59, 58), PackedInt32Array(56, 61, 55), PackedInt32Array(55, 61, 60), PackedInt32Array(53, 59, 52), PackedInt32Array(52, 59, 57), PackedInt32Array(57, 59, 54), PackedInt32Array(54, 59, 56), PackedInt32Array(59, 63, 58), PackedInt32Array(58, 63, 62), PackedInt32Array(66, 65, 64), PackedInt32Array(67, 32, 33), PackedInt32Array(64, 68, 66), PackedInt32Array(66, 68, 69), PackedInt32Array(66, 69, 67), PackedInt32Array(66, 67, 33), PackedInt32Array(63, 69, 62), PackedInt32Array(62, 69, 68), PackedInt32Array(73, 72, 70), PackedInt32Array(70, 72, 71), PackedInt32Array(77, 76, 74), PackedInt32Array(74, 76, 75), PackedInt32Array(65, 66, 78), PackedInt32Array(78, 66, 79), PackedInt32Array(83, 82, 80), PackedInt32Array(80, 82, 81), PackedInt32Array(87, 86, 84), PackedInt32Array(84, 86, 85), PackedInt32Array(90, 89, 88), PackedInt32Array(93, 92, 91), PackedInt32Array(90, 88, 94), PackedInt32Array(94, 88, 95), PackedInt32Array(95, 88, 91), PackedInt32Array(91, 88, 93), PackedInt32Array(60, 61, 95), PackedInt32Array(95, 61, 94), PackedInt32Array(44, 45, 96), PackedInt32Array(96, 45, 97), PackedInt32Array(100, 99, 98), PackedInt32Array(96, 97, 101), PackedInt32Array(100, 98, 101), PackedInt32Array(101, 98, 102), PackedInt32Array(101, 102, 96), PackedInt32Array(103, 78, 79), PackedInt32Array(106, 105, 104), PackedInt32Array(103, 79, 104), PackedInt32Array(104, 79, 107), PackedInt32Array(104, 107, 106), PackedInt32Array(99, 92, 98), PackedInt32Array(98, 92, 93), PackedInt32Array(89, 105, 88), PackedInt32Array(88, 105, 106)]
 cell_height = 0.2
 agent_height = 1.8
 agent_radius = 1.0
@@ -43,7 +42,8 @@ agent_max_climb = 0.4
 size = Vector3(60, 1, 60)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
-albedo_color = Color(0.3, 0.3, 0.35, 1)
+albedo_texture = ExtResource("5_a3way")
+uv1_triplanar = true
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
 size = Vector3(60, 1, 60)
@@ -60,27 +60,16 @@ size = Vector3(8, 6, 8)
 [node name="DemoLevel" type="Node3D" unique_id=1202866625]
 script = ExtResource("1_setup")
 
-[node name="SkyWeather" parent="." unique_id=78234464 instance=ExtResource("5_sky")]
+[node name="Chronos" parent="." unique_id=78234464 instance=ExtResource("5_sky")]
 time = 10.0
 
-[node name="Sun" type="DirectionalLight3D" parent="SkyWeather" unique_id=200623014]
+[node name="Sun" type="DirectionalLight3D" parent="Chronos" unique_id=200623014]
 transform = Transform3D(0.8660254, 0.42212042, -0.267982, 0, 0.535964, 0.84424084, 0.5, -0.731134, 0.46415845, 0, 0, 0)
 light_color = Color(0.90999997, 0.905, 0.91499996, 1)
 shadow_enabled = true
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="SkyWeather" unique_id=511595944]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Chronos" unique_id=511595944]
 environment = SubResource("Environment_bindi")
-
-[node name="DitheringOverlay" parent="." unique_id=625577618 instance=ExtResource("6_dither")]
-screen_pattern = 3
-screen_dither_texture = ExtResource("6_lih0g")
-screen_palette_texture = ExtResource("8_677m7")
-screen_contrast = 5.0
-screen_lum_offset = 0.1200000000000001
-world_dither_texture = ExtResource("8_lih0g")
-world_palette_texture = ExtResource("8_677m7")
-world_scale = 1.0
-moire_reduction = 1.5
 
 [node name="CameraSystem" parent="." unique_id=1120995253 instance=ExtResource("3_camera")]
 
@@ -141,87 +130,87 @@ mesh = SubResource("BoxMesh_building")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="NavigationRegion3D/Environment/Building4" unique_id=856947628]
 shape = SubResource("BoxShape3D_building")
 
-[node name="NPCSpawners" type="Node3D" parent="." unique_id=899662163]
+[node name="NPCs" type="Node3D" parent="." unique_id=899662163]
 
-[node name="CopSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1256697379]
+[node name="CopS" type="Marker3D" parent="NPCs" unique_id=1256697379]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)
 script = ExtResource("7_spawner")
 archetype = "Cop"
 spawn_count = 4
 
-[node name="CivilianSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1872227310]
+[node name="CivilianS" type="Marker3D" parent="NPCs" unique_id=1872227310]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -5)
 script = ExtResource("7_spawner")
 spawn_count = 8
 spawn_radius = 10.0
 
-[node name="GangSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1573859512]
+[node name="GangS" type="Marker3D" parent="NPCs" unique_id=1573859512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 10)
 script = ExtResource("7_spawner")
 archetype = "Gang"
 spawn_count = 4
 
-[node name="VendorSpawner" type="Marker3D" parent="NPCSpawners" unique_id=1925820287]
+[node name="VendorS" type="Marker3D" parent="NPCs" unique_id=1925820287]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10)
 script = ExtResource("7_spawner")
 archetype = "Vendor"
 spawn_radius = 0.0
 
-[node name="ActivityNodes" type="Node3D" parent="." unique_id=1078959702]
+[node name="Nodes" type="Node3D" parent="NPCs" unique_id=1078959702]
 
-[node name="PatrolNode1" type="Marker3D" parent="ActivityNodes" unique_id=47249734 groups=["activity_nodes"]]
+[node name="PatrolNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=47249734 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 0)
 script = ExtResource("8_activity")
 activity_type = "patrol"
 allowed_factions = PackedStringArray()
 
-[node name="PatrolNode2" type="Marker3D" parent="ActivityNodes" unique_id=1310886148 groups=["activity_nodes"]]
+[node name="PatrolNode2" type="Marker3D" parent="NPCs/Nodes" unique_id=1310886148 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 0)
 script = ExtResource("8_activity")
 activity_type = "patrol"
 allowed_factions = PackedStringArray()
 
-[node name="PatrolNode3" type="Marker3D" parent="ActivityNodes" unique_id=746152022 groups=["activity_nodes"]]
+[node name="PatrolNode3" type="Marker3D" parent="NPCs/Nodes" unique_id=746152022 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
 script = ExtResource("8_activity")
 activity_type = "patrol"
 allowed_factions = PackedStringArray()
 
-[node name="PatrolNode4" type="Marker3D" parent="ActivityNodes" unique_id=201890460 groups=["activity_nodes"]]
+[node name="PatrolNode4" type="Marker3D" parent="NPCs/Nodes" unique_id=201890460 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10)
 script = ExtResource("8_activity")
 activity_type = "patrol"
 allowed_factions = PackedStringArray()
 
-[node name="IdleNode1" type="Marker3D" parent="ActivityNodes" unique_id=1037301234 groups=["activity_nodes"]]
+[node name="IdleNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=1037301234 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -5)
 script = ExtResource("8_activity")
 allowed_factions = PackedStringArray()
 
-[node name="IdleNode2" type="Marker3D" parent="ActivityNodes" unique_id=818780759 groups=["activity_nodes"]]
+[node name="IdleNode2" type="Marker3D" parent="NPCs/Nodes" unique_id=818780759 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 5)
 script = ExtResource("8_activity")
 allowed_factions = PackedStringArray()
 
-[node name="SocializeNode1" type="Marker3D" parent="ActivityNodes" unique_id=1178069163 groups=["activity_nodes"]]
+[node name="SocializeNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=1178069163 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -8)
 script = ExtResource("8_activity")
 activity_type = "socialize"
 allowed_factions = PackedStringArray()
 
-[node name="WorkNode1" type="Marker3D" parent="ActivityNodes" unique_id=571902347 groups=["activity_nodes"]]
+[node name="WorkNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=571902347 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12)
 script = ExtResource("8_activity")
 activity_type = "work"
 allowed_factions = PackedStringArray()
 
-[node name="GuardNode1" type="Marker3D" parent="ActivityNodes" unique_id=137046930 groups=["activity_nodes"]]
+[node name="GuardNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=137046930 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 12)
 script = ExtResource("8_activity")
 activity_type = "guard"
 allowed_factions = PackedStringArray()
 
-[node name="DealNode1" type="Marker3D" parent="ActivityNodes" unique_id=1300692086 groups=["activity_nodes"]]
+[node name="DealNode1" type="Marker3D" parent="NPCs/Nodes" unique_id=1300692086 groups=["activity_nodes"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, 5)
 script = ExtResource("8_activity")
 activity_type = "deal"
@@ -229,5 +218,8 @@ allowed_factions = PackedStringArray()
 
 [node name="Player" parent="." unique_id=680105507 instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 5)
+
+[node name="CharacterVisuals" parent="Player" index="1" unique_id=487387801 node_paths=PackedStringArray("controller")]
+controller = NodePath("..")
 
 [editable path="Player"]

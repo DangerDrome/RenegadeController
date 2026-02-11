@@ -38,7 +38,14 @@
       "Bash(/home/danger/Documents/GitHub/Apps/Godot/4.6.0/Godot_v4.6-stable_linux.x86_64:*)",
       "mcp__serena__search_for_pattern",
       "WebFetch(domain:gamerant.com)",
-      "mcp__serena__get_symbols_overview"
+      "mcp__serena__get_symbols_overview",
+      "Bash(cat:*)",
+      "mcp__serena__initial_instructions",
+      "WebFetch(domain:godotengine.org)",
+      "WebFetch(domain:9to5grind.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(/bin/mv:*)",
+      "mcp__serena__find_file"
     ]
   },
   "outputStyle": "default"

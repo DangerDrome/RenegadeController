@@ -21,7 +21,9 @@ albedo_color = Color(0.75, 0.6, 0.45, 1)
 radius = 0.2
 height = 0.4
 
-[node name="NPC" type="CharacterBody3D"]
+[node name="NPC" type="CharacterBody3D" groups=["npc"]]
+collision_layer = 1
+collision_mask = 1
 script = ExtResource("1")
 move_speed = 4.0
 

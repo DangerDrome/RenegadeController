@@ -45,6 +45,21 @@ func force_preset(preset: CameraPreset) -> void:
 	if camera_rig:
 		camera_rig.transition_to(preset)
 
+
+## Get the currently active camera zone (null if using default).
+func get_current_zone() -> CameraZone:
+	return _current_zone
+
+
+## Get all currently overlapping zones.
+func get_active_zones() -> Array[CameraZone]:
+	return _active_zones.duplicate()
+
+
+## Get the count of currently overlapping zones.
+func get_active_zone_count() -> int:
+	return _active_zones.size()
+
 #endregion
 
 

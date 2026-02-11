@@ -67,6 +67,16 @@ const INPUT_THRESHOLD_SQ: float = 0.0001
 ## If a RigidBody3D is this many times heavier than the character, don't push it at all.
 @export var max_mass_ratio: float = 4.0
 ## Enable/disable rigidbody pushing entirely.
+
+@export_group("Collision Hit Reactions")
+## Enable hit reactions when colliding with objects/NPCs.
+@export var collision_hit_reactions: bool = true
+## Minimum speed to trigger a hit reaction on collision.
+@export var hit_reaction_min_speed: float = 2.0
+## Force multiplier for collision hit reactions.
+@export var hit_reaction_force_scale: float = 1.0
+## Cooldown between hit reactions (seconds).
+@export var hit_reaction_cooldown: float = 0.2
 @export var push_rigidbodies: bool = true
 
 var move_direction: Vector3 = Vector3.ZERO
@@ -82,6 +92,10 @@ var _move_marker: MeshInstance3D
 var _was_on_floor: bool = true
 var _fall_velocity: float = 0.0
 var _was_aiming: bool = false
+var _hit_reaction_timer: float = 0.0
+var _pre_collision_speed: float = 0.0
+var _bump_area: Area3D
+var _overlapping_bodies: Array[Node3D] = []
 
 signal arrived_at_destination()
 signal ready_to_interact(target: Node3D)
@@ -92,6 +106,7 @@ signal aim_ended()
 
 func _ready() -> void:
 	_create_move_marker()
+	_create_bump_detection_area()
 
 
 func _physics_process(delta: float) -> void:
@@ -103,8 +118,10 @@ func _physics_process(delta: float) -> void:
 	_update_rotation(delta)
 	_apply_gravity(delta)
 	_update_jump()
+	_pre_collision_speed = Vector2(velocity.x, velocity.z).length()
 	move_and_slide()
 	_push_rigid_bodies()
+	_process_collision_hits(delta)
 
 
 #region Movement
@@ -171,7 +188,8 @@ func _update_rotation(delta: float) -> void:
 		face_dir = move_direction
 	else:
 		return
-	var target_angle := atan2(face_dir.x, face_dir.z)
+	# atan2(x, z) gives angle where +Z is 0, but our model faces -Z, so add PI
+	var target_angle := atan2(face_dir.x, face_dir.z) + PI
 	rot_target.rotation.y = lerp_angle(rot_target.rotation.y, target_angle, 1.0 - exp(-rotation_speed * delta))
 
 #endregion
@@ -234,7 +252,91 @@ func _push_rigid_bodies() -> void:
 		body.apply_impulse(impulse, contact_offset)
 		pushed_rigidbody.emit(body, impulse)
 
+
+func _process_collision_hits(delta: float) -> void:
+	# Update cooldown timer.
+	if _hit_reaction_timer > 0.0:
+		_hit_reaction_timer -= delta
+
+	if not collision_hit_reactions:
+		return
+	if visual_root == null:
+		return
+	if not visual_root.has_method("apply_hit"):
+		return
+	if _hit_reaction_timer > 0.0:
+		return
+
+	# Check if moving fast enough to trigger hit reaction (use pre-collision speed).
+	var speed := _pre_collision_speed
+	if speed < hit_reaction_min_speed:
+		return
+
+	# Check for collisions.
+	for i: int in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		var collider := collision.get_collider()
+
+		# Skip if no collider
+		if collider == null:
+			continue
+
+		# Skip ground collisions (floor).
+		if collision.get_normal().y > 0.7:
+			continue
+
+		# Calculate hit direction and force.
+		var hit_dir: Vector3 = -collision.get_normal()
+		hit_dir.y = 0.0
+		hit_dir = hit_dir.normalized()
+		var force: float = speed * hit_reaction_force_scale
+
+		# Determine which bone to hit based on collision height.
+		var hit_height: float = collision.get_position().y - global_position.y
+		var bone_name: StringName = &"spine_02"  # Default to mid-spine
+		if hit_height < 0.5:
+			bone_name = &"pelvis"
+		elif hit_height > 1.2:
+			bone_name = &"spine_03"
+
+		# Trigger hit reaction on visual root.
+		visual_root.apply_hit(bone_name, hit_dir, force)
+		_hit_reaction_timer = hit_reaction_cooldown
+		return  # Only one hit reaction per frame
+
+	# Also check for character-to-character bumps via Area3D overlap
+	_process_character_bumps(speed)
+
 #endregion
+
+
+func _process_character_bumps(speed: float) -> void:
+	if _overlapping_bodies.is_empty():
+		return
+
+	for body: Node3D in _overlapping_bodies:
+		if not is_instance_valid(body):
+			continue
+
+		# Calculate bump direction (from us to them)
+		var to_body := body.global_position - global_position
+		to_body.y = 0.0
+		if to_body.length_squared() < 0.01:
+			continue
+
+		var bump_dir := to_body.normalized()
+
+		# Only trigger if we're moving toward them
+		var move_dot := velocity.normalized().dot(bump_dir)
+		if move_dot < 0.3:  # Not moving toward them
+			continue
+
+		var force := speed * hit_reaction_force_scale
+		var bone_name: StringName = &"spine_02"
+
+		visual_root.apply_hit(bone_name, bump_dir, force)
+		_hit_reaction_timer = hit_reaction_cooldown
+		return  # Only one hit reaction per frame
 
 
 #region Navigation (Move-To-Then-Interact)
@@ -363,5 +465,45 @@ func _show_move_marker(pos: Vector3) -> void:
 func _hide_move_marker() -> void:
 	if _move_marker:
 		_move_marker.visible = false
+
+#endregion
+
+
+#region Bump Detection (for character-to-character collisions)
+
+func _create_bump_detection_area() -> void:
+	if not collision_hit_reactions:
+		return
+
+	_bump_area = Area3D.new()
+	_bump_area.name = "BumpDetectionArea"
+	_bump_area.collision_layer = 0  # Doesn't block anything
+	_bump_area.collision_mask = 3   # Detects layers 1 and 2 (player + NPCs)
+	_bump_area.monitoring = true
+	_bump_area.monitorable = false
+
+	var shape := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.5  # Slightly larger than character
+	capsule.height = 1.8
+	shape.shape = capsule
+	shape.position = Vector3(0, 0.9, 0)
+
+	_bump_area.add_child(shape)
+	add_child(_bump_area)
+
+	_bump_area.body_entered.connect(_on_bump_body_entered)
+	_bump_area.body_exited.connect(_on_bump_body_exited)
+
+
+func _on_bump_body_entered(body: Node3D) -> void:
+	if body == self:
+		return
+	if body is CharacterBody3D:
+		_overlapping_bodies.append(body)
+
+
+func _on_bump_body_exited(body: Node3D) -> void:
+	_overlapping_bodies.erase(body)
 
 #endregion

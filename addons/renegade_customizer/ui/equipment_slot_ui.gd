@@ -206,9 +206,9 @@ func _update_rarity_border() -> void:
 		4: Color("#FFD700"),  # Legendary — gold foil
 	}
 
-	var rarity: int = _current_item.get("rarity", 0) if _current_item else 0
+	var rarity: int = _current_item.get("rarity") if _current_item and _current_item.has("rarity") else 0
 	_rarity_border.visible = rarity > 0
-	_rarity_border.color = rarity_colors.get(rarity, Color.WHITE)
+	_rarity_border.color = rarity_colors.get(rarity) if rarity_colors.has(rarity) else Color.WHITE
 
 
 func _update_drag_highlight() -> void:

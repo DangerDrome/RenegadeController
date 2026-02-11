@@ -17,6 +17,10 @@ var _pelvis_idx: int = -1
 var _current_lean: Vector3 = Vector3.ZERO  # Euler angles
 var _current_pelvis_tilt: Quaternion = Quaternion.IDENTITY
 
+# Track what we applied last frame (to undo before applying new)
+var _applied_lean_quat: Quaternion = Quaternion.IDENTITY
+var _applied_pelvis_tilt: Quaternion = Quaternion.IDENTITY
+
 
 func _ready() -> void:
 	_visuals = get_parent() as CharacterVisuals
@@ -50,9 +54,16 @@ func _setup() -> void:
 func _physics_process(delta: float) -> void:
 	if _skeleton == null:
 		return
-	
+
+	# Skip lean updates while flinching (HitReactionComponent takes over spine)
+	if _visuals.is_flinching:
+		# Reset our tracking so we don't apply stale offsets when resuming
+		_applied_lean_quat = Quaternion.IDENTITY
+		_applied_pelvis_tilt = Quaternion.IDENTITY
+		return
+
 	_update_lean(delta)
-	
+
 	if config.enable_pelvis_tilt:
 		_update_pelvis_tilt(delta)
 
@@ -82,12 +93,19 @@ func _update_lean(delta: float) -> void:
 	
 	# Damped spring smoothing
 	_current_lean = _current_lean.lerp(target_lean, config.lean_speed * delta)
-	
-	# Apply additive rotation
-	if _current_lean.length() > 0.001:
-		var lean_quat := Quaternion.from_euler(_current_lean)
-		var current_rot := _skeleton.get_bone_pose_rotation(_lean_bone_idx)
-		_skeleton.set_bone_pose_rotation(_lean_bone_idx, current_rot * lean_quat)
+
+	# Apply additive rotation (undo previous frame, apply new)
+	var new_lean_quat := Quaternion.from_euler(_current_lean)
+
+	# Get current rotation and undo what we applied last frame
+	var current_rot := _skeleton.get_bone_pose_rotation(_lean_bone_idx)
+	var base_rot := current_rot * _applied_lean_quat.inverse()
+
+	# Apply new lean
+	_skeleton.set_bone_pose_rotation(_lean_bone_idx, base_rot * new_lean_quat)
+
+	# Store what we applied for next frame
+	_applied_lean_quat = new_lean_quat
 
 
 func _update_pelvis_tilt(delta: float) -> void:
@@ -106,8 +124,13 @@ func _update_pelvis_tilt(delta: float) -> void:
 	
 	# Smooth tilt
 	_current_pelvis_tilt = _current_pelvis_tilt.slerp(target_tilt, config.pelvis_tilt_speed * delta)
-	
-	# Apply additive rotation to pelvis
-	if not _current_pelvis_tilt.is_equal_approx(Quaternion.IDENTITY):
-		var current_rot := _skeleton.get_bone_pose_rotation(_pelvis_idx)
-		_skeleton.set_bone_pose_rotation(_pelvis_idx, current_rot * _current_pelvis_tilt)
+
+	# Apply additive rotation to pelvis (undo previous frame, apply new)
+	var current_rot := _skeleton.get_bone_pose_rotation(_pelvis_idx)
+	var base_rot := current_rot * _applied_pelvis_tilt.inverse()
+
+	# Apply new tilt
+	_skeleton.set_bone_pose_rotation(_pelvis_idx, base_rot * _current_pelvis_tilt)
+
+	# Store what we applied for next frame
+	_applied_pelvis_tilt = _current_pelvis_tilt

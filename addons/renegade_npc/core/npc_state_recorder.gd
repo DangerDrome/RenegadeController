@@ -1,12 +1,12 @@
 ## NPCStateRecorder: Records and replays NPC state over time.
 ## Works like a cassette tape - records while time moves forward, replays when rewinding.
-## Timestamps are based on SkyWeather time (total hours) for synchronization.
+## Timestamps are based on Chronos time (total hours) for synchronization.
 class_name NPCStateRecorder
 extends RefCounted
 
 ## A single recorded snapshot of NPC state.
 class StateSnapshot:
-	var timestamp: float = 0.0  ## Total hours from SkyWeather
+	var timestamp: float = 0.0  ## Total hours from Chronos
 	var position: Vector3 = Vector3.ZERO
 	var rotation_y: float = 0.0
 	var velocity: Vector3 = Vector3.ZERO
@@ -47,10 +47,10 @@ const MAX_SNAPSHOTS: int = 6000  ## 10 minutes at 0.1s = 600, so 6000 = ~10 minu
 ## --- State ---
 var _snapshots: Array[StateSnapshot] = []
 var _record_timer: float = 0.0
-var _last_record_time: float = -1.0  ## Last SkyWeather time we recorded at
+var _last_record_time: float = -1.0  ## Last Chronos time we recorded at
 var _is_rewinding: bool = false
 var _playback_index: int = -1  ## Current position during playback
-var _sky_weather: Node = null  ## Cached reference to SkyWeather
+var _sky_weather: Node = null  ## Cached reference to Chronos
 
 ## The NPC we're recording
 var _npc: RealizedNPC = null
@@ -66,7 +66,7 @@ func _find_sky_weather() -> void:
 		return
 	# Use HUDEvents helper or find manually
 	var root := _npc.get_tree().root
-	_sky_weather = _find_node_by_class(root, "SkyWeather")
+	_sky_weather = _find_node_by_class(root, "Chronos")
 
 
 func _find_node_by_class(node: Node, class_name_str: String) -> Node:
@@ -79,7 +79,7 @@ func _find_node_by_class(node: Node, class_name_str: String) -> Node:
 	return null
 
 
-## Get current SkyWeather time as total hours (day * 24 + time).
+## Get current Chronos time as total hours (day * 24 + time).
 func _get_current_time() -> float:
 	if not _sky_weather:
 		_find_sky_weather()

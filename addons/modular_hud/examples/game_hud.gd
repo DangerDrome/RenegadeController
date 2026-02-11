@@ -275,7 +275,7 @@ func _detect_systems() -> void:
 
 
 func _update_nearest_npc() -> void:
-	if not _npc_manager or not "_realized_npcs" in _npc_manager:
+	if not _npc_manager or not _npc_manager.has_method("get_realized_npcs"):
 		_nearest_npc = null
 		return
 
@@ -283,8 +283,9 @@ func _update_nearest_npc() -> void:
 	var nearest_dist: float = INF
 	var ref_pos: Vector3 = _player.global_position if _player else Vector3.ZERO
 
-	for npc_id: String in _npc_manager._realized_npcs:
-		var npc = _npc_manager._realized_npcs[npc_id]
+	var realized_npcs: Dictionary = _npc_manager.get_realized_npcs()
+	for npc_id: String in realized_npcs:
+		var npc = realized_npcs[npc_id]
 		if not is_instance_valid(npc):
 			continue
 		var dist: float = ref_pos.distance_to(npc.global_position)
@@ -337,9 +338,10 @@ func _collect_samples() -> void:
 	# Aggregate threat across all realized NPCs
 	var threat_sum: float = 0.0
 	var threat_count: int = 0
-	if "_realized_npcs" in _npc_manager:
-		for npc_id: String in _npc_manager._realized_npcs:
-			var npc = _npc_manager._realized_npcs[npc_id]
+	if _npc_manager.has_method("get_realized_npcs"):
+		var realized_npcs: Dictionary = _npc_manager.get_realized_npcs()
+		for npc_id: String in realized_npcs:
+			var npc = realized_npcs[npc_id]
 			if is_instance_valid(npc) and npc.has_method("get_module_scores"):
 				var scores: Dictionary = npc.get_module_scores()
 				if scores.has("threat"):
@@ -350,11 +352,12 @@ func _collect_samples() -> void:
 		_buf_avg_threat.push(avg_threat)
 
 	# Reputation per faction
-	if _rep_manager and "city_reputation" in _rep_manager:
-		for faction: String in _rep_manager.city_reputation:
+	if _rep_manager and _rep_manager.has_method("get_city_reputation"):
+		var city_rep: Dictionary = _rep_manager.get_city_reputation()
+		for faction: String in city_rep:
 			if not _buf_reputation.has(faction):
 				_buf_reputation[faction] = RingBuffer.new(LONG_CAPACITY)
-			_buf_reputation[faction].push(_rep_manager.city_reputation[faction])
+			_buf_reputation[faction].push(city_rep[faction])
 
 	# Per-NPC samples (module scores + social memory)
 	if _nearest_npc and is_instance_valid(_nearest_npc):
@@ -565,16 +568,18 @@ func _update_toasts_panel() -> void:
 		lines.append("")
 
 	# Reputation sparklines
-	if _rep_manager and not _rep_manager.city_reputation.is_empty():
-		lines.append("[b]Reputation:[/b]")
-		for faction: String in _rep_manager.city_reputation:
-			var rep: float = _rep_manager.city_reputation[faction]
-			var color: String = "red" if rep < -30 else "yellow" if rep < 30 else "lime"
-			var sparkline: String = ""
-			if _buf_reputation.has(faction):
-				sparkline = _render_sparkline(_buf_reputation[faction], 12, -100, 100)
-			lines.append("  %-8s [color=%s]%+4.0f[/color] %s" % [faction.substr(0, 8), color, rep, sparkline])
-		lines.append("")
+	if _rep_manager and _rep_manager.has_method("get_city_reputation"):
+		var city_rep: Dictionary = _rep_manager.get_city_reputation()
+		if not city_rep.is_empty():
+			lines.append("[b]Reputation:[/b]")
+			for faction: String in city_rep:
+				var rep: float = city_rep[faction]
+				var color: String = "red" if rep < -30 else "yellow" if rep < 30 else "lime"
+				var sparkline: String = ""
+				if _buf_reputation.has(faction):
+					sparkline = _render_sparkline(_buf_reputation[faction], 12, -100, 100)
+				lines.append("  %-8s [color=%s]%+4.0f[/color] %s" % [faction.substr(0, 8), color, rep, sparkline])
+			lines.append("")
 
 	# Nearest NPC summary
 	if _nearest_npc and is_instance_valid(_nearest_npc):
@@ -713,10 +718,11 @@ func add_log(message: String) -> void:
 
 func _get_drive_counts() -> Dictionary:
 	var counts: Dictionary = {}
-	if not _npc_manager or not "_realized_npcs" in _npc_manager:
+	if not _npc_manager or not _npc_manager.has_method("get_realized_npcs"):
 		return counts
-	for npc_id: String in _npc_manager._realized_npcs:
-		var npc = _npc_manager._realized_npcs[npc_id]
+	var realized_npcs: Dictionary = _npc_manager.get_realized_npcs()
+	for npc_id: String in realized_npcs:
+		var npc = realized_npcs[npc_id]
 		if is_instance_valid(npc) and npc.has_method("get_active_drive"):
 			var d: String = npc.get_active_drive()
 			counts[d] = counts.get(d, 0) + 1
@@ -725,10 +731,11 @@ func _get_drive_counts() -> Dictionary:
 
 func _get_health_distribution() -> Array[int]:
 	var buckets: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-	if not _npc_manager or not "_realized_npcs" in _npc_manager:
+	if not _npc_manager or not _npc_manager.has_method("get_realized_npcs"):
 		return buckets
-	for npc_id: String in _npc_manager._realized_npcs:
-		var npc = _npc_manager._realized_npcs[npc_id]
+	var realized_npcs: Dictionary = _npc_manager.get_realized_npcs()
+	for npc_id: String in realized_npcs:
+		var npc = realized_npcs[npc_id]
 		if not is_instance_valid(npc) or not "abstract" in npc:
 			continue
 		var a = npc.abstract

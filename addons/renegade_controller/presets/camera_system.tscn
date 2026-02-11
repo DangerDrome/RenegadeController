@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://clykkyekxu6gk" path="res://addons/renegade_controller/src/camera/camera_system.gd" id="1"]
 [ext_resource type="Script" uid="uid://ci3lf582eb6f4" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="2"]
-[ext_resource type="Script" uid="uid://kf5sip8wymyh" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="3"]
 [ext_resource type="Script" uid="uid://bpabgpdksoyhb" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="4"]
 [ext_resource type="Resource" uid="uid://b5xvmbvm1o0xp" path="res://addons/renegade_controller/presets/third_person.tres" id="5"]
 [ext_resource type="Script" uid="uid://dngamilx5u6gw" path="res://addons/renegade_controller/src/camera/camera_preset.gd" id="10_62340"]
@@ -38,9 +37,6 @@ margin = 0.2
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D" unique_id=298327191]
 current = true
-
-[node name="Cursor3D" type="Node3D" parent="." unique_id=2083170300]
-script = ExtResource("3")
 
 [node name="CameraZoneManager" type="Node" parent="." unique_id=73191255]
 script = ExtResource("4")

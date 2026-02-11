@@ -2,92 +2,36 @@
 
 [ext_resource type="Script" uid="uid://ck4mn6jm36511" path="res://addons/renegade_controller/src/character/character_body.gd" id="1"]
 [ext_resource type="Script" uid="uid://blmp3gov4afut" path="res://addons/renegade_controller/src/controllers/player_controller.gd" id="2"]
-[ext_resource type="Script" uid="uid://bpd0i8srle487" path="res://addons/renegade_controller/src/inventory/item_slots.gd" id="3"]
+[ext_resource type="PackedScene" uid="uid://4olvnbj27oo" path="res://addons/renegade_visuals/presets/character_visuals.tscn" id="3_charvis"]
+[ext_resource type="Script" uid="uid://kf5sip8wymyh" path="res://addons/renegade_controller/src/cursor/cursor_3d.gd" id="cursor_script"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
-radius = 0.35
+radius = 0.175
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
-albedo_color = Color(0, 0, 0, 1)
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_yoi6f"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
-radius = 0.3
-height = 1.5
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2"]
-albedo_color = Color(0.11145563, 0.07209023, 0.030490374, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_1"]
-radius = 0.2
-height = 0.4
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_wly81"]
-top_radius = 0.185
-bottom_radius = 0.0
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wly81"]
-albedo_color = Color(0.47137535, 0.4713753, 0.4713753, 1)
-
-[node name="Player" type="CharacterBody3D" unique_id=680105507 groups=["player"]]
+[node name="Player" type="CharacterBody3D" unique_id=1562963793 groups=["player"]]
+collision_layer = 1
+collision_mask = 1
 script = ExtResource("1")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1210395784]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=996779435]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_1")
 
-[node name="Mesh" type="Node3D" parent="." unique_id=360640646]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CollisionShape3D" unique_id=1694315787]
+visible = false
+mesh = SubResource("CapsuleMesh_yoi6f")
 
-[node name="Body" type="MeshInstance3D" parent="Mesh" unique_id=1632437332]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-material_override = SubResource("StandardMaterial3D_1")
-mesh = SubResource("CapsuleMesh_1")
+[node name="CharacterVisuals" parent="." unique_id=487387801 instance=ExtResource("3_charvis")]
 
-[node name="Head" type="MeshInstance3D" parent="Mesh" unique_id=1368251732]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-material_override = SubResource("StandardMaterial3D_2")
-mesh = SubResource("SphereMesh_1")
-
-[node name="Eye_R" type="MeshInstance3D" parent="Mesh/Head" unique_id=1607156648]
-transform = Transform3D(0.14999998, 0, 0, 0, -6.5567067e-09, -0.15399998, 0, 0.14999996, -6.731553e-09, -0.07120304, 0.006820202, 0.05630681)
-mesh = SubResource("CylinderMesh_wly81")
-surface_material_override/0 = SubResource("StandardMaterial3D_wly81")
-
-[node name="Eye_L" type="MeshInstance3D" parent="Mesh/Head" unique_id=1266244029]
-transform = Transform3D(0.14999998, 0, 0, 0, -6.5567067e-09, -0.15399998, 0, 0.14999996, -6.731553e-09, 0.06244974, 0.006820202, 0.05630681)
-mesh = SubResource("CylinderMesh_wly81")
-surface_material_override/0 = SubResource("StandardMaterial3D_wly81")
-
-[node name="ItemSlots" type="Node3D" parent="Mesh" unique_id=1193091474]
-script = ExtResource("3")
-
-[node name="Slot_0" type="Marker3D" parent="Mesh/ItemSlots" unique_id=1252992928]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.35, 0.7, 0)
-gizmo_extents = 0.1
-
-[node name="Slot_1" type="Marker3D" parent="Mesh/ItemSlots" unique_id=1373451432]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.7, 0.25)
-gizmo_extents = 0.1
-
-[node name="Slot_2" type="Marker3D" parent="Mesh/ItemSlots" unique_id=1671542414]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.7, 0.25)
-gizmo_extents = 0.1
-
-[node name="Slot_3" type="Marker3D" parent="Mesh/ItemSlots" unique_id=1090827457]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, 0.7, 0)
-gizmo_extents = 0.1
-
-[node name="Slot_4" type="Marker3D" parent="Mesh/ItemSlots" unique_id=793268784]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.7, -0.25)
-gizmo_extents = 0.1
-
-[node name="Slot_5" type="Marker3D" parent="Mesh/ItemSlots" unique_id=87569731]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.25, 0.7, -0.25)
-gizmo_extents = 0.1
-
-[node name="PlayerController" type="Node" parent="." unique_id=308324613]
+[node name="PlayerController" type="Node" parent="." unique_id=1735266358]
 script = ExtResource("2")
 
-[node name="Face_cam" type="Camera3D" parent="." unique_id=1602645686]
+[node name="Cursor3D" type="Node3D" parent="." unique_id=2083170301]
+script = ExtResource("cursor_script")
+
+[node name="Face_cam" type="Camera3D" parent="." unique_id=1942376095]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7470782, 2.4455485)
 fov = 4.488194

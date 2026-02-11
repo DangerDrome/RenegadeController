@@ -1,19 +1,33 @@
 extends Control
-## Weather icon display - shows current weather icon from SkyWeather.
+## Weather icon display - shows current weather icon from Chronos.
 ## Shows a default icon if no weather preset or icon set.
+
+## Optional fallback icon to show when no weather icon is set.
+## If not set, will try to find a default from the Chronos plugin.
+@export var fallback_icon: Texture2D
 
 @onready var texture_rect: TextureRect = $TextureRect
 
 var _sky_weather: Node
 
-# Default icon to show when no weather icon is set
+# Internal: resolved default icon
 var _default_icon: Texture2D
 
 
 func _ready() -> void:
-	# Try to load a default icon
-	if FileAccess.file_exists("res://addons/sky_weather/icons/wbSunny.png"):
-		_default_icon = load("res://addons/sky_weather/icons/wbSunny.png")
+	# Use exported fallback icon if set, otherwise try to find one from Chronos
+	if fallback_icon:
+		_default_icon = fallback_icon
+	else:
+		# Try known locations for a default sunny weather icon
+		var icon_paths: Array[String] = [
+			"res://addons/chronos/icons/wbSunny.png",
+			"res://addons/sky_weather/icons/wbSunny.png",  # Legacy fallback
+		]
+		for path in icon_paths:
+			if FileAccess.file_exists(path):
+				_default_icon = load(path)
+				break
 
 	visible = false
 	await get_tree().process_frame
@@ -21,7 +35,7 @@ func _ready() -> void:
 
 
 func _find_sky_weather() -> void:
-	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
+	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "Chronos")
 	if not _sky_weather:
 		return
 

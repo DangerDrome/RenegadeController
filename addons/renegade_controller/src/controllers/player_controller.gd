@@ -3,7 +3,7 @@
 ## Receives aim target from Cursor3D.
 class_name PlayerController extends ControllerInterface
 
-## The Cursor3D node that provides aim targeting.
+## The Cursor3D node that provides aim targeting. Auto-discovered from sibling if null.
 @export var cursor: Cursor3D:
 	set(value):
 		# Disconnect old cursor signals.
@@ -18,6 +18,17 @@ class_name PlayerController extends ControllerInterface
 
 var _look_delta: Vector2 = Vector2.ZERO
 var _first_person_active: bool = false
+
+
+func _ready() -> void:
+	# Auto-discover Cursor3D sibling if not assigned.
+	if cursor == null:
+		var parent := get_parent()
+		if parent:
+			for sibling in parent.get_children():
+				if sibling is Cursor3D:
+					cursor = sibling
+					break
 
 
 func _unhandled_input(event: InputEvent) -> void:

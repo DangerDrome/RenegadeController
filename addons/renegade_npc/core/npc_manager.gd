@@ -346,6 +346,23 @@ func get_realized_npc(npc_id: String) -> RealizedNPC:
 	return _realized_npcs.get(npc_id)
 
 
+## Get all currently realized NPCs. Returns a dictionary of npc_id -> RealizedNPC.
+## This is a shallow copy - safe to iterate without modifying the internal state.
+func get_realized_npcs() -> Dictionary:
+	return _realized_npcs.duplicate()
+
+
+## Get all NPCs (abstract). Returns a dictionary of npc_id -> AbstractNPC.
+## This is a shallow copy - safe to iterate without modifying the internal state.
+func get_all_npcs() -> Dictionary:
+	return _all_npcs.duplicate()
+
+
+## Check if there are any realized NPCs.
+func has_realized_npcs() -> bool:
+	return not _realized_npcs.is_empty()
+
+
 ## Get count stats.
 func get_stats() -> Dictionary:
 	var alive_count: int = 0

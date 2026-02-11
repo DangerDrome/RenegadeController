@@ -1,6 +1,6 @@
 extends Control
-## Day display - shows current day of the week from SkyWeather.
-## Hides if no SkyWeather found.
+## Day display - shows current day of the week from Chronos.
+## Hides if no Chronos found.
 
 const DAYS := ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const DAYS_SHORT := ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func _find_sky_weather() -> void:
-	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "SkyWeather")
+	_sky_weather = HUDEvents.find_node_by_class(get_tree().root, "Chronos")
 	if not _sky_weather:
 		return
 
