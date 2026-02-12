@@ -4,10 +4,9 @@ A Godot 4.6 editor plugin that adds **auto-keyframing** for 3D animations, simil
 
 ## Features
 
-- **Auto-Key Toggle**: A button in the Animation panel toolbar - when enabled (turns red), changes to any tracked property automatically insert keyframes at the playhead position
-- **Manual Insert Buttons**: Quickly insert Position, Rotation, Scale, or All keys for selected Node3D objects via the dock
-- **Auto-Create Tracks**: Optionally create missing animation tracks automatically
-- **Visual Feedback**: Shows confirmation when keys are inserted
+- **Auto-Key Toggle**: A button in the Animation panel toolbar - when enabled, changes to tracked properties automatically insert keyframes at the playhead position
+- **Track Type Filter**: Right-click the Auto-Key button to toggle which property types to track (Position, Rotation, Scale - all enabled by default)
+- **Scrub-Safe**: Auto-key is paused while dragging the timeline slider to prevent unwanted keyframes
 
 ## Installation
 
@@ -19,15 +18,18 @@ A Godot 4.6 editor plugin that adds **auto-keyframing** for 3D animations, simil
 ### Auto-Key (Main Feature)
 
 1. Open the Animation panel (bottom panel) and select an animation
-2. Look for the Auto-Key button in the Animation panel toolbar (key icon)
-3. Click to enable auto-key (button turns red)
+2. Look for the Auto-Key button in the Animation panel toolbar (key icon, after "Insert at current time")
+3. Click to enable auto-key (button highlights)
 4. Now when you move/rotate/scale any object with tracks in the animation, keys are automatically inserted at the current playhead position
 
-### Manual Key Insertion
+### Filtering Track Types
 
-1. Select Node3D object(s) in the scene
-2. Position the playhead at the desired time
-3. Use the AutoKey 3D dock (right panel) to click Position/Rotation/Scale/All buttons
+1. **Right-click** the Auto-Key button to open the filter menu
+2. Toggle which property types auto-key should track:
+   - ☑ Position
+   - ☑ Rotation
+   - ☑ Scale
+3. All types are enabled by default
 
 ## How It Works
 
@@ -35,6 +37,7 @@ When auto-key is enabled:
 - The plugin polls every 50ms to detect property changes on all tracks
 - When any tracked property's value changes, a keyframe is inserted at the current playhead position
 - Works with gizmo manipulation, inspector edits, and any other property changes
+- Timeline scrubbing is detected and ignored to prevent unwanted keyframes
 
 ## Supported Track Types
 

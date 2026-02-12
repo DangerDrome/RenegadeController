@@ -3,38 +3,31 @@ class_name AutoKey3DPlugin
 extends EditorPlugin
 ## AutoKey 3D - Global auto-keyframing toggle for 3D animations
 
-var _dock: Control
 var _tracked_animation_player: AnimationPlayer
 var _autokey_enabled: bool = false
 var _last_track_values: Dictionary = {}  # track_idx -> last_value
 var _poll_timer: float = 0.0
 var _button_check_timer: float = 0.0
 var _autokey_button: Button
+var _popup_menu: PopupMenu
 var _current_animation_name: String = ""
 var _last_playhead_time: float = 0.0  # Track playhead to detect scrubbing
+var _track_position: bool = true
+var _track_rotation: bool = true
+var _track_scale: bool = true
 
 const POLL_INTERVAL: float = 0.05
 const BUTTON_CHECK_INTERVAL: float = 0.5
 
+enum MenuID { TOGGLE_POSITION, TOGGLE_ROTATION, TOGGLE_SCALE }
+
 
 func _enter_tree() -> void:
-	_dock = preload("res://addons/autokey_3d/autokey_dock.tscn").instantiate()
-	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
-	_dock.insert_position_pressed.connect(_on_insert_position)
-	_dock.insert_rotation_pressed.connect(_on_insert_rotation)
-	_dock.insert_scale_pressed.connect(_on_insert_scale)
-	_dock.insert_all_pressed.connect(_on_insert_all)
-	_dock.animation_player_selected.connect(_on_animation_player_selected)
-	get_editor_interface().get_selection().selection_changed.connect(_on_selection_changed)
 	set_process(true)
 
 
 func _exit_tree() -> void:
 	_remove_autokey_button()
-	if _dock:
-		remove_control_from_docks(_dock)
-		_dock.queue_free()
-		_dock = null
 
 
 func _process(delta: float) -> void:
@@ -59,8 +52,6 @@ func _auto_detect_animation_player() -> void:
 	if player and player != _tracked_animation_player:
 		_tracked_animation_player = player
 		_last_track_values.clear()
-		if _dock:
-			_dock.set_current_animation_player(player)
 
 
 func _check_animation_changed() -> void:
@@ -105,7 +96,7 @@ func _ensure_autokey_button() -> void:
 	_autokey_button = Button.new()
 	_autokey_button.name = "AutoKeyToggle"
 	_autokey_button.toggle_mode = true
-	_autokey_button.tooltip_text = "Auto-Key: Automatically insert keyframes when properties change"
+	_autokey_button.tooltip_text = "Auto-Key: Automatically insert keyframes when properties change\nRight-click to filter track types"
 	_autokey_button.button_pressed = _autokey_enabled
 
 	# Try to get the auto-key icon
@@ -121,7 +112,18 @@ func _ensure_autokey_button() -> void:
 		_autokey_button.text = "AK"
 
 	_autokey_button.toggled.connect(_on_autokey_toggled)
-	_update_button_style()
+	_autokey_button.gui_input.connect(_on_button_gui_input)
+
+	# Create popup menu for right-click options (filters which types auto-key tracks)
+	_popup_menu = PopupMenu.new()
+	_popup_menu.add_check_item("Position", MenuID.TOGGLE_POSITION)
+	_popup_menu.add_check_item("Rotation", MenuID.TOGGLE_ROTATION)
+	_popup_menu.add_check_item("Scale", MenuID.TOGGLE_SCALE)
+	_popup_menu.set_item_checked(MenuID.TOGGLE_POSITION, _track_position)
+	_popup_menu.set_item_checked(MenuID.TOGGLE_ROTATION, _track_rotation)
+	_popup_menu.set_item_checked(MenuID.TOGGLE_SCALE, _track_scale)
+	_popup_menu.id_pressed.connect(_on_menu_id_pressed)
+	_autokey_button.add_child(_popup_menu)
 
 	# Find "Insert at current time" button and position after it
 	var insert_index := -1
@@ -148,53 +150,11 @@ func _ensure_autokey_button() -> void:
 
 
 func _find_bottom_toolbar(track_editor: Control) -> Container:
-	# Search for HFlowContainer (the bottom toolbar)
+	# Bottom toolbar is an HFlowContainer sibling of AnimationTrackEditor
 	var parent := track_editor.get_parent()
 	if not parent:
 		return null
-
-	var flow_containers: Array = []
-	_find_all_by_class(parent, "HFlowContainer", flow_containers)
-
-	if flow_containers.size() > 0:
-		return flow_containers[0]
-
-	return null
-
-
-func _find_all_by_class(node: Node, class_name_str: String, results: Array) -> void:
-	if node.get_class() == class_name_str:
-		results.append(node)
-	for child in node.get_children():
-		_find_all_by_class(child, class_name_str, results)
-
-
-func _find_all_hboxes(node: Node, results: Array) -> void:
-	if node is HBoxContainer:
-		results.append(node)
-	for child in node.get_children():
-		_find_all_hboxes(child, results)
-
-
-func _find_toolbar_in(node: Node) -> HBoxContainer:
-	# Look for HBoxContainer that contains buttons (the main toolbar)
-	for child in node.get_children():
-		if child is HBoxContainer:
-			# Check if it has buttons - that's likely the toolbar
-			var has_buttons := false
-			for subchild in child.get_children():
-				if subchild is Button:
-					has_buttons = true
-					break
-			if has_buttons:
-				return child
-	# Search one level deeper
-	for child in node.get_children():
-		if child is VBoxContainer or child is Control:
-			var result := _find_toolbar_in(child)
-			if result:
-				return result
-	return null
+	return _find_node_by_class(parent, "HFlowContainer") as Container
 
 
 func _remove_autokey_button() -> void:
@@ -205,7 +165,6 @@ func _remove_autokey_button() -> void:
 
 func _on_autokey_toggled(enabled: bool) -> void:
 	_autokey_enabled = enabled
-	_update_button_style()
 
 	# Auto-detect animation player if not set
 	if enabled and not _tracked_animation_player:
@@ -215,18 +174,29 @@ func _on_autokey_toggled(enabled: bool) -> void:
 		# Store current values for all tracks and playhead position
 		_last_playhead_time = _get_playhead_time()
 		_snapshot_all_track_values()
-		if _dock:
-			_dock.show_status("Auto-Key ON - all tracks")
 	else:
 		_last_track_values.clear()
-		if _dock:
-			_dock.show_status("Auto-Key OFF")
 
 
-func _update_button_style() -> void:
-	# Let the button use the theme's built-in toggle highlight (blue)
-	# No custom styling needed - toggle_mode handles it
-	pass
+func _on_button_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			_popup_menu.position = Vector2i(_autokey_button.global_position) + Vector2i(0, int(_autokey_button.size.y))
+			_popup_menu.popup()
+
+
+func _on_menu_id_pressed(id: int) -> void:
+	match id:
+		MenuID.TOGGLE_POSITION:
+			_track_position = not _track_position
+			_popup_menu.set_item_checked(MenuID.TOGGLE_POSITION, _track_position)
+		MenuID.TOGGLE_ROTATION:
+			_track_rotation = not _track_rotation
+			_popup_menu.set_item_checked(MenuID.TOGGLE_ROTATION, _track_rotation)
+		MenuID.TOGGLE_SCALE:
+			_track_scale = not _track_scale
+			_popup_menu.set_item_checked(MenuID.TOGGLE_SCALE, _track_scale)
 
 
 func _snapshot_all_track_values() -> void:
@@ -286,20 +256,16 @@ func _values_differ(a: Variant, b: Variant) -> bool:
 
 
 func _get_track_current_value(track_idx: int, anim: Animation) -> Variant:
-	if not _tracked_animation_player:
-		return null
-	var root := _tracked_animation_player.get_node_or_null(_tracked_animation_player.root_node)
+	var root := _get_animation_root()
 	if not root:
 		return null
 
 	var track_path := anim.track_get_path(track_idx)
 	var track_type := anim.track_get_type(track_idx)
-	var path_str := str(track_path)
-	var colon_idx := path_str.rfind(":")
-	var node_path := path_str.substr(0, colon_idx) if colon_idx != -1 else path_str
-	var property := path_str.substr(colon_idx + 1) if colon_idx != -1 else ""
+	var parsed := _parse_track_path(track_path)
+	var property: String = parsed.property
 
-	var target_node := root.get_node_or_null(node_path)
+	var target_node := root.get_node_or_null(parsed.node_path)
 	if not target_node:
 		return null
 
@@ -325,21 +291,30 @@ func _get_track_current_value(track_idx: int, anim: Animation) -> Variant:
 func _insert_key_for_track(track_idx: int, time: float, anim: Animation) -> void:
 	if track_idx < 0 or track_idx >= anim.get_track_count():
 		return
-	if not _tracked_animation_player:
-		return
 
-	var root := _tracked_animation_player.get_node_or_null(_tracked_animation_player.root_node)
+	var track_type := anim.track_get_type(track_idx)
+
+	# Check if this track type is enabled in the filter
+	match track_type:
+		Animation.TYPE_POSITION_3D:
+			if not _track_position:
+				return
+		Animation.TYPE_ROTATION_3D:
+			if not _track_rotation:
+				return
+		Animation.TYPE_SCALE_3D:
+			if not _track_scale:
+				return
+
+	var root := _get_animation_root()
 	if not root:
 		return
 
 	var track_path := anim.track_get_path(track_idx)
-	var track_type := anim.track_get_type(track_idx)
-	var path_str := str(track_path)
-	var colon_idx := path_str.rfind(":")
-	var node_path := path_str.substr(0, colon_idx) if colon_idx != -1 else path_str
-	var property := path_str.substr(colon_idx + 1) if colon_idx != -1 else ""
+	var parsed := _parse_track_path(track_path)
+	var property: String = parsed.property
 
-	var target_node := root.get_node_or_null(node_path)
+	var target_node := root.get_node_or_null(parsed.node_path)
 	if not target_node:
 		return
 
@@ -371,8 +346,6 @@ func _insert_key_for_track(track_idx: int, time: float, anim: Animation) -> void
 				anim.track_insert_key(track_idx, time, target_node.get_indexed(property))
 
 	anim.emit_changed()
-	if _dock:
-		_dock.show_key_inserted_feedback(target_node.name, property if property else "transform", time)
 
 
 func _get_edited_animation_player() -> AnimationPlayer:
@@ -398,32 +371,11 @@ func _get_edited_animation_player() -> AnimationPlayer:
 	return null
 
 
-func _scan_for_animation_players() -> void:
-	var root := get_editor_interface().get_edited_scene_root()
-	if not root:
-		return
-	var players: Array[AnimationPlayer] = []
-	_find_animation_players(root, players)
-	if _dock:
-		_dock.set_available_animation_players(players)
-
-
 func _find_animation_players(node: Node, result: Array[AnimationPlayer]) -> void:
 	if node is AnimationPlayer:
 		result.append(node)
 	for child in node.get_children():
 		_find_animation_players(child, result)
-
-
-func _on_selection_changed() -> void:
-	_scan_for_animation_players()
-
-
-func _on_animation_player_selected(player: AnimationPlayer) -> void:
-	_tracked_animation_player = player
-	if _dock:
-		_dock.set_current_animation_player(player)
-	_last_track_values.clear()
 
 
 func _get_current_animation() -> Animation:
@@ -443,67 +395,18 @@ func _get_playhead_time() -> float:
 	return _tracked_animation_player.current_animation_position
 
 
-func _on_insert_position() -> void:
-	_insert_keys_for_selected("position")
-
-func _on_insert_rotation() -> void:
-	_insert_keys_for_selected("rotation")
-
-func _on_insert_scale() -> void:
-	_insert_keys_for_selected("scale")
-
-func _on_insert_all() -> void:
-	_insert_keys_for_selected("position")
-	_insert_keys_for_selected("rotation")
-	_insert_keys_for_selected("scale")
-
-
-func _insert_keys_for_selected(property: String) -> void:
+## Returns the root node that animation tracks are relative to
+func _get_animation_root() -> Node:
 	if not _tracked_animation_player:
-		_tracked_animation_player = _get_edited_animation_player()
-	if not _tracked_animation_player:
-		push_warning("AutoKey3D: No AnimationPlayer")
-		return
-	var current_anim := _get_current_animation()
-	if not current_anim:
-		push_warning("AutoKey3D: No animation selected")
-		return
-
-	var selection := get_editor_interface().get_selection()
-	for node in selection.get_selected_nodes():
-		if node is Node3D:
-			_insert_key_for_property(node, property, current_anim)
+		return null
+	return _tracked_animation_player.get_node_or_null(_tracked_animation_player.root_node)
 
 
-func _insert_key_for_property(node: Node3D, property: String, anim: Animation) -> void:
-	var track_path := _get_track_path(node, property)
-	var track_idx := anim.find_track(track_path, Animation.TYPE_VALUE)
-	if track_idx == -1:
-		var type_map := {"position": Animation.TYPE_POSITION_3D, "rotation": Animation.TYPE_ROTATION_3D, "scale": Animation.TYPE_SCALE_3D}
-		track_idx = anim.find_track(track_path, type_map.get(property, Animation.TYPE_VALUE))
-	if track_idx == -1:
-		if _dock and _dock.auto_create_tracks:
-			track_idx = _create_track_for_property(node, property, anim)
-		else:
-			return
-	if track_idx == -1:
-		return
-
-	var time := _get_playhead_time()
-	_insert_key_for_track(track_idx, time, anim)
-
-
-func _get_track_path(node: Node3D, property: String) -> NodePath:
-	if not _tracked_animation_player:
-		return NodePath()
-	var root := _tracked_animation_player.get_node(_tracked_animation_player.root_node)
-	return NodePath(str(root.get_path_to(node)) + ":" + property)
-
-
-func _create_track_for_property(node: Node3D, property: String, anim: Animation) -> int:
-	var track_path := _get_track_path(node, property)
-	var type_map := {"position": Animation.TYPE_POSITION_3D, "rotation": Animation.TYPE_ROTATION_3D, "scale": Animation.TYPE_SCALE_3D}
-	var track_type: Animation.TrackType = type_map.get(property, Animation.TYPE_VALUE)
-	var track_idx := anim.add_track(track_type)
-	anim.track_set_path(track_idx, track_path)
-	return track_idx
+## Parses a track path into node_path and property components
+func _parse_track_path(track_path: NodePath) -> Dictionary:
+	var path_str := str(track_path)
+	var colon_idx := path_str.rfind(":")
+	return {
+		"node_path": path_str.substr(0, colon_idx) if colon_idx != -1 else path_str,
+		"property": path_str.substr(colon_idx + 1) if colon_idx != -1 else ""
+	}
