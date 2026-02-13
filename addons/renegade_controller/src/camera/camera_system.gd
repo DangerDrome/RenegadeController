@@ -274,6 +274,59 @@ class_name CameraSystem extends Node3D
 #endregion
 
 
+#region Post Processing
+@export_group("Post Processing")
+## Toggle post-processing effects on/off.
+@export var pp_enabled: bool = true:
+	set(v):
+		pp_enabled = v
+		if _post_process:
+			_post_process.enabled = v
+## Depth edge detection sensitivity.
+@export_range(0.0, 1.0, 0.001) var pp_depth_threshold: float = 0.05:
+	set(v):
+		pp_depth_threshold = v
+		if _post_process:
+			_post_process.depth_threshold = v
+## Reverse depth threshold — masks normal edges on object silhouettes.
+@export_range(0.0, 1.0, 0.001) var pp_reverse_depth_threshold: float = 0.25:
+	set(v):
+		pp_reverse_depth_threshold = v
+		if _post_process:
+			_post_process.reverse_depth_threshold = v
+## Normal edge detection sensitivity.
+@export_range(0.0, 1.0, 0.01) var pp_normal_threshold: float = 0.6:
+	set(v):
+		pp_normal_threshold = v
+		if _post_process:
+			_post_process.normal_threshold = v
+## How much depth edges darken the image.
+@export_range(0.0, 1.0, 0.01) var pp_darken_amount: float = 0.3:
+	set(v):
+		pp_darken_amount = v
+		if _post_process:
+			_post_process.darken_amount = v
+## How much normal edges lighten the image.
+@export_range(0.0, 10.0, 0.01) var pp_lighten_amount: float = 1.5:
+	set(v):
+		pp_lighten_amount = v
+		if _post_process:
+			_post_process.lighten_amount = v
+## Bias direction for deciding which side of a normal edge gets the line.
+@export var pp_normal_edge_bias: Vector3 = Vector3(1, 1, 1):
+	set(v):
+		pp_normal_edge_bias = v
+		if _post_process:
+			_post_process.normal_edge_bias = v
+## Light direction for determining edge shading (darken vs lighten).
+@export var pp_light_direction: Vector3 = Vector3(-0.96, -0.18, 0.2):
+	set(v):
+		pp_light_direction = v
+		if _post_process:
+			_post_process.light_direction = v
+#endregion
+
+
 #region Debug
 @export_group("Debug")
 ## Enable debug visualization (spheres for target/look-at, line to look target).
@@ -292,6 +345,7 @@ class_name CameraSystem extends Node3D
 
 
 var _camera_rig: CameraRig
+var _post_process: PostProcess
 var _cursor: Cursor3D
 
 
@@ -311,8 +365,9 @@ func _ready() -> void:
 	# Find cursor for panning.
 	_cursor = get_node_or_null("Cursor3D") as Cursor3D
 
-	# Find the camera rig.
+	# Find the camera rig and post process.
 	_camera_rig = get_node_or_null("CameraRig") as CameraRig
+	_post_process = find_child("PostProcess") as PostProcess
 	if _camera_rig:
 		# Push all exported values down to the rig.
 		_sync_all_to_rig()
@@ -385,6 +440,17 @@ func _sync_all_to_rig() -> void:
 	# Debug.
 	_camera_rig.debug_draw_enabled = debug_draw_enabled
 	_camera_rig.debug_print_transitions = debug_print_transitions
+
+	# Post Processing.
+	if _post_process:
+		_post_process.enabled = pp_enabled
+		_post_process.depth_threshold = pp_depth_threshold
+		_post_process.reverse_depth_threshold = pp_reverse_depth_threshold
+		_post_process.normal_threshold = pp_normal_threshold
+		_post_process.darken_amount = pp_darken_amount
+		_post_process.lighten_amount = pp_lighten_amount
+		_post_process.normal_edge_bias = pp_normal_edge_bias
+		_post_process.light_direction = pp_light_direction
 
 
 func _apply_default_camera() -> void:

@@ -322,9 +322,6 @@ transition_curve_in = SubResource("Curve_ms7ms")
 transition_curve_out = SubResource("Curve_0c8yo")
 cursor_reenable_percent = 0.3
 
-[node name="Camera3D" parent="SubViewportContainer/SubViewport/World3D/CameraSystem/CameraRig/Pivot/SpringArm3D" parent_id_path=PackedInt32Array(1562357881, 1254927577) index="0" unique_id=298327191]
-cull_mask = 524287
-
 [node name="SideScrollerZone" parent="SubViewportContainer/SubViewport/World3D" unique_id=1865937893 instance=ExtResource("4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.530831, 0, -18.832752)
 

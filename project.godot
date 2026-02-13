@@ -37,6 +37,7 @@ enabled=PackedStringArray("res://addons/autokey_3d/plugin.cfg", "res://addons/ch
 
 folder_colors={
 "res://addons/renegade_controller/": "teal",
+"res://addons/renegade_npc/": "yellow",
 "res://addons/renegade_visuals/": "purple"
 }
 

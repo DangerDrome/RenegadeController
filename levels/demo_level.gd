@@ -1,11 +1,11 @@
 ## Demo level wiring script - mirrors demo_scene.gd approach
 extends Node3D
 
-@onready var player: CharacterBody3D = $Player
-@onready var player_ctrl: PlayerController = $Player/PlayerController
-@onready var cam_system: CameraSystem = $CameraSystem
-@onready var cam_rig: CameraRig = $CameraSystem/CameraRig
-@onready var cursor_3d: Cursor3D = $Player/Cursor3D
+@onready var player: RenegadeCharacter = find_child("Player")
+@onready var player_ctrl: PlayerController = find_child("PlayerController")
+@onready var cam_system: CameraSystem = find_child("CameraSystem")
+@onready var cam_rig: CameraRig = find_child("CameraRig")
+@onready var cursor_3d: Cursor3D = find_child("Cursor3D")
 
 
 func _ready() -> void:
@@ -14,7 +14,7 @@ func _ready() -> void:
 	# Player wiring
 	player.controller = player_ctrl
 	player.camera_rig = cam_rig
-	player.visual_root = $Player/CharacterVisuals
+	player.visual_root = find_child("CharacterVisuals")
 
 	# Camera wiring
 	cam_system.target = player
@@ -26,7 +26,7 @@ func _ready() -> void:
 	cursor_3d.aim_line_origin = player
 
 	# Bake navigation mesh
-	$NavigationRegion3D.bake_navigation_mesh()
+	find_child("NavigationRegion3D").bake_navigation_mesh()
 
 	print("[DemoLevel] Ready! Press H to test hit reaction, / for animation retargeting")
 
@@ -54,7 +54,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _test_hit_reaction() -> void:
-	var char_visuals: CharacterVisuals = $Player/CharacterVisuals
+	var char_visuals: CharacterVisuals = find_child("CharacterVisuals")
 	if char_visuals:
 		# Hit from a random direction with force 15
 		var random_dir := Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()

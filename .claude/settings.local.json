@@ -45,7 +45,9 @@
       "WebFetch(domain:9to5grind.dev)",
       "WebFetch(domain:github.com)",
       "Bash(/bin/mv:*)",
-      "mcp__serena__find_file"
+      "mcp__serena__find_file",
+      "mcp__filesystem__edit_file",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   },
   "outputStyle": "default"

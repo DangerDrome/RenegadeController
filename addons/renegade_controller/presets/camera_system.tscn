@@ -3,10 +3,28 @@
 [ext_resource type="Script" uid="uid://clykkyekxu6gk" path="res://addons/renegade_controller/src/camera/camera_system.gd" id="1"]
 [ext_resource type="Script" uid="uid://ci3lf582eb6f4" path="res://addons/renegade_controller/src/camera/camera_rig.gd" id="2"]
 [ext_resource type="Script" uid="uid://bpabgpdksoyhb" path="res://addons/renegade_controller/src/zones/camera_zone_manager.gd" id="4"]
+[ext_resource type="Shader" uid="uid://cyhihpdgck02a" path="res://addons/renegade_controller/presets/postprocess.gdshader" id="4_xhhbc"]
 [ext_resource type="Resource" uid="uid://b5xvmbvm1o0xp" path="res://addons/renegade_controller/presets/third_person.tres" id="5"]
 [ext_resource type="Script" uid="uid://dngamilx5u6gw" path="res://addons/renegade_controller/src/camera/camera_preset.gd" id="10_62340"]
+[ext_resource type="Script" uid="uid://dkm2i1pmt21rj" path="res://addons/renegade_controller/src/camera/post_process.gd" id="11_pp"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_xhhbc"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hygsr"]
+render_priority = 0
+shader = ExtResource("4_xhhbc")
+shader_parameter/depth_threshold = 0.05
+shader_parameter/reverse_depth_threshold = 0.25
+shader_parameter/normal_threshold = 0.6
+shader_parameter/darken_amount = 0.3
+shader_parameter/lighten_amount = 1.5
+shader_parameter/normal_edge_bias = Vector3(1, 1, 1)
+shader_parameter/light_direction = Vector3(-0.96, -0.18, 0.2)
+
+[sub_resource type="QuadMesh" id="QuadMesh_m5utx"]
+material = SubResource("ShaderMaterial_hygsr")
+flip_faces = true
+size = Vector2(2, 2)
 
 [sub_resource type="Resource" id="Resource_f8pt8"]
 script = ExtResource("10_62340")
@@ -37,6 +55,11 @@ margin = 0.2
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/SpringArm3D" unique_id=298327191]
 current = true
+
+[node name="PostProcess" type="MeshInstance3D" parent="CameraRig/Pivot/SpringArm3D/Camera3D" unique_id=733328851]
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_m5utx")
+script = ExtResource("11_pp")
 
 [node name="CameraZoneManager" type="Node" parent="." unique_id=73191255]
 script = ExtResource("4")

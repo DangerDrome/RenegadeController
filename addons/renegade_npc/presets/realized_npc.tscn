@@ -25,13 +25,13 @@ transparency = 1
 cull_mode = 2
 no_depth_test = true
 shading_mode = 0
+vertex_color_use_as_albedo = true
 albedo_color = Color(1, 1, 0, 0.6)
 
 [sub_resource type="ImmediateMesh" id="ImmediateMesh_4l61g"]
 
 [node name="RealizedNPC" type="CharacterBody3D" unique_id=1045757955 groups=["npc"]]
 collision_layer = 2
-collision_mask = 1
 script = ExtResource("1_realized")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1041887612]
@@ -39,24 +39,22 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="." unique_id=1666058481]
-path_postprocessing = 1
 path_desired_distance = 0.5
 target_desired_distance = 1.5
+path_postprocessing = 1
 avoidance_enabled = true
-neighbor_distance = 10.0
 radius = 0.6
+neighbor_distance = 10.0
 max_speed = 6.0
 
 [node name="InteractionArea" type="Area3D" parent="." unique_id=1713711942]
 collision_layer = 0
-collision_mask = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea" unique_id=790511631]
 shape = SubResource("SphereShape3D_interact")
 
 [node name="DetectionArea" type="Area3D" parent="." unique_id=1338631329]
 collision_layer = 0
-collision_mask = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DetectionArea" unique_id=2068949147]
 shape = SubResource("SphereShape3D_detect")
@@ -85,6 +83,10 @@ font_size = 20
 material_override = SubResource("StandardMaterial3D_tv1nl")
 mesh = SubResource("ImmediateMesh_4l61g")
 script = ExtResource("2_trajectory")
-ribbon_half_width = 0.05
+ribbon_half_width = 0.01
+arrow_half_width = 0.1
+arrow_length = 0.1
+arrow_spacing = 1.0
 floor_offset = 0.5
+color_rewind = Color(1, 0, 0, 0.6)
 preview_length = 3.0

@@ -267,8 +267,13 @@ func _process_collision_hits(delta: float) -> void:
 	if _hit_reaction_timer > 0.0:
 		return
 
-	# Check if moving fast enough to trigger hit reaction (use pre-collision speed).
+	# Character-to-character bumps always run (NPCs can push a stationary player).
 	var speed := _pre_collision_speed
+	_process_character_bumps(speed)
+	if _hit_reaction_timer > 0.0:
+		return
+
+	# Wall/object hit reactions require the player to be moving.
 	if speed < hit_reaction_min_speed:
 		return
 
@@ -304,9 +309,6 @@ func _process_collision_hits(delta: float) -> void:
 		_hit_reaction_timer = hit_reaction_cooldown
 		return  # Only one hit reaction per frame
 
-	# Also check for character-to-character bumps via Area3D overlap
-	_process_character_bumps(speed)
-
 #endregion
 
 
@@ -326,13 +328,27 @@ func _process_character_bumps(speed: float) -> void:
 
 		var bump_dir := to_body.normalized()
 
-		# Only trigger if we're moving toward them
-		var move_dot := velocity.normalized().dot(bump_dir)
-		if move_dot < 0.3:  # Not moving toward them
+		# Trigger if we're moving toward them OR they're moving toward us.
+		var we_move_toward := velocity.normalized().dot(bump_dir)
+		var they_move_toward := 0.0
+		var their_speed := 0.0
+		if body is CharacterBody3D:
+			their_speed = Vector2(body.velocity.x, body.velocity.z).length()
+			they_move_toward = body.velocity.normalized().dot(-bump_dir)
+
+		if we_move_toward < 0.3 and they_move_toward < 0.3:
 			continue
 
-		var force := speed * hit_reaction_force_scale
+		# Use whichever is faster for the force calculation.
+		var effective_speed := maxf(speed, their_speed)
+		var force := effective_speed * hit_reaction_force_scale
 		var bone_name: StringName = &"spine_02"
+
+		# Nudge the character body away. Standing still = full push, moving = minimal.
+		var our_weight := clampf(speed / move_speed, 0.0, 1.0)
+		var nudge := their_speed * lerpf(1.0, 0.1, our_weight)
+		velocity.x -= bump_dir.x * nudge
+		velocity.z -= bump_dir.z * nudge
 
 		visual_root.apply_hit(bone_name, bump_dir, force)
 		_hit_reaction_timer = hit_reaction_cooldown
