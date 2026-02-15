@@ -117,13 +117,8 @@ func _physics_process(delta: float) -> void:
 	target_hip_offset = clampf(target_hip_offset, -config.max_hip_drop, 0.0)
 	_current_hip_offset = lerpf(_current_hip_offset, target_hip_offset, config.hip_smooth_speed * delta)
 	
-	# Apply hip offset to pelvis bone
-	# NOTE: Disabled - was causing -Z drift with UEFN skeleton
-	# TODO: Investigate proper way to apply hip drop without interfering with root motion
-	#if _pelvis_idx != -1:
-	#	var pelvis_pos := _skeleton.get_bone_pose_position(_pelvis_idx)
-	#	pelvis_pos.y += _current_hip_offset
-	#	_skeleton.set_bone_pose_position(_pelvis_idx, pelvis_pos)
+	# Apply hip offset to visual root Y (NOT pelvis bone — avoids bone-space drift)
+	_visuals.position.y = _current_hip_offset
 	
 	# Position IK targets (animated position + ground correction - hip compensation)
 	if _left_target:

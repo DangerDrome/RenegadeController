@@ -54,6 +54,12 @@ func _enter_tree() -> void:
 		preload("icons/hand_ik.svg")
 	)
 	add_custom_type(
+		"StrideWheelComponent",
+		"Node",
+		preload("nodes/stride_wheel_component.gd"),
+		preload("icons/locomotion.svg")
+	)
+	add_custom_type(
 		"ItemSlots",
 		"Node3D",
 		preload("nodes/item_slots.gd"),
@@ -70,4 +76,5 @@ func _exit_tree() -> void:
 	remove_custom_type("ProceduralLeanComponent")
 	remove_custom_type("HitReactorComponent")
 	remove_custom_type("WallHandPlacement")
+	remove_custom_type("StrideWheelComponent")
 	remove_custom_type("ItemSlots")

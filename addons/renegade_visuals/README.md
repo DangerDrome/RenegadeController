@@ -27,6 +27,7 @@ CharacterBody3D (your controller)
     ├── Marker3D (LeftHandTarget)
     ├── Marker3D (RightHandTarget)
     ├── LocomotionComponent              ← Root motion + blend params + stride clamping
+    ├── StrideWheelComponent             ← Procedural walk IK (no animations needed)
     ├── FootIKComponent                  ← Raycast ground IK + hip offset
     ├── HandIKComponent                  ← Interaction hand IK
     ├── HitReactionComponent             ← Flinch + partial ragdoll + full ragdoll + hitstop
@@ -39,13 +40,14 @@ Godot 4.6's guaranteed processing order makes this work:
 
 1. **AnimationTree** blends root motion animations → writes bone poses
 2. **LocomotionComponent** extracts root motion → drives CharacterBody3D.move_and_slide()
-3. **FootIKComponent** raycasts ground → positions Marker3D targets → adjusts pelvis height
-4. **TwoBoneIK3D** (SkeletonModifier3D) solves leg chains to reach targets
-5. **CopyTransformModifier3D** copies foot rotation from ground-aligned targets
-6. **LimitAngularVelocityModifier3D** smooths any IK snapping
-7. **ProceduralLeanComponent** applies additive spine lean from acceleration
-8. **HitReactionComponent** applies flinch offsets or ragdoll influence
-9. **PhysicalBoneSimulator3D** (if active) blends physics poses via influence
+3. **StrideWheelComponent** (if no walk anims) drives foot targets procedurally from velocity
+4. **FootIKComponent** raycasts ground → positions Marker3D targets → adjusts pelvis height
+5. **TwoBoneIK3D** (SkeletonModifier3D) solves leg chains to reach targets
+6. **CopyTransformModifier3D** copies foot rotation from ground-aligned targets
+7. **LimitAngularVelocityModifier3D** smooths any IK snapping
+8. **ProceduralLeanComponent** applies additive spine lean from acceleration
+9. **HitReactionComponent** applies flinch offsets or ragdoll influence
+10. **PhysicalBoneSimulator3D** (if active) blends physics poses via influence
 
 SkeletonModifier3D children process in **scene tree order** — arrange them accordingly.
 
@@ -125,6 +127,17 @@ hand_ik.release_right()
 hand_ik.release_both()
 ```
 
+### StrideWheelComponent
+Procedural stride wheel — generates walk/run leg motion from velocity alone, no walk
+animations required. Feet plant on the ground during stance phase and swing in an arc
+to the next plant position. Includes hip bob and ground-following hip drop.
+
+Use **instead of** FootIKComponent when you have no locomotion animations. Use
+FootIKComponent when you have walk/run anims and just need ground adaptation.
+
+Assign `left_leg_ik` / `right_leg_ik` (TwoBoneIK3D) and `left_foot_target` /
+`right_foot_target` (Marker3D) in the inspector.
+
 ### LocomotionComponent
 ```gdscript
 # Query movement state
@@ -139,8 +152,25 @@ All tuning is done via `.tres` resource files — human-readable, Git-friendly:
 - **SkeletonConfig** — bone name mappings (swap for different characters)
 - **LocomotionConfig** — root motion, blending, stride rate clamping
 - **FootIKConfig** — ray distances, hip offset, influence curves
+- **StrideWheelConfig** — stride length/height, hip bob/drop, ground ray, foot rotation
 - **HitReactionConfig** — hitstop, flinch, ragdoll, force thresholds
 - **LeanConfig** — lean angle, speed, pelvis tilt
+
+## Stride Wheel Approach
+
+Procedural walk cycle driven entirely by character velocity — no walk/run animations needed:
+
+- Phase accumulator advances based on `speed / stride_length`
+- Each foot alternates between **plant phase** (locked at world position while character moves)
+  and **swing phase** (arc from old plant to predicted next plant via sin curve)
+- Next plant position predicted from move direction + stride length, raycasted to find ground
+- Hip bobs sinusoidally during cycle, plus drops to follow lowest foot (ground adaptation)
+- Hip drop applied to `CharacterVisuals.position.y` (not pelvis bone) to avoid bone-space drift
+- IK influence blends up when moving + grounded, down at idle or airborne
+- Safety clamp re-plants feet that drift too far on sudden direction changes
+
+Use StrideWheelComponent when you have no locomotion animations. Once you add walk/run
+anims, switch to FootIKComponent which only corrects the delta from animated positions.
 
 ## Foot IK Approach
 
@@ -179,3 +209,4 @@ All tiers trigger **hitstop** (1-2 frame freeze) for combat feel.
 - Method Call Tracks in AnimationTree can be unreliable through blend nodes (use timer-based footsteps)
 - Active ragdoll (partial physics + animation fighting) requires tuning per-character
 - No built-in distance matching — stride rate clamping covers ~80% of foot slide
+- Hip drop uses visual root Y offset (not pelvis bone) to avoid bone-space drift with complex skeletons

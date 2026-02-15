@@ -1,0 +1,41 @@
+## Tuning parameters for procedural stride wheel walk IK.
+class_name StrideWheelConfig
+extends Resource
+
+@export_group("Stride")
+## Distance per step (half-cycle). Larger = longer strides.
+@export var stride_length: float = 0.7
+## Peak height of foot arc during swing phase.
+@export var step_height: float = 0.15
+## Lateral offset from character center for foot placement.
+@export var foot_lateral_offset: float = 0.15
+
+@export_group("Hip")
+## Vertical pelvis bob amplitude during walk cycle.
+@export var hip_bob_amount: float = 0.03
+## Enable hip drop for ground following.
+@export var hip_drop_enabled: bool = true
+## Maximum distance the visual root can drop for ground following.
+@export var max_hip_drop: float = 0.3
+## Smoothing speed for hip offset changes.
+@export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0
+
+@export_group("Ground Detection")
+## How far above the foot to start the raycast.
+@export var ray_height: float = 0.5
+## How far below the foot to cast the ray.
+@export var ray_depth: float = 1.0
+## Physics layers for ground detection.
+@export_flags_3d_physics var ground_layers: int = 1
+
+@export_group("Blending")
+## Speed below which the stride wheel is inactive.
+@export var idle_threshold: float = 0.1
+## Speed at which IK influence blends in/out.
+@export_range(1.0, 20.0) var influence_blend_speed: float = 8.0
+
+@export_group("Foot Rotation")
+## How much the foot rotates to match ground normal (0-1).
+@export_range(0.0, 1.0) var foot_rotation_weight: float = 0.8
+## Maximum foot rotation angle in degrees.
+@export_range(0.0, 60.0) var max_foot_angle: float = 35.0
