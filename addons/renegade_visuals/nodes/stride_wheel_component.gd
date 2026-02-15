@@ -12,12 +12,30 @@ extends Node
 			_sync_from_config()
 
 @export_group("Stride")
-## Distance per step (half-cycle). Larger = longer strides.
+## Base stride length at walk speed. Stride scales up with speed.
 @export var stride_length: float = 0.7:
 	set(value):
 		stride_length = value
 		if config:
 			config.stride_length = value
+## Maximum stride length at run speed.
+@export var max_stride_length: float = 1.8:
+	set(value):
+		max_stride_length = value
+		if config:
+			config.max_stride_length = value
+## Speed considered "walking" (uses stride_length).
+@export var walk_speed: float = 1.5:
+	set(value):
+		walk_speed = value
+		if config:
+			config.walk_speed = value
+## Speed considered "running" (uses max_stride_length).
+@export var run_speed: float = 5.0:
+	set(value):
+		run_speed = value
+		if config:
+			config.run_speed = value
 ## Peak height of foot arc during swing phase.
 @export var step_height: float = 0.15:
 	set(value):
@@ -44,12 +62,24 @@ extends Node
 		hip_bob_amount = value
 		if config:
 			config.hip_bob_amount = value
-## Hip offset (negative = lower hips, causes knee bend).
-@export var hip_offset: float = 0.0:
+## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
+@export var hip_offset: float = -0.08:
 	set(value):
 		hip_offset = value
 		if config:
 			config.hip_offset = value
+## Torso lag during locomotion. Offsets torso BEHIND movement so feet appear to lead.
+@export_range(0.0, 0.5) var torso_lag: float = 0.25:
+	set(value):
+		torso_lag = value
+		if config:
+			config.torso_lag = value
+## Forward lean angle (degrees) during locomotion. Tilts torso forward into movement.
+@export_range(-90.0, 90.0) var forward_lean_angle: float = 8.0:
+	set(value):
+		forward_lean_angle = value
+		if config:
+			config.forward_lean_angle = value
 ## Smoothing speed for hip offset changes.
 @export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0:
 	set(value):
@@ -155,6 +185,20 @@ extends Node
 ## Marker3D target the right leg IK solver points at.
 @export var right_foot_target: NodePath
 
+@export_group("Debug")
+## Enable debug visualization.
+@export var debug_enabled: bool = false
+## Show planted foot positions (green = left, blue = right).
+@export var debug_show_plant_pos: bool = true
+## Show predicted plant positions (yellow).
+@export var debug_show_predicted: bool = true
+## Show character reference point (white).
+@export var debug_show_char_pos: bool = true
+## Show movement direction (magenta arrow).
+@export var debug_show_move_dir: bool = true
+## Size of debug spheres.
+@export var debug_sphere_size: float = 0.05
+
 var _visuals: CharacterVisuals
 var _skeleton: Skeleton3D
 
@@ -166,6 +210,7 @@ var _right_target: Marker3D
 
 # Bone indices
 var _pelvis_idx: int = -1
+var _spine_01_idx: int = -1
 var _left_foot_idx: int = -1
 var _right_foot_idx: int = -1
 
@@ -184,6 +229,10 @@ var _right_ground_normal: Vector3 = Vector3.UP
 
 # Hip
 var _current_hip_offset: float = 0.0
+var _current_hip_forward: Vector3 = Vector3.ZERO  # Torso lag offset (world space)
+var _current_lean_angle: float = 0.0  # Forward tilt in radians
+var _spine_rest_basis: Basis = Basis.IDENTITY  # Spine rest pose
+var _current_spine_basis: Basis = Basis.IDENTITY  # Smoothed spine rotation
 
 # Influence
 var _current_influence: float = 0.0
@@ -222,6 +271,21 @@ var _right_current_basis: Basis = Basis.IDENTITY
 var _left_foot_initialized: bool = false
 var _right_foot_initialized: bool = false
 
+# Debug visualization
+var _debug_container: Node3D
+var _debug_left_plant: MeshInstance3D
+var _debug_right_plant: MeshInstance3D
+var _debug_left_predicted: MeshInstance3D
+var _debug_right_predicted: MeshInstance3D
+var _debug_char_pos: MeshInstance3D
+var _debug_move_dir: MeshInstance3D
+var _debug_left_target: MeshInstance3D
+var _debug_right_target: MeshInstance3D
+
+# Cache for debug - store last predicted positions
+var _debug_left_predicted_pos: Vector3 = Vector3.ZERO
+var _debug_right_predicted_pos: Vector3 = Vector3.ZERO
+var _debug_move_dir_vec: Vector3 = Vector3.ZERO
 
 
 ## Sync local @export properties from the config resource.
@@ -230,11 +294,16 @@ func _sync_from_config() -> void:
 		return
 	# Use direct assignment to avoid setter triggering back
 	stride_length = config.stride_length
+	max_stride_length = config.max_stride_length
+	walk_speed = config.walk_speed
+	run_speed = config.run_speed
 	step_height = config.step_height
 	foot_lateral_offset = config.foot_lateral_offset
 	foot_height = config.foot_height
 	hip_bob_amount = config.hip_bob_amount
 	hip_offset = config.hip_offset
+	torso_lag = config.torso_lag
+	forward_lean_angle = config.forward_lean_angle
 	hip_smooth_speed = config.hip_smooth_speed
 	ray_height = config.ray_height
 	ray_depth = config.ray_depth
@@ -251,6 +320,19 @@ func _sync_from_config() -> void:
 	max_foot_angle = config.max_foot_angle
 
 
+## Calculate effective stride length based on current speed.
+## Interpolates between stride_length (at walk_speed) and max_stride_length (at run_speed).
+func _get_effective_stride(speed: float) -> float:
+	if speed <= walk_speed:
+		return stride_length
+	elif speed >= run_speed:
+		return max_stride_length
+	else:
+		# Lerp between walk and run stride
+		var t := (speed - walk_speed) / (run_speed - walk_speed)
+		return lerpf(stride_length, max_stride_length, t)
+
+
 func _ready() -> void:
 	_visuals = get_parent() as CharacterVisuals
 	if _visuals == null:
@@ -264,6 +346,10 @@ func _ready() -> void:
 	_visuals.ready.connect(_setup, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 
 
+func _exit_tree() -> void:
+	_cleanup_debug()
+
+
 func _setup() -> void:
 	_skeleton = _visuals.skeleton
 	if _skeleton == null:
@@ -275,15 +361,23 @@ func _setup() -> void:
 		skel_config = SkeletonConfig.new()
 
 	_pelvis_idx = _skeleton.find_bone(skel_config.pelvis_bone)
+	_spine_01_idx = _skeleton.find_bone(skel_config.spine_01)
 	_left_foot_idx = _skeleton.find_bone(skel_config.left_foot)
 	_right_foot_idx = _skeleton.find_bone(skel_config.right_foot)
 
 	if _pelvis_idx == -1:
 		push_warning("StrideWheelComponent: Pelvis bone '%s' not found." % skel_config.pelvis_bone)
+	if _spine_01_idx == -1:
+		push_warning("StrideWheelComponent: Spine_01 bone '%s' not found." % skel_config.spine_01)
 	if _left_foot_idx == -1:
 		push_warning("StrideWheelComponent: Left foot bone '%s' not found." % skel_config.left_foot)
 	if _right_foot_idx == -1:
 		push_warning("StrideWheelComponent: Right foot bone '%s' not found." % skel_config.right_foot)
+
+	# Cache spine rest pose
+	if _spine_01_idx != -1:
+		_spine_rest_basis = _skeleton.get_bone_rest(_spine_01_idx).basis
+		_current_spine_basis = _spine_rest_basis
 
 	# Resolve IK solver nodes
 	if not left_leg_ik.is_empty():
@@ -323,6 +417,9 @@ func _setup() -> void:
 
 	# Setup rotation modifiers to copy Marker3D rotation to foot bones
 	_setup_foot_rotation_modifiers(skel_config)
+
+	# Setup debug visualization
+	_setup_debug()
 
 
 ## Create CopyTransformModifier3D nodes to copy rotation from Marker3D targets to foot bones.
@@ -390,6 +487,10 @@ func _physics_process(delta: float) -> void:
 	_left_rest_pos = _get_bone_world_position(_left_foot_idx)
 	_right_rest_pos = _get_bone_world_position(_right_foot_idx)
 
+	# Store for debug
+	var char_pos := _visuals.controller.global_position if _visuals.controller else Vector3.ZERO
+	_debug_move_dir_vec = move_dir
+
 	if is_moving:
 		# Reset turn-in-place state when starting to move
 		_is_turning_in_place = false
@@ -397,15 +498,33 @@ func _physics_process(delta: float) -> void:
 		# Track yaw so _prev_yaw is up-to-date when we stop
 		_prev_yaw = _visuals.global_rotation.y
 
-		# Advance phase
-		_phase += (speed / stride_length) * PI * delta
+		# Calculate effective stride based on speed (longer strides at higher speeds)
+		var effective_stride := _get_effective_stride(speed)
+
+		# Advance phase - use effective stride so faster = longer steps, not more steps
+		_phase += (speed / effective_stride) * PI * delta
 		_phase = fmod(_phase, TAU)
 
 		# Compute per-foot cycle values (0–1)
 		var left_cycle := fmod(_phase / TAU, 1.0)
 		var right_cycle := fmod((_phase + PI) / TAU, 1.0)
 
-		# Process each foot
+		# IMPORTANT: Update plant positions BEFORE processing feet
+		# This prevents one-frame delay when foot plants at new position
+		if _crossed_threshold(left_cycle, _left_prev_cycle, 0.0):
+			_left_plant_pos = _predict_plant_position(move_dir, speed, -1.0)
+		if _crossed_threshold(right_cycle, _right_prev_cycle, 0.0):
+			_right_plant_pos = _predict_plant_position(move_dir, speed, 1.0)
+
+		# Update debug predicted positions (always, not just on threshold)
+		_debug_left_predicted_pos = _predict_plant_position(move_dir, speed, -1.0)
+		_debug_right_predicted_pos = _predict_plant_position(move_dir, speed, 1.0)
+
+		# Safety: clamp plant distance before processing
+		_left_plant_pos = _clamp_plant_distance(_left_plant_pos, effective_stride * 1.5)
+		_right_plant_pos = _clamp_plant_distance(_right_plant_pos, effective_stride * 1.5)
+
+		# Process each foot with updated plant positions
 		var left_pos := _process_foot(
 			left_cycle, _left_prev_cycle,
 			_left_plant_pos, _left_rest_pos,
@@ -417,24 +536,8 @@ func _physics_process(delta: float) -> void:
 			move_dir, speed, 1.0  # right side
 		)
 
-		# Update plant positions if foot just entered plant phase
-		if _crossed_threshold(left_cycle, _left_prev_cycle, 0.0):
-			_left_plant_pos = _predict_plant_position(move_dir, speed, -1.0)
-		if _crossed_threshold(right_cycle, _right_prev_cycle, 0.0):
-			_right_plant_pos = _predict_plant_position(move_dir, speed, 1.0)
-
-		# Detect swing→plant transition to lock new plant pos
-		if _crossed_threshold(left_cycle, _left_prev_cycle, 0.5):
-			pass  # Swing begins — plant pos already predicted at 0.0 crossing
-		if _crossed_threshold(right_cycle, _right_prev_cycle, 0.5):
-			pass
-
 		_left_prev_cycle = left_cycle
 		_right_prev_cycle = right_cycle
-
-		# Safety: if planted foot drifted too far, force re-plant
-		_left_plant_pos = _clamp_plant_distance(_left_plant_pos, stride_length * 1.5)
-		_right_plant_pos = _clamp_plant_distance(_right_plant_pos, stride_length * 1.5)
 
 		# Apply positions to targets (during locomotion, feet follow character facing)
 		var current_yaw := _visuals.global_rotation.y
@@ -444,14 +547,28 @@ func _physics_process(delta: float) -> void:
 		_left_plant_yaw = current_yaw
 		_right_plant_yaw = current_yaw
 
-		# Hip bob — peaks when legs cross (at 0.25 and 0.75 of each half-cycle)
+		# Hip adjustment for natural knee bend:
+		# 1. Bob: vertical oscillation during gait cycle
+		# 2. Extension drop: hip lowers when legs are spread apart (Pythagorean theorem)
 		var hip_bob: float = -absf(sin(_phase)) * hip_bob_amount
-		_update_hip(delta, hip_bob)
+
+		# Calculate leg extension drop - when feet are spread apart, hip must drop
+		# to maintain contact (otherwise legs would need to stretch)
+		var foot_spread := left_pos.distance_to(right_pos)
+		var max_spread := effective_stride * 1.2  # Maximum expected spread
+		var spread_factor := clampf(foot_spread / max_spread, 0.0, 1.0)
+		# Drop more when legs are spread (quadratic for more natural feel)
+		var extension_drop := -spread_factor * spread_factor * step_height * 0.5
+
+		_update_hip(delta, hip_bob + extension_drop, move_dir)
 	else:
 		# Idle — handle turn-in-place or rest
 		_process_idle_or_turn(delta)
 
 	_apply_influence()
+
+	# Update debug visualization
+	_update_debug(char_pos, move_dir)
 
 
 ## Handle idle state with turn-in-place detection and foot stepping.
@@ -625,12 +742,16 @@ func _process_foot(
 		# Plant phase — foot stays at planted world position
 		return plant_pos
 	else:
-		# Swing phase — arc from plant position to predicted next plant
+		# Swing phase — arc from plant position toward next predicted plant
 		var swing_t := (cycle - 0.5) / 0.5  # 0–1 within swing
+
+		# Target is recalculated each frame to track character movement
 		var next_plant := _predict_plant_position(move_dir, speed, side)
+
+		# Swing from where we lifted (plant_pos) to where we're landing (next_plant)
 		var ground_pos := plant_pos.lerp(next_plant, swing_t)
 
-		# Arc height
+		# Arc height peaks at middle of swing
 		var arc_height: float = step_height * sin(swing_t * PI)
 		ground_pos.y += arc_height
 
@@ -638,14 +759,21 @@ func _process_foot(
 
 
 ## Predict where the foot should plant next based on movement.
+## Standard stride wheel: foot plants 0.5 stride ahead, ends 0.5 stride behind when lifting.
+## This creates natural weight transfer as the body passes over the planted foot.
 func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Vector3:
 	if _visuals.controller == null:
 		return Vector3.ZERO
 
 	var char_pos := _visuals.controller.global_position
 
-	# Forward offset based on stride
-	var forward_offset: Vector3 = move_dir * stride_length * 0.5
+	# Use effective stride (scales with speed)
+	var effective_stride := _get_effective_stride(speed)
+
+	# Forward offset: plant half a stride ahead of current position
+	# At plant: foot is +0.5 stride ahead
+	# At lift (after char moves effective_stride): foot is -0.5 stride behind
+	var forward_offset: Vector3 = move_dir * effective_stride * 0.5
 
 	# Lateral offset perpendicular to movement direction
 	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * foot_lateral_offset
@@ -712,17 +840,43 @@ func _clamp_plant_distance(plant_pos: Vector3, max_dist: float) -> Vector3:
 	return plant_pos
 
 
-## Update hip offset: base offset + sinusoidal bob.
-func _update_hip(delta: float, bob: float) -> void:
+## Update hip offset: base offset + sinusoidal bob + torso lag + forward lean.
+func _update_hip(delta: float, bob: float, move_dir: Vector3 = Vector3.ZERO) -> void:
 	var target_offset := hip_offset + bob
+	var smooth_factor := 1.0 - exp(-hip_smooth_speed * delta)
 
 	_current_hip_offset = lerpf(
 		_current_hip_offset, target_offset,
-		1.0 - exp(-hip_smooth_speed * delta)
+		smooth_factor
 	)
 
-	# Apply to visual root Y — NOT pelvis bone (avoids bone-space drift)
+	# Torso lag: offset torso BEHIND movement direction so feet appear to lead
+	var target_lag := -move_dir * torso_lag
+	_current_hip_forward = _current_hip_forward.lerp(target_lag, smooth_factor)
+
+	# Forward lean: tilt torso forward when moving
+	var target_lean := deg_to_rad(forward_lean_angle) if move_dir.length_squared() > 0.01 else 0.0
+	_current_lean_angle = lerpf(_current_lean_angle, target_lean, smooth_factor)
+
+	# Apply position to visual root
 	_visuals.position.y = _current_hip_offset
+	_visuals.position.x = _current_hip_forward.x
+	_visuals.position.z = _current_hip_forward.z
+
+	# Apply forward lean to spine_01 bone
+	if _skeleton and _spine_01_idx != -1:
+		var target_basis: Basis = _spine_rest_basis
+		if _current_lean_angle != 0.0:
+			# Rotate around local Z axis (bone's forward axis for pitch)
+			var lean_rotation := Basis(Vector3.FORWARD, _current_lean_angle)
+			target_basis = _spine_rest_basis * lean_rotation
+
+		# Smooth spine rotation
+		var spine_smooth := 1.0 - exp(-3.0 * delta)
+		_current_spine_basis = _current_spine_basis.slerp(target_basis, spine_smooth)
+
+		var rest_pose := _skeleton.get_bone_rest(_spine_01_idx)
+		_skeleton.set_bone_pose(_spine_01_idx, Transform3D(_current_spine_basis, rest_pose.origin))
 
 
 ## Blend IK influence up when moving, down at idle.
@@ -760,7 +914,20 @@ func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground
 
 	# Determine which foot and get/set smoothed state
 	var is_left := target == _left_target
-	var smooth_factor := 1.0 - exp(-foot_smooth_speed * delta)
+	var current_pos: Vector3 = _left_current_pos if is_left else _right_current_pos
+
+	# Calculate distance to target - if far, foot is swinging and needs to track precisely
+	# If close, foot is planted or transitioning and can smooth
+	var distance_to_target := current_pos.distance_to(world_pos)
+	var snap_threshold := stride_length * 0.3  # Snap if target is far (swing phase)
+
+	var smooth_factor: float
+	if distance_to_target > snap_threshold:
+		# Swing phase - track target directly (no smoothing lag)
+		smooth_factor = 1.0
+	else:
+		# Plant/idle phase - smooth for nice transitions
+		smooth_factor = 1.0 - exp(-foot_smooth_speed * delta)
 
 	if is_left:
 		if not _left_foot_initialized:
@@ -820,3 +987,164 @@ func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis) 
 func _get_bone_world_position(bone_idx: int) -> Vector3:
 	var bone_global_pose := _skeleton.get_bone_global_pose(bone_idx)
 	return _skeleton.global_transform * bone_global_pose.origin
+
+
+# =============================================================================
+# DEBUG VISUALIZATION
+# =============================================================================
+
+## Create debug visualization meshes.
+func _setup_debug() -> void:
+	if _debug_container:
+		_debug_container.queue_free()
+
+	_debug_container = Node3D.new()
+	_debug_container.name = "StrideWheelDebug"
+	get_tree().root.add_child.call_deferred(_debug_container)
+
+	# Left plant position - GREEN
+	_debug_left_plant = _create_debug_sphere(Color.GREEN, "L PLANT")
+	_debug_left_plant.name = "LeftPlant"
+
+	# Right plant position - BLUE
+	_debug_right_plant = _create_debug_sphere(Color.BLUE, "R PLANT")
+	_debug_right_plant.name = "RightPlant"
+
+	# Left predicted position - YELLOW
+	_debug_left_predicted = _create_debug_sphere(Color.YELLOW, "L PRED")
+	_debug_left_predicted.name = "LeftPredicted"
+
+	# Right predicted position - ORANGE
+	_debug_right_predicted = _create_debug_sphere(Color.ORANGE, "R PRED")
+	_debug_right_predicted.name = "RightPredicted"
+
+	# Character reference position - WHITE
+	_debug_char_pos = _create_debug_sphere(Color.WHITE, "CHAR")
+	_debug_char_pos.name = "CharPos"
+
+	# Left foot target (actual IK target) - LIME
+	_debug_left_target = _create_debug_sphere(Color.LIME, "L IK")
+	_debug_left_target.name = "LeftTarget"
+
+	# Right foot target (actual IK target) - CYAN
+	_debug_right_target = _create_debug_sphere(Color.CYAN, "R IK")
+	_debug_right_target.name = "RightTarget"
+
+	# Movement direction - MAGENTA (use a stretched sphere as arrow)
+	_debug_move_dir = _create_debug_sphere(Color.MAGENTA, "DIR")
+	_debug_move_dir.name = "MoveDir"
+
+
+## Create a debug sphere mesh with a label.
+func _create_debug_sphere(color: Color, label_text: String) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = debug_sphere_size
+	sphere.height = debug_sphere_size * 2.0
+	mesh_instance.mesh = sphere
+
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color.a = 0.8
+	mesh_instance.material_override = material
+
+	# Add a label above the sphere
+	var label := Label3D.new()
+	label.text = label_text
+	label.font_size = 32
+	label.pixel_size = 0.002
+	label.position = Vector3(0, 0.15, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.modulate = color
+	label.outline_size = 8
+	label.outline_modulate = Color.BLACK
+	mesh_instance.add_child(label)
+
+	_debug_container.add_child(mesh_instance)
+	return mesh_instance
+
+
+## Update debug visualization positions.
+func _update_debug(char_pos: Vector3, move_dir: Vector3) -> void:
+	if not debug_enabled or not _debug_container:
+		if _debug_container:
+			_debug_container.visible = false
+		return
+
+	_debug_container.visible = true
+
+	# Update sphere sizes
+	var size := debug_sphere_size
+	_update_sphere_size(_debug_left_plant, size)
+	_update_sphere_size(_debug_right_plant, size)
+	_update_sphere_size(_debug_left_predicted, size * 0.7)
+	_update_sphere_size(_debug_right_predicted, size * 0.7)
+	_update_sphere_size(_debug_char_pos, size * 1.2)
+	_update_sphere_size(_debug_left_target, size * 0.5)
+	_update_sphere_size(_debug_right_target, size * 0.5)
+	_update_sphere_size(_debug_move_dir, size * 0.5)
+
+	# Plant positions
+	if debug_show_plant_pos:
+		_debug_left_plant.visible = true
+		_debug_right_plant.visible = true
+		_debug_left_plant.global_position = _left_plant_pos + Vector3.UP * 0.01
+		_debug_right_plant.global_position = _right_plant_pos + Vector3.UP * 0.01
+	else:
+		_debug_left_plant.visible = false
+		_debug_right_plant.visible = false
+
+	# Predicted positions
+	if debug_show_predicted:
+		_debug_left_predicted.visible = true
+		_debug_right_predicted.visible = true
+		_debug_left_predicted.global_position = _debug_left_predicted_pos + Vector3.UP * 0.02
+		_debug_right_predicted.global_position = _debug_right_predicted_pos + Vector3.UP * 0.02
+	else:
+		_debug_left_predicted.visible = false
+		_debug_right_predicted.visible = false
+
+	# Character position
+	if debug_show_char_pos:
+		_debug_char_pos.visible = true
+		_debug_char_pos.global_position = char_pos + Vector3.UP * 0.03
+	else:
+		_debug_char_pos.visible = false
+
+	# Movement direction
+	if debug_show_move_dir and move_dir.length_squared() > 0.01:
+		_debug_move_dir.visible = true
+		_debug_move_dir.global_position = char_pos + move_dir * 0.5 + Vector3.UP * 0.05
+	else:
+		_debug_move_dir.visible = false
+
+	# Actual IK target positions
+	if _left_target:
+		_debug_left_target.visible = true
+		_debug_left_target.global_position = _left_target.global_position + Vector3.UP * 0.03
+	else:
+		_debug_left_target.visible = false
+
+	if _right_target:
+		_debug_right_target.visible = true
+		_debug_right_target.global_position = _right_target.global_position + Vector3.UP * 0.03
+	else:
+		_debug_right_target.visible = false
+
+
+## Update a sphere mesh size.
+func _update_sphere_size(mesh_instance: MeshInstance3D, size: float) -> void:
+	if mesh_instance and mesh_instance.mesh is SphereMesh:
+		var sphere := mesh_instance.mesh as SphereMesh
+		sphere.radius = size
+		sphere.height = size * 2.0
+
+
+## Cleanup debug meshes.
+func _cleanup_debug() -> void:
+	if _debug_container:
+		_debug_container.queue_free()
+		_debug_container = null

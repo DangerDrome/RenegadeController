@@ -3,8 +3,14 @@ class_name StrideWheelConfig
 extends Resource
 
 @export_group("Stride")
-## Distance per step (half-cycle). Larger = longer strides.
+## Base stride length at walk speed. Stride scales up with speed.
 @export var stride_length: float = 0.7
+## Maximum stride length at run speed.
+@export var max_stride_length: float = 1.8
+## Speed considered "walking" (uses stride_length).
+@export var walk_speed: float = 1.5
+## Speed considered "running" (uses max_stride_length).
+@export var run_speed: float = 5.0
 ## Peak height of foot arc during swing phase.
 @export var step_height: float = 0.15
 ## Lateral offset from character center for foot placement.
@@ -15,8 +21,12 @@ extends Resource
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
 @export var hip_bob_amount: float = 0.03
-## Hip offset (negative = lower hips, causes knee bend).
-@export var hip_offset: float = 0.0
+## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
+@export var hip_offset: float = -0.08
+## Torso lag during locomotion. Offsets torso BEHIND movement so feet appear to lead.
+@export_range(0.0, 0.5) var torso_lag: float = 0.25
+## Forward lean angle (degrees) during locomotion. Tilts torso forward into movement.
+@export_range(-90.0, 90.0) var forward_lean_angle: float = 8.0
 ## Smoothing speed for hip offset changes.
 @export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0
 
