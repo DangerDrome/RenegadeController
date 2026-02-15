@@ -17,8 +17,8 @@ extends Resource
 @export var foot_lateral_offset: float = 0.12
 ## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
 @export var foot_height: float = 0.08
-## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered stride.
-@export_range(0.3, 0.8) var plant_ahead_ratio: float = 0.65
+## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered, <0.5 = behind, >0.5 = ahead.
+@export_range(0.0, 1.0) var plant_ahead_ratio: float = 0.5
 ## How much feet cross toward centerline when walking. 0 = normal, 1 = inline/runway walk.
 @export_range(0.0, 1.5) var crossover_amount: float = 0.0
 ## Fraction of gait cycle spent in stance (foot planted). Lower = foot lifts earlier.
@@ -27,6 +27,12 @@ extends Resource
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
 @export var hip_bob_amount: float = 0.025
+## Side-to-side hip rock on X axis (degrees). Hip drops on swing leg side.
+@export_range(0.0, 15.0) var hip_rock_x: float = 3.0
+## Hip twist on Y axis (degrees). Hip rotates toward swing leg.
+@export_range(0.0, 15.0) var hip_rock_y: float = 0.0
+## Forward/back hip rock on Z axis (degrees). Hip tilts with gait.
+@export_range(0.0, 15.0) var hip_rock_z: float = 0.0
 ## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
 @export var hip_offset: float = -0.06
 ## Body offset along movement direction. Positive = body trails (feet lead), Negative = body leads.
@@ -56,7 +62,9 @@ extends Resource
 
 @export_group("Turn In Place")
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far from ideal position.
-@export_range(0.1, 0.6) var turn_drift_threshold: float = 0.12
+@export_range(0.1, 2.0) var turn_drift_threshold: float = 1.5
+## Maximum rotation (degrees) before forcing a step. Feet step if body turns past this angle.
+@export_range(15.0, 180.0) var max_turn_angle: float = 90.0
 ## Speed at which feet step to new positions during turn-in-place.
 @export_range(1.0, 20.0) var turn_step_speed: float = 8.0
 ## Arc height for step during turn-in-place.

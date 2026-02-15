@@ -54,8 +54,8 @@ extends Node
 		foot_height = value
 		if config:
 			config.foot_height = value
-## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered stride.
-@export_range(0.3, 0.8) var plant_ahead_ratio: float = 0.65:
+## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered, <0.5 = behind, >0.5 = ahead.
+@export_range(0.0, 1.0) var plant_ahead_ratio: float = 0.5:
 	set(value):
 		plant_ahead_ratio = value
 		if config:
@@ -80,6 +80,24 @@ extends Node
 		hip_bob_amount = value
 		if config:
 			config.hip_bob_amount = value
+## Side-to-side hip rock on X axis (degrees). Hip drops on swing leg side.
+@export_range(0.0, 15.0) var hip_rock_x: float = 3.0:
+	set(value):
+		hip_rock_x = value
+		if config:
+			config.hip_rock_x = value
+## Hip twist on Y axis (degrees). Hip rotates toward swing leg.
+@export_range(0.0, 15.0) var hip_rock_y: float = 0.0:
+	set(value):
+		hip_rock_y = value
+		if config:
+			config.hip_rock_y = value
+## Forward/back hip rock on Z axis (degrees). Hip tilts with gait.
+@export_range(0.0, 15.0) var hip_rock_z: float = 0.0:
+	set(value):
+		hip_rock_z = value
+		if config:
+			config.hip_rock_z = value
 ## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
 @export var hip_offset: float = -0.06:
 	set(value):
@@ -153,11 +171,17 @@ extends Node
 
 @export_group("Turn In Place")
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far.
-@export_range(0.1, 0.6) var turn_drift_threshold: float = 0.2:
+@export_range(0.1, 2.0) var turn_drift_threshold: float = 1.5:
 	set(value):
 		turn_drift_threshold = value
 		if config:
 			config.turn_drift_threshold = value
+## Maximum rotation (degrees) before forcing a step. Feet step if body turns past this angle.
+@export_range(15.0, 180.0) var max_turn_angle: float = 90.0:
+	set(value):
+		max_turn_angle = value
+		if config:
+			config.max_turn_angle = value
 ## Speed at which feet step to new positions during turn-in-place.
 @export_range(1.0, 20.0) var turn_step_speed: float = 8.0:
 	set(value):
@@ -220,6 +244,8 @@ extends Node
 @export var left_foot_target: NodePath
 ## Marker3D target the right leg IK solver points at.
 @export var right_foot_target: NodePath
+## Marker3D target the head LookAt modifier points at. Updated to follow cursor.
+@export var head_target: NodePath
 
 @export_group("Arm Swing")
 ## Marker3D target for left hand IK. Leave empty to disable arm swing.
@@ -279,6 +305,10 @@ var _left_hand_rest: Vector3 = Vector3.ZERO  # Rest position (captured at start)
 var _right_hand_rest: Vector3 = Vector3.ZERO
 var _arm_influence: float = 0.0  # Current arm swing influence
 
+# Head look-at target (updated to follow cursor)
+var _head_target: Marker3D
+var _head_target_goal: Vector3 = Vector3.ZERO  # Smoothed head target position
+
 # Feet rotation modifier (toggled based on walk/idle state)
 var _feet_xform: Node
 
@@ -326,8 +356,11 @@ var _right_ground_normal: Vector3 = Vector3.UP
 var _current_hip_offset: float = 0.0
 var _current_hip_forward: Vector3 = Vector3.ZERO  # Torso lag offset (world space)
 var _current_lean_angle: float = 0.0  # Forward tilt in radians
+var _current_hip_rock: Vector3 = Vector3.ZERO  # Hip rock on all 3 axes in radians
 var _spine_rest_basis: Basis = Basis.IDENTITY  # Spine rest pose
 var _current_spine_basis: Basis = Basis.IDENTITY  # Smoothed spine rotation
+var _pelvis_rest_basis: Basis = Basis.IDENTITY  # Pelvis rest pose
+var _current_pelvis_basis: Basis = Basis.IDENTITY  # Smoothed pelvis rotation
 
 # Influence
 var _current_influence: float = 0.0
@@ -409,6 +442,9 @@ func _sync_from_config() -> void:
 	crossover_amount = config.crossover_amount
 	stance_ratio = config.stance_ratio
 	hip_bob_amount = config.hip_bob_amount
+	hip_rock_x = config.hip_rock_x
+	hip_rock_y = config.hip_rock_y
+	hip_rock_z = config.hip_rock_z
 	hip_offset = config.hip_offset
 	body_trail_distance = config.body_trail_distance
 	forward_lean_angle = config.forward_lean_angle
@@ -421,6 +457,7 @@ func _sync_from_config() -> void:
 	influence_blend_speed = config.influence_blend_speed
 	foot_smooth_speed = config.foot_smooth_speed
 	turn_drift_threshold = config.turn_drift_threshold
+	max_turn_angle = config.max_turn_angle
 	turn_step_speed = config.turn_step_speed
 	turn_step_height = config.turn_step_height
 	turn_crouch_amount = config.turn_crouch_amount
@@ -508,6 +545,11 @@ func _setup() -> void:
 		_spine_rest_basis = _skeleton.get_bone_rest(_spine_01_idx).basis
 		_current_spine_basis = _spine_rest_basis
 
+	# Cache pelvis rest pose
+	if _pelvis_idx != -1:
+		_pelvis_rest_basis = _skeleton.get_bone_rest(_pelvis_idx).basis
+		_current_pelvis_basis = _pelvis_rest_basis
+
 	# Resolve IK solver nodes
 	if not left_leg_ik.is_empty():
 		_left_ik = get_node_or_null(left_leg_ik)
@@ -529,6 +571,10 @@ func _setup() -> void:
 		_right_hand = get_node_or_null(right_hand_target) as Marker3D
 		if _right_hand:
 			_right_hand_rest = _right_hand.position
+
+	# Resolve head target (optional - for head look-at to follow cursor)
+	if not head_target.is_empty():
+		_head_target = get_node_or_null(head_target) as Marker3D
 
 	# Capture foot bone rest orientations (before any IK modifies them)
 	# This preserves the skeleton's intended foot direction
@@ -612,6 +658,51 @@ func _apply_foot_bone_rotations() -> void:
 		_skeleton.set_bone_pose_rotation(_right_foot_idx, blended_basis.get_rotation_quaternion())
 
 
+## Update head target marker to follow cursor position (for LookAtModifier3D).
+func _update_head_target(delta: float) -> void:
+	if _head_target == null:
+		return
+	if _visuals.controller == null:
+		return
+
+	# Get the character body (RenegadeCharacter) and its controller
+	var char_body := _visuals.controller as RenegadeCharacter
+	if char_body == null or char_body.controller == null:
+		return
+
+	var head_pos := _visuals.global_position + Vector3.UP * 1.6  # Approximate head height
+	var forward := -_visuals.global_basis.z
+	var default_look := head_pos + forward * 5.0  # Default: look 5m ahead
+
+	var goal := default_look
+
+	# Check if controller has a valid aim target (cursor hit something)
+	if char_body.controller.has_aim_target():
+		var cursor_pos := char_body.controller.get_aim_target()
+
+		# Check if cursor is behind the player (more than 90 degrees from forward)
+		var to_cursor := (cursor_pos - head_pos).normalized()
+		to_cursor.y = 0.0  # Ignore vertical component for angle check
+		if to_cursor.length_squared() > 0.001:
+			to_cursor = to_cursor.normalized()
+			var forward_flat := forward
+			forward_flat.y = 0.0
+			forward_flat = forward_flat.normalized()
+
+			var dot := forward_flat.dot(to_cursor)
+			if dot >= 0.0:  # Cursor is in front of player
+				goal = cursor_pos
+
+	# Initialize goal position if not set
+	if _head_target_goal == Vector3.ZERO:
+		_head_target_goal = goal
+
+	# Smoothly lerp toward goal (frame-rate independent)
+	var smooth_speed := 8.0
+	_head_target_goal = _head_target_goal.lerp(goal, 1.0 - exp(-smooth_speed * delta))
+	_head_target.global_position = _head_target_goal
+
+
 func _physics_process(delta: float) -> void:
 	if _skeleton == null:
 		return
@@ -621,6 +712,9 @@ func _physics_process(delta: float) -> void:
 	_space_state = _skeleton.get_world_3d().direct_space_state
 	if _space_state == null:
 		return
+
+	# Update head target to follow cursor (for LookAtModifier3D)
+	_update_head_target(delta)
 
 	var velocity := _visuals.get_velocity()
 	var horizontal_vel := Vector3(velocity.x, 0.0, velocity.z)
@@ -721,7 +815,16 @@ func _physics_process(delta: float) -> void:
 		# Drop more when legs are spread (quadratic for more natural feel)
 		var extension_drop := -spread_factor * spread_factor * step_height * 0.5
 
-		_update_hip(delta, hip_bob + extension_drop, move_dir)
+		# Hip rock: tilts toward stance leg (away from swing leg)
+		# sin(_phase) gives smooth oscillation synced to gait
+		var phase_sin := sin(_phase)
+		var hip_rock := Vector3(
+			phase_sin * hip_rock_x,
+			phase_sin * hip_rock_y,
+			phase_sin * hip_rock_z
+		)
+
+		_update_hip(delta, hip_bob + extension_drop, hip_rock, move_dir)
 
 		# Arm swing (counter-phase to legs)
 		_update_arm_swing(delta, speed, move_dir, true)
@@ -777,7 +880,15 @@ func _process_idle_or_turn(delta: float) -> void:
 		var right_drift := _horizontal_distance(_right_plant_pos, right_target_pos)
 		var threshold := stride_length * turn_drift_threshold
 
-		if left_drift > threshold or right_drift > threshold:
+		# Also check rotation angle - force step if body rotated too far from planted feet
+		var current_yaw := _visuals.global_rotation.y
+		var left_yaw_delta := absf(angle_difference(current_yaw, _left_plant_yaw))
+		var right_yaw_delta := absf(angle_difference(current_yaw, _right_plant_yaw))
+		var max_yaw_delta := maxf(left_yaw_delta, right_yaw_delta)
+		var angle_threshold := deg_to_rad(max_turn_angle)
+		var angle_exceeded := max_yaw_delta > angle_threshold
+
+		if left_drift > threshold or right_drift > threshold or angle_exceeded:
 			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift)
 		else:
 			# Feet stay planted at current world positions with stored yaw - NO swing pitch
@@ -1199,8 +1310,8 @@ func _clamp_plant_distance(plant_pos: Vector3, max_dist: float) -> Vector3:
 	return plant_pos
 
 
-## Update hip offset: base offset + sinusoidal bob + torso lag + forward lean.
-func _update_hip(delta: float, bob: float, move_dir: Vector3 = Vector3.ZERO) -> void:
+## Update hip offset: base offset + sinusoidal bob + torso lag + forward lean + hip rock.
+func _update_hip(delta: float, bob: float, rock: Vector3 = Vector3.ZERO, move_dir: Vector3 = Vector3.ZERO) -> void:
 	var target_offset := hip_offset + bob
 	var smooth_factor := 1.0 - exp(-hip_smooth_speed * delta)
 
@@ -1217,10 +1328,31 @@ func _update_hip(delta: float, bob: float, move_dir: Vector3 = Vector3.ZERO) -> 
 	var target_lean := deg_to_rad(forward_lean_angle) if move_dir.length_squared() > 0.01 else 0.0
 	_current_lean_angle = lerpf(_current_lean_angle, target_lean, smooth_factor)
 
+	# Hip rock: 3-axis rotation synced with gait (convert degrees to radians)
+	var target_rock := Vector3(
+		deg_to_rad(rock.x),
+		deg_to_rad(rock.y),
+		deg_to_rad(rock.z)
+	)
+	_current_hip_rock = _current_hip_rock.lerp(target_rock, smooth_factor)
+
 	# Apply position to visual root
 	_visuals.position.y = _current_hip_offset
 	_visuals.position.x = _current_hip_forward.x
 	_visuals.position.z = _current_hip_forward.z
+
+	# Apply hip rock to pelvis bone
+	if _skeleton and _pelvis_idx != -1:
+		var target_basis: Basis = _pelvis_rest_basis
+		if _current_hip_rock != Vector3.ZERO:
+			# Apply rotations on all 3 axes
+			var rock_rotation := Basis.from_euler(_current_hip_rock)
+			target_basis = _pelvis_rest_basis * rock_rotation
+
+		_current_pelvis_basis = _current_pelvis_basis.slerp(target_basis, smooth_factor)
+
+		var rest_pose := _skeleton.get_bone_rest(_pelvis_idx)
+		_skeleton.set_bone_pose(_pelvis_idx, Transform3D(_current_pelvis_basis, rest_pose.origin))
 
 	# Apply forward lean to spine_01 bone
 	if _skeleton and _spine_01_idx != -1:
