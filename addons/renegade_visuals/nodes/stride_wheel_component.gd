@@ -90,6 +90,12 @@ extends Node
 		influence_blend_speed = value
 		if config:
 			config.influence_blend_speed = value
+## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
+@export_range(5.0, 50.0) var foot_smooth_speed: float = 20.0:
+	set(value):
+		foot_smooth_speed = value
+		if config:
+			config.foot_smooth_speed = value
 
 @export_group("Turn In Place")
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far.
@@ -208,6 +214,14 @@ var _left_foot_rest_basis: Basis = Basis.IDENTITY
 var _right_foot_rest_basis: Basis = Basis.IDENTITY
 var _initial_char_yaw: float = 0.0  # Character yaw when rest basis was captured
 
+# Smoothed foot target state (lerped each frame to avoid snapping)
+var _left_current_pos: Vector3 = Vector3.ZERO
+var _right_current_pos: Vector3 = Vector3.ZERO
+var _left_current_basis: Basis = Basis.IDENTITY
+var _right_current_basis: Basis = Basis.IDENTITY
+var _left_foot_initialized: bool = false
+var _right_foot_initialized: bool = false
+
 
 
 ## Sync local @export properties from the config resource.
@@ -227,6 +241,7 @@ func _sync_from_config() -> void:
 	ground_layers = config.ground_layers
 	idle_threshold = config.idle_threshold
 	influence_blend_speed = config.influence_blend_speed
+	foot_smooth_speed = config.foot_smooth_speed
 	turn_drift_threshold = config.turn_drift_threshold
 	turn_step_speed = config.turn_step_speed
 	turn_step_height = config.turn_step_height
@@ -423,8 +438,8 @@ func _physics_process(delta: float) -> void:
 
 		# Apply positions to targets (during locomotion, feet follow character facing)
 		var current_yaw := _visuals.global_rotation.y
-		_apply_foot_target(_left_target, left_pos, current_yaw, _left_ground_normal, _left_foot_rest_basis)
-		_apply_foot_target(_right_target, right_pos, current_yaw, _right_ground_normal, _right_foot_rest_basis)
+		_apply_foot_target(_left_target, left_pos, current_yaw, _left_ground_normal, _left_foot_rest_basis, delta)
+		_apply_foot_target(_right_target, right_pos, current_yaw, _right_ground_normal, _right_foot_rest_basis, delta)
 		# Update planted yaw so it's current when we stop
 		_left_plant_yaw = current_yaw
 		_right_plant_yaw = current_yaw
@@ -460,8 +475,8 @@ func _process_idle_or_turn(delta: float) -> void:
 			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift)
 		else:
 			# Feet stay planted at current world positions with stored yaw
-			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
-			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
+			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, delta)
+			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, delta)
 			_update_hip(delta, 0.0)
 
 	# Reset phase so next move starts cleanly
@@ -557,8 +572,8 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 			_left_plant_yaw = final_yaw
 			_right_plant_yaw = final_yaw
 
-		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
-		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
+		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, delta)
+		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, delta)
 		_update_hip(delta, 0.0)
 		return
 
@@ -593,8 +608,8 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		left_pos.y += plant_dip
 		left_yaw = _left_plant_yaw
 
-	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis)
-	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis)
+	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis, delta)
+	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis, delta)
 
 	# Hip follows lowest foot
 	_update_hip(delta, 0.0)
@@ -731,19 +746,50 @@ func _apply_influence() -> void:
 		_right_ik.set("influence", _current_influence)
 
 
-## Position and rotate a foot target Marker3D.
+## Position and rotate a foot target Marker3D with smoothing.
 ## yaw: The Y rotation (facing direction) for the foot.
 ## ground_normal: The ground normal from raycast for slope adaptation.
 ## rest_basis: The foot bone's rest orientation (captured at setup).
-func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground_normal: Vector3, rest_basis: Basis) -> void:
+## delta: Frame delta for smoothing.
+func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground_normal: Vector3, rest_basis: Basis, delta: float) -> void:
 	if target == null:
 		return
 
 	# Build foot basis from rest pose + yaw delta + ground tilt
-	var foot_basis := _compute_foot_basis(yaw, ground_normal, rest_basis)
+	var target_basis := _compute_foot_basis(yaw, ground_normal, rest_basis)
 
-	target.global_position = world_pos
-	target.global_transform = Transform3D(foot_basis, world_pos)
+	# Determine which foot and get/set smoothed state
+	var is_left := target == _left_target
+	var smooth_factor := 1.0 - exp(-foot_smooth_speed * delta)
+
+	if is_left:
+		if not _left_foot_initialized:
+			_left_current_pos = world_pos
+			_left_current_basis = target_basis
+			_left_foot_initialized = true
+		else:
+			_left_current_pos = _left_current_pos.lerp(world_pos, smooth_factor)
+			_left_current_basis = _left_current_basis.slerp(target_basis, smooth_factor)
+	else:
+		if not _right_foot_initialized:
+			_right_current_pos = world_pos
+			_right_current_basis = target_basis
+			_right_foot_initialized = true
+		else:
+			_right_current_pos = _right_current_pos.lerp(world_pos, smooth_factor)
+			_right_current_basis = _right_current_basis.slerp(target_basis, smooth_factor)
+
+	# Apply smoothed values
+	var final_pos: Vector3
+	var final_basis: Basis
+	if is_left:
+		final_pos = _left_current_pos
+		final_basis = _left_current_basis
+	else:
+		final_pos = _right_current_pos
+		final_basis = _right_current_basis
+
+	target.global_transform = Transform3D(final_basis, final_pos)
 
 
 ## Compute foot basis from yaw delta and ground normal.

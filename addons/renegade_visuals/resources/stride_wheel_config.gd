@@ -33,6 +33,8 @@ extends Resource
 @export var idle_threshold: float = 0.1
 ## Speed at which IK influence blends in/out.
 @export_range(1.0, 20.0) var influence_blend_speed: float = 8.0
+## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
+@export_range(5.0, 50.0) var foot_smooth_speed: float = 20.0
 
 @export_group("Turn In Place")
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far from ideal position.
