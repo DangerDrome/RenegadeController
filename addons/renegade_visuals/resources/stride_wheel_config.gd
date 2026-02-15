@@ -8,7 +8,7 @@ extends Resource
 ## Maximum stride length at run speed.
 @export var max_stride_length: float = 1.8
 ## Speed considered "walking" (uses stride_length).
-@export var walk_speed: float = 1.5
+@export var walk_speed: float = 2.0
 ## Speed considered "running" (uses max_stride_length).
 @export var run_speed: float = 5.0
 ## Peak height of foot arc during swing phase.
@@ -17,18 +17,24 @@ extends Resource
 @export var foot_lateral_offset: float = 0.15
 ## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
 @export var foot_height: float = 0.08
+## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered stride.
+@export_range(0.3, 0.8) var plant_ahead_ratio: float = 0.5
+## Fraction of gait cycle spent in stance (foot planted). Lower = foot lifts earlier.
+@export_range(0.3, 0.6) var stance_ratio: float = 0.5
 
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
 @export var hip_bob_amount: float = 0.03
 ## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
 @export var hip_offset: float = -0.08
-## Torso lag during locomotion. Offsets torso BEHIND movement so feet appear to lead.
-@export_range(0.0, 0.5) var torso_lag: float = 0.25
+## Body offset along movement direction. Positive = body trails (feet lead), Negative = body leads.
+@export_range(-0.5, 0.5) var body_trail_distance: float = 0.25
 ## Forward lean angle (degrees) during locomotion. Tilts torso forward into movement.
 @export_range(-90.0, 90.0) var forward_lean_angle: float = 8.0
 ## Smoothing speed for hip offset changes.
 @export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0
+## Smoothing speed for spine lean rotation. Higher = snappier response.
+@export_range(1.0, 30.0) var spine_smooth_speed: float = 3.0
 
 @export_group("Ground Detection")
 ## How far above the foot to start the raycast.
@@ -57,6 +63,8 @@ extends Resource
 @export var turn_crouch_amount: float = 0.05
 ## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
 @export var stance_stagger: float = 0.0
+## Maximum leg reach as multiplier of stride length. Prevents over-stretching.
+@export_range(0.8, 2.0) var max_leg_reach: float = 1.2
 
 @export_group("Foot Rotation")
 ## How much the foot rotates to match ground normal (0-1).

@@ -23,13 +23,13 @@ const INPUT_THRESHOLD_SQ: float = 0.0001
 @export var equipment_manager: EquipmentManager
 
 @export_group("Movement")
-@export var move_speed: float = 8.0
+@export var move_speed: float = 3.0
 @export var acceleration: float = 25.0
 @export var deceleration: float = 30.0
 @export var rotation_speed: float = 10.0
 
 @export_group("Sprint")
-@export var sprint_multiplier: float = 1.6
+@export var sprint_multiplier: float = 2.0
 @export var sprint_action: String = "sprint"
 
 @export_group("Jump")
