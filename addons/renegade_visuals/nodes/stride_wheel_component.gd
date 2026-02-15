@@ -746,6 +746,12 @@ func _physics_process(delta: float) -> void:
 
 ## Handle idle state with turn-in-place detection and foot stepping.
 func _process_idle_or_turn(delta: float) -> void:
+	_prev_yaw = _visuals.global_rotation.y
+
+	# Calculate where feet SHOULD be based on current facing
+	var left_target_pos := _calculate_ideal_foot_position(-1.0)
+	var right_target_pos := _calculate_ideal_foot_position(1.0)
+
 	# If we just stopped moving, update plant positions to where feet currently are
 	# This prevents snapping back to old plant positions when stopping mid-swing
 	if _was_moving:
@@ -756,12 +762,11 @@ func _process_idle_or_turn(delta: float) -> void:
 		# Reset swing state
 		_left_swing_t = 0.0
 		_right_swing_t = 0.0
+		# Immediately check for criss-cross on stop - don't lock feet in crossed position
+		_clamp_feet_no_crossover(left_target_pos, right_target_pos)
 
-	_prev_yaw = _visuals.global_rotation.y
-
-	# Calculate where feet SHOULD be based on current facing
-	var left_target_pos := _calculate_ideal_foot_position(-1.0)
-	var right_target_pos := _calculate_ideal_foot_position(1.0)
+	# Prevent criss-cross: snap feet if they cross sides (every frame)
+	_clamp_feet_no_crossover(left_target_pos, right_target_pos)
 
 	# Process ongoing step
 	if _is_turning_in_place:
@@ -813,6 +818,50 @@ func _horizontal_distance(a: Vector3, b: Vector3) -> float:
 	return diff.length()
 
 
+## Prevent feet from crossing to the wrong side. Called every frame during idle/turn.
+## Snaps feet back to their targets if they've crossed to the opposite side.
+func _clamp_feet_no_crossover(left_target: Vector3, right_target: Vector3) -> void:
+	if _visuals.controller == null:
+		return
+
+	var char_right := _visuals.global_basis.x
+	var char_pos := _visuals.controller.global_position
+	var current_yaw := _visuals.global_rotation.y
+
+	# Check current plant positions
+	var left_offset := _left_plant_pos - char_pos
+	var right_offset := _right_plant_pos - char_pos
+	var left_lateral := left_offset.dot(char_right)   # Should be negative (left side)
+	var right_lateral := right_offset.dot(char_right) # Should be positive (right side)
+
+	# Minimum lateral distance from centerline (slightly inside normal stance)
+	var min_lateral := foot_lateral_offset * 0.3
+
+	# If left foot crossed to right side, snap it back
+	if left_lateral > -min_lateral:
+		_left_plant_pos = left_target
+		_left_plant_yaw = current_yaw
+		_raycast_ground(_left_plant_pos, true, true)
+
+	# If right foot crossed to left side, snap it back
+	if right_lateral < min_lateral:
+		_right_plant_pos = right_target
+		_right_plant_yaw = current_yaw
+		_raycast_ground(_right_plant_pos, true, false)
+
+	# Also check if feet are too close to each other (nearly overlapping)
+	var foot_dist := _horizontal_distance(_left_plant_pos, _right_plant_pos)
+	var min_foot_dist := foot_lateral_offset * 1.5  # At least 1.5x lateral offset apart
+	if foot_dist < min_foot_dist:
+		# Snap both feet to their targets
+		_left_plant_pos = left_target
+		_right_plant_pos = right_target
+		_left_plant_yaw = current_yaw
+		_right_plant_yaw = current_yaw
+		_raycast_ground(_left_plant_pos, true, true)
+		_raycast_ground(_right_plant_pos, true, false)
+
+
 ## Start a turn-in-place step.
 func _start_turn_step(left_target: Vector3, right_target: Vector3, left_drift: float, right_drift: float) -> void:
 	_is_turning_in_place = true
@@ -840,6 +889,81 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 	# Get current yaw for stepping foot target
 	var current_yaw := _visuals.global_rotation.y
 
+	# Priority check: if the OTHER foot is now drifting more, switch to it immediately
+	var left_drift := _horizontal_distance(_left_plant_pos, left_target)
+	var right_drift := _horizontal_distance(_right_plant_pos, right_target)
+	var stepping_drift := left_drift if _stepping_foot == 0 else right_drift
+	var other_drift := right_drift if _stepping_foot == 0 else left_drift
+
+	if other_drift > stepping_drift * 1.3 and _turn_step_progress < 0.7:
+		# Other foot is significantly more out of place - switch to it
+		if _stepping_foot == 0:
+			_left_plant_pos = _left_step_end
+			_left_plant_yaw = current_yaw
+		else:
+			_right_plant_pos = _right_step_end
+			_right_plant_yaw = current_yaw
+		_stepping_foot = 1 if _stepping_foot == 0 else 0
+		_turn_step_progress = 0.0
+		if _stepping_foot == 0:
+			_left_step_start = _left_plant_pos
+		else:
+			_right_step_start = _right_plant_pos
+
+	# Hard clamp: if legs are spread too far, snap the trailing foot immediately
+	var foot_spread := _horizontal_distance(_left_plant_pos, _right_plant_pos)
+	var max_spread := stride_length * max_leg_reach * 0.6  # Tighter limit for turn
+	if foot_spread > max_spread:
+		# Snap the non-stepping foot to its target immediately
+		if _stepping_foot == 0:
+			_right_plant_pos = right_target
+			_right_plant_yaw = current_yaw
+		else:
+			_left_plant_pos = left_target
+			_left_plant_yaw = current_yaw
+
+	# Prevent criss-cross: if feet cross sides, snap them back
+	var char_right := _visuals.global_basis.x
+	var char_pos := _visuals.controller.global_position if _visuals.controller else Vector3.ZERO
+	var left_offset := _left_plant_pos - char_pos
+	var right_offset := _right_plant_pos - char_pos
+	var left_lateral := left_offset.dot(char_right)   # Should be negative (left side)
+	var right_lateral := right_offset.dot(char_right) # Should be positive (right side)
+
+	# If left foot crossed to right side or right foot crossed to left side
+	if left_lateral > 0.02 or right_lateral < -0.02:
+		# Snap both feet to their targets immediately
+		_left_plant_pos = left_target
+		_right_plant_pos = right_target
+		_left_plant_yaw = current_yaw
+		_right_plant_yaw = current_yaw
+
+	# Check if other foot needs to catch up early (at 30% through first step)
+	if _turn_step_progress >= 0.3 and _turn_step_progress < 1.0:
+		var other_foot := 1 if _stepping_foot == 0 else 0
+		# Recompute drift (positions may have changed from snapping above)
+		left_drift = _horizontal_distance(_left_plant_pos, left_target)
+		right_drift = _horizontal_distance(_right_plant_pos, right_target)
+		other_drift = right_drift if other_foot == 1 else left_drift
+		var threshold := stride_length * turn_drift_threshold
+
+		# If other foot is drifting too far, switch to it now (aggressive - same threshold)
+		if other_drift > threshold:
+			# Complete current step early
+			if _stepping_foot == 0:
+				_left_plant_pos = _left_step_end
+				_left_plant_yaw = current_yaw
+			else:
+				_right_plant_pos = _right_step_end
+				_right_plant_yaw = current_yaw
+			# Start other foot
+			_stepping_foot = other_foot
+			_turn_step_progress = 0.0
+			if _stepping_foot == 0:
+				_left_step_start = _left_plant_pos
+			else:
+				_right_step_start = _right_plant_pos
+
 	if _turn_step_progress >= 1.0:
 		# First foot step complete — update plant position AND yaw
 		if _stepping_foot == 0:
@@ -854,12 +978,12 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 			_raycast_ground(_right_plant_pos, true, false)
 
 		# Check if other foot needs to step
-		var left_drift := _horizontal_distance(_left_plant_pos, left_target)
-		var right_drift := _horizontal_distance(_right_plant_pos, right_target)
+		left_drift = _horizontal_distance(_left_plant_pos, left_target)
+		right_drift = _horizontal_distance(_right_plant_pos, right_target)
 		var threshold := stride_length * turn_drift_threshold
 
 		var other_foot := 1 if _stepping_foot == 0 else 0
-		var other_drift := right_drift if other_foot == 1 else left_drift
+		other_drift = right_drift if other_foot == 1 else left_drift
 
 		if other_drift > threshold:
 			# Other foot needs to step

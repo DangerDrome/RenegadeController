@@ -56,7 +56,7 @@ extends Resource
 
 @export_group("Turn In Place")
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far from ideal position.
-@export_range(0.1, 0.6) var turn_drift_threshold: float = 0.2
+@export_range(0.1, 0.6) var turn_drift_threshold: float = 0.12
 ## Speed at which feet step to new positions during turn-in-place.
 @export_range(1.0, 20.0) var turn_step_speed: float = 8.0
 ## Arc height for step during turn-in-place.
