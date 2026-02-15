@@ -9,14 +9,14 @@ extends Resource
 @export var step_height: float = 0.15
 ## Lateral offset from character center for foot placement.
 @export var foot_lateral_offset: float = 0.15
+## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
+@export var foot_height: float = 0.08
 
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
 @export var hip_bob_amount: float = 0.03
-## Enable hip drop for ground following.
-@export var hip_drop_enabled: bool = true
-## Maximum distance the visual root can drop for ground following.
-@export var max_hip_drop: float = 0.3
+## Hip offset (negative = lower hips, causes knee bend).
+@export var hip_offset: float = 0.0
 ## Smoothing speed for hip offset changes.
 @export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0
 
@@ -41,6 +41,8 @@ extends Resource
 @export_range(1.0, 20.0) var turn_step_speed: float = 8.0
 ## Arc height for step during turn-in-place.
 @export var turn_step_height: float = 0.08
+## How much the hip lowers during turn-in-place (causes knee bend).
+@export var turn_crouch_amount: float = 0.05
 ## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
 @export var stance_stagger: float = 0.0
 

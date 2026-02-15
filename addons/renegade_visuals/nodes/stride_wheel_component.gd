@@ -30,6 +30,12 @@ extends Node
 		foot_lateral_offset = value
 		if config:
 			config.foot_lateral_offset = value
+## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
+@export var foot_height: float = 0.08:
+	set(value):
+		foot_height = value
+		if config:
+			config.foot_height = value
 
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
@@ -38,18 +44,12 @@ extends Node
 		hip_bob_amount = value
 		if config:
 			config.hip_bob_amount = value
-## Enable hip drop for ground following.
-@export var hip_drop_enabled: bool = true:
+## Hip offset (negative = lower hips, causes knee bend).
+@export var hip_offset: float = 0.0:
 	set(value):
-		hip_drop_enabled = value
+		hip_offset = value
 		if config:
-			config.hip_drop_enabled = value
-## Maximum distance the visual root can drop for ground following.
-@export var max_hip_drop: float = 0.3:
-	set(value):
-		max_hip_drop = value
-		if config:
-			config.max_hip_drop = value
+			config.hip_offset = value
 ## Smoothing speed for hip offset changes.
 @export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0:
 	set(value):
@@ -110,6 +110,12 @@ extends Node
 		turn_step_height = value
 		if config:
 			config.turn_step_height = value
+## How much the hip lowers during turn-in-place (causes knee bend).
+@export var turn_crouch_amount: float = 0.05:
+	set(value):
+		turn_crouch_amount = value
+		if config:
+			config.turn_crouch_amount = value
 ## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
 @export var stance_stagger: float = 0.0:
 	set(value):
@@ -212,9 +218,9 @@ func _sync_from_config() -> void:
 	stride_length = config.stride_length
 	step_height = config.step_height
 	foot_lateral_offset = config.foot_lateral_offset
+	foot_height = config.foot_height
 	hip_bob_amount = config.hip_bob_amount
-	hip_drop_enabled = config.hip_drop_enabled
-	max_hip_drop = config.max_hip_drop
+	hip_offset = config.hip_offset
 	hip_smooth_speed = config.hip_smooth_speed
 	ray_height = config.ray_height
 	ray_depth = config.ray_depth
@@ -224,6 +230,7 @@ func _sync_from_config() -> void:
 	turn_drift_threshold = config.turn_drift_threshold
 	turn_step_speed = config.turn_step_speed
 	turn_step_height = config.turn_step_height
+	turn_crouch_amount = config.turn_crouch_amount
 	stance_stagger = config.stance_stagger
 	foot_rotation_weight = config.foot_rotation_weight
 	max_foot_angle = config.max_foot_angle
@@ -424,7 +431,7 @@ func _physics_process(delta: float) -> void:
 
 		# Hip bob — peaks when legs cross (at 0.25 and 0.75 of each half-cycle)
 		var hip_bob: float = -absf(sin(_phase)) * hip_bob_amount
-		_update_hip(delta, left_pos.y, right_pos.y, hip_bob)
+		_update_hip(delta, hip_bob)
 	else:
 		# Idle — handle turn-in-place or rest
 		_process_idle_or_turn(delta)
@@ -455,7 +462,7 @@ func _process_idle_or_turn(delta: float) -> void:
 			# Feet stay planted at current world positions with stored yaw
 			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
 			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
-			_update_hip(delta, _left_plant_pos.y, _right_plant_pos.y, 0.0)
+			_update_hip(delta, 0.0)
 
 	# Reset phase so next move starts cleanly
 	_phase = 0.0
@@ -552,12 +559,14 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 
 		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
 		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
-		_update_hip(delta, _left_plant_pos.y, _right_plant_pos.y, 0.0)
+		_update_hip(delta, 0.0)
 		return
 
 	# Animate the stepping foot
 	var current_progress: float = _turn_step_progress
 	var arc_height: float = turn_step_height * sin(current_progress * PI)
+	# Weight shift: planted foot lowers slightly, bending that knee via IK
+	var plant_dip: float = -turn_crouch_amount * sin(current_progress * PI)
 	var target_yaw := _visuals.global_rotation.y
 
 	var left_pos: Vector3
@@ -570,23 +579,25 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		left_pos = _left_step_start.lerp(_left_step_end, current_progress)
 		left_pos.y += arc_height
 		left_yaw = lerp_angle(_left_plant_yaw, target_yaw, current_progress)
-		# Right stays planted
+		# Right stays planted — lower it to bend knee (weight shift)
 		right_pos = _right_plant_pos
+		right_pos.y += plant_dip
 		right_yaw = _right_plant_yaw
 	else:
 		# Right is stepping — interpolate toward target yaw
 		right_pos = _right_step_start.lerp(_right_step_end, current_progress)
 		right_pos.y += arc_height
 		right_yaw = lerp_angle(_right_plant_yaw, target_yaw, current_progress)
-		# Left stays planted
+		# Left stays planted — lower it to bend knee (weight shift)
 		left_pos = _left_plant_pos
+		left_pos.y += plant_dip
 		left_yaw = _left_plant_yaw
 
 	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis)
 	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis)
 
 	# Hip follows lowest foot
-	_update_hip(delta, left_pos.y, right_pos.y, 0.0)
+	_update_hip(delta, 0.0)
 
 
 ## Process one foot's position for the current cycle value.
@@ -657,7 +668,8 @@ func _raycast_ground(world_pos: Vector3) -> Vector3:
 	else:
 		_right_ground_normal = hit_normal
 
-	return result.position
+	# Raise hit position by foot_height so sole sits on ground (not ankle)
+	return result.position + Vector3.UP * foot_height
 
 
 ## Detect if a cycle value crossed a threshold (handles wrap-around).
@@ -685,16 +697,9 @@ func _clamp_plant_distance(plant_pos: Vector3, max_dist: float) -> Vector3:
 	return plant_pos
 
 
-## Update hip offset: ground-following drop + sinusoidal bob.
-func _update_hip(delta: float, left_y: float, right_y: float, bob: float) -> void:
-	var target_offset := bob
-
-	if hip_drop_enabled and _visuals.controller:
-		var char_y := _visuals.controller.global_position.y
-		var lowest_foot := minf(left_y, right_y)
-		var ground_drop := lowest_foot - char_y
-		ground_drop = clampf(ground_drop, -max_hip_drop, 0.0)
-		target_offset += ground_drop
+## Update hip offset: base offset + sinusoidal bob.
+func _update_hip(delta: float, bob: float) -> void:
+	var target_offset := hip_offset + bob
 
 	_current_hip_offset = lerpf(
 		_current_hip_offset, target_offset,
