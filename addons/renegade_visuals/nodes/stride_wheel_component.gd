@@ -5,7 +5,131 @@
 class_name StrideWheelComponent
 extends Node
 
-@export var config: StrideWheelConfig
+@export var config: StrideWheelConfig:
+	set(value):
+		config = value
+		if config:
+			_sync_from_config()
+
+@export_group("Stride")
+## Distance per step (half-cycle). Larger = longer strides.
+@export var stride_length: float = 0.7:
+	set(value):
+		stride_length = value
+		if config:
+			config.stride_length = value
+## Peak height of foot arc during swing phase.
+@export var step_height: float = 0.15:
+	set(value):
+		step_height = value
+		if config:
+			config.step_height = value
+## Lateral offset from character center for foot placement.
+@export var foot_lateral_offset: float = 0.15:
+	set(value):
+		foot_lateral_offset = value
+		if config:
+			config.foot_lateral_offset = value
+
+@export_group("Hip")
+## Vertical pelvis bob amplitude during walk cycle.
+@export var hip_bob_amount: float = 0.03:
+	set(value):
+		hip_bob_amount = value
+		if config:
+			config.hip_bob_amount = value
+## Enable hip drop for ground following.
+@export var hip_drop_enabled: bool = true:
+	set(value):
+		hip_drop_enabled = value
+		if config:
+			config.hip_drop_enabled = value
+## Maximum distance the visual root can drop for ground following.
+@export var max_hip_drop: float = 0.3:
+	set(value):
+		max_hip_drop = value
+		if config:
+			config.max_hip_drop = value
+## Smoothing speed for hip offset changes.
+@export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0:
+	set(value):
+		hip_smooth_speed = value
+		if config:
+			config.hip_smooth_speed = value
+
+@export_group("Ground Detection")
+## How far above the foot to start the raycast.
+@export var ray_height: float = 0.5:
+	set(value):
+		ray_height = value
+		if config:
+			config.ray_height = value
+## How far below the foot to cast the ray.
+@export var ray_depth: float = 1.0:
+	set(value):
+		ray_depth = value
+		if config:
+			config.ray_depth = value
+## Physics layers for ground detection.
+@export_flags_3d_physics var ground_layers: int = 1:
+	set(value):
+		ground_layers = value
+		if config:
+			config.ground_layers = value
+
+@export_group("Blending")
+## Speed below which the stride wheel is inactive.
+@export var idle_threshold: float = 0.1:
+	set(value):
+		idle_threshold = value
+		if config:
+			config.idle_threshold = value
+## Speed at which IK influence blends in/out.
+@export_range(1.0, 20.0) var influence_blend_speed: float = 8.0:
+	set(value):
+		influence_blend_speed = value
+		if config:
+			config.influence_blend_speed = value
+
+@export_group("Turn In Place")
+## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far.
+@export_range(0.1, 0.6) var turn_drift_threshold: float = 0.2:
+	set(value):
+		turn_drift_threshold = value
+		if config:
+			config.turn_drift_threshold = value
+## Speed at which feet step to new positions during turn-in-place.
+@export_range(1.0, 20.0) var turn_step_speed: float = 8.0:
+	set(value):
+		turn_step_speed = value
+		if config:
+			config.turn_step_speed = value
+## Arc height for step during turn-in-place.
+@export var turn_step_height: float = 0.08:
+	set(value):
+		turn_step_height = value
+		if config:
+			config.turn_step_height = value
+## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
+@export var stance_stagger: float = 0.0:
+	set(value):
+		stance_stagger = value
+		if config:
+			config.stance_stagger = value
+
+@export_group("Foot Rotation")
+## How much the foot rotates to match ground normal (0-1).
+@export_range(0.0, 1.0) var foot_rotation_weight: float = 0.8:
+	set(value):
+		foot_rotation_weight = value
+		if config:
+			config.foot_rotation_weight = value
+## Maximum foot rotation angle in degrees.
+@export_range(0.0, 60.0) var max_foot_angle: float = 35.0:
+	set(value):
+		max_foot_angle = value
+		if config:
+			config.max_foot_angle = value
 
 @export_group("IK Nodes")
 ## TwoBoneIK3D solver for the left leg.
@@ -36,9 +160,11 @@ var _right_foot_idx: int = -1
 # Phase accumulator — one full TAU = two steps (left + right)
 var _phase: float = 0.0
 
-# Per-foot state
+# Per-foot state (position locked in world space, yaw stored for planted rotation)
 var _left_plant_pos: Vector3 = Vector3.ZERO
 var _right_plant_pos: Vector3 = Vector3.ZERO
+var _left_plant_yaw: float = 0.0  # Stored Y rotation when foot planted
+var _right_plant_yaw: float = 0.0
 var _left_prev_cycle: float = 0.0   # Previous cycle value (0–1) for transition detection
 var _right_prev_cycle: float = 0.0
 var _left_ground_normal: Vector3 = Vector3.UP
@@ -57,6 +183,51 @@ var _space_state: PhysicsDirectSpaceState3D
 var _left_rest_pos: Vector3 = Vector3.ZERO
 var _right_rest_pos: Vector3 = Vector3.ZERO
 
+# Turn-in-place state
+var _prev_yaw: float = 0.0
+var _is_turning_in_place: bool = false
+var _turn_step_progress: float = 0.0  # 0–1 for step animation
+var _left_step_start: Vector3 = Vector3.ZERO
+var _left_step_end: Vector3 = Vector3.ZERO
+var _right_step_start: Vector3 = Vector3.ZERO
+var _right_step_end: Vector3 = Vector3.ZERO
+var _stepping_foot: int = 0  # 0 = left, 1 = right
+
+# Foot rotation modifiers (copy rotation from Marker3D targets to foot bones)
+var _left_foot_rot_modifier: CopyTransformModifier3D
+var _right_foot_rot_modifier: CopyTransformModifier3D
+
+# Foot bone rest orientation (captured at setup to preserve skeleton's foot direction)
+var _left_foot_rest_basis: Basis = Basis.IDENTITY
+var _right_foot_rest_basis: Basis = Basis.IDENTITY
+var _initial_char_yaw: float = 0.0  # Character yaw when rest basis was captured
+
+
+
+## Sync local @export properties from the config resource.
+func _sync_from_config() -> void:
+	if config == null:
+		return
+	# Use direct assignment to avoid setter triggering back
+	stride_length = config.stride_length
+	step_height = config.step_height
+	foot_lateral_offset = config.foot_lateral_offset
+	hip_bob_amount = config.hip_bob_amount
+	hip_drop_enabled = config.hip_drop_enabled
+	max_hip_drop = config.max_hip_drop
+	hip_smooth_speed = config.hip_smooth_speed
+	ray_height = config.ray_height
+	ray_depth = config.ray_depth
+	ground_layers = config.ground_layers
+	idle_threshold = config.idle_threshold
+	influence_blend_speed = config.influence_blend_speed
+	turn_drift_threshold = config.turn_drift_threshold
+	turn_step_speed = config.turn_step_speed
+	turn_step_height = config.turn_step_height
+	stance_stagger = config.stance_stagger
+	foot_rotation_weight = config.foot_rotation_weight
+	max_foot_angle = config.max_foot_angle
+
 
 func _ready() -> void:
 	_visuals = get_parent() as CharacterVisuals
@@ -66,6 +237,7 @@ func _ready() -> void:
 
 	if config == null:
 		config = StrideWheelConfig.new()
+	_sync_from_config()
 
 	_visuals.ready.connect(_setup, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 
@@ -103,11 +275,74 @@ func _setup() -> void:
 	if not right_foot_target.is_empty():
 		_right_target = get_node_or_null(right_foot_target) as Marker3D
 
+	# Capture foot bone rest orientations (before any IK modifies them)
+	# This preserves the skeleton's intended foot direction
+	_initial_char_yaw = _visuals.global_rotation.y
+	if _left_foot_idx != -1:
+		var left_bone_pose := _skeleton.get_bone_global_pose(_left_foot_idx)
+		_left_foot_rest_basis = (_skeleton.global_transform * Transform3D(left_bone_pose)).basis
+	if _right_foot_idx != -1:
+		var right_bone_pose := _skeleton.get_bone_global_pose(_right_foot_idx)
+		_right_foot_rest_basis = (_skeleton.global_transform * Transform3D(right_bone_pose)).basis
+
 	# Initialize plant positions at current foot locations
 	if _left_foot_idx != -1:
 		_left_plant_pos = _get_bone_world_position(_left_foot_idx)
 	if _right_foot_idx != -1:
 		_right_plant_pos = _get_bone_world_position(_right_foot_idx)
+
+	# Initialize plant yaw to current facing
+	var initial_yaw := _visuals.global_rotation.y
+	_left_plant_yaw = initial_yaw
+	_right_plant_yaw = initial_yaw
+
+	# Initialize yaw tracking for turn-in-place
+	_prev_yaw = initial_yaw
+
+	# Setup rotation modifiers to copy Marker3D rotation to foot bones
+	_setup_foot_rotation_modifiers(skel_config)
+
+
+## Create CopyTransformModifier3D nodes to copy rotation from Marker3D targets to foot bones.
+## TwoBoneIK3D only handles position; this handles rotation.
+func _setup_foot_rotation_modifiers(skel_config: SkeletonConfig) -> void:
+	if _skeleton == null:
+		return
+
+	# Create left foot rotation modifier
+	if _left_target and _left_foot_idx != -1:
+		_left_foot_rot_modifier = CopyTransformModifier3D.new()
+		_left_foot_rot_modifier.name = "StrideWheelLeftFootRotation"
+		_left_foot_rot_modifier.setting_count = 1
+		_left_foot_rot_modifier.set_apply_bone_name(0, skel_config.left_foot)
+		_left_foot_rot_modifier.set_reference_type(0, BoneConstraint3D.REFERENCE_TYPE_NODE)
+		_left_foot_rot_modifier.set_reference_node(0, _left_target.get_path())
+		# Copy rotation only, not position (TwoBoneIK3D handles that)
+		_left_foot_rot_modifier.set_copy_position(0, false)
+		_left_foot_rot_modifier.set_copy_rotation(0, true)
+		_left_foot_rot_modifier.set_copy_scale(0, false)
+		_left_foot_rot_modifier.set_axis_flags(0, CopyTransformModifier3D.AXIS_FLAG_ALL)
+		# Not additive - we want to SET the rotation, not add to it
+		_left_foot_rot_modifier.set_additive(0, false)
+		# Not relative - we want absolute world rotation
+		_left_foot_rot_modifier.set_relative(0, false)
+		_skeleton.add_child(_left_foot_rot_modifier)
+
+	# Create right foot rotation modifier
+	if _right_target and _right_foot_idx != -1:
+		_right_foot_rot_modifier = CopyTransformModifier3D.new()
+		_right_foot_rot_modifier.name = "StrideWheelRightFootRotation"
+		_right_foot_rot_modifier.setting_count = 1
+		_right_foot_rot_modifier.set_apply_bone_name(0, skel_config.right_foot)
+		_right_foot_rot_modifier.set_reference_type(0, BoneConstraint3D.REFERENCE_TYPE_NODE)
+		_right_foot_rot_modifier.set_reference_node(0, _right_target.get_path())
+		_right_foot_rot_modifier.set_copy_position(0, false)
+		_right_foot_rot_modifier.set_copy_rotation(0, true)
+		_right_foot_rot_modifier.set_copy_scale(0, false)
+		_right_foot_rot_modifier.set_axis_flags(0, CopyTransformModifier3D.AXIS_FLAG_ALL)
+		_right_foot_rot_modifier.set_additive(0, false)
+		_right_foot_rot_modifier.set_relative(0, false)
+		_skeleton.add_child(_right_foot_rot_modifier)
 
 
 func _physics_process(delta: float) -> void:
@@ -123,7 +358,7 @@ func _physics_process(delta: float) -> void:
 	var velocity := _visuals.get_velocity()
 	var horizontal_vel := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := horizontal_vel.length()
-	var is_moving: bool = speed > config.idle_threshold
+	var is_moving: bool = speed > idle_threshold
 	var move_dir: Vector3 = horizontal_vel.normalized() if is_moving else Vector3.ZERO
 
 	# Update influence
@@ -134,8 +369,14 @@ func _physics_process(delta: float) -> void:
 	_right_rest_pos = _get_bone_world_position(_right_foot_idx)
 
 	if is_moving:
+		# Reset turn-in-place state when starting to move
+		_is_turning_in_place = false
+
+		# Track yaw so _prev_yaw is up-to-date when we stop
+		_prev_yaw = _visuals.global_rotation.y
+
 		# Advance phase
-		_phase += (speed / config.stride_length) * PI * delta
+		_phase += (speed / stride_length) * PI * delta
 		_phase = fmod(_phase, TAU)
 
 		# Compute per-foot cycle values (0–1)
@@ -170,34 +411,182 @@ func _physics_process(delta: float) -> void:
 		_right_prev_cycle = right_cycle
 
 		# Safety: if planted foot drifted too far, force re-plant
-		_left_plant_pos = _clamp_plant_distance(_left_plant_pos, config.stride_length * 1.5)
-		_right_plant_pos = _clamp_plant_distance(_right_plant_pos, config.stride_length * 1.5)
+		_left_plant_pos = _clamp_plant_distance(_left_plant_pos, stride_length * 1.5)
+		_right_plant_pos = _clamp_plant_distance(_right_plant_pos, stride_length * 1.5)
 
-		# Apply positions to targets
-		_apply_foot_target(_left_target, left_pos, _left_ground_normal)
-		_apply_foot_target(_right_target, right_pos, _right_ground_normal)
+		# Apply positions to targets (during locomotion, feet follow character facing)
+		var current_yaw := _visuals.global_rotation.y
+		_apply_foot_target(_left_target, left_pos, current_yaw, _left_ground_normal, _left_foot_rest_basis)
+		_apply_foot_target(_right_target, right_pos, current_yaw, _right_ground_normal, _right_foot_rest_basis)
+		# Update planted yaw so it's current when we stop
+		_left_plant_yaw = current_yaw
+		_right_plant_yaw = current_yaw
 
 		# Hip bob — peaks when legs cross (at 0.25 and 0.75 of each half-cycle)
-		var hip_bob: float = -absf(sin(_phase)) * config.hip_bob_amount
+		var hip_bob: float = -absf(sin(_phase)) * hip_bob_amount
 		_update_hip(delta, left_pos.y, right_pos.y, hip_bob)
 	else:
-		# Idle — blend targets toward rest position on ground
-		var left_ground := _raycast_ground(_left_rest_pos)
-		var right_ground := _raycast_ground(_right_rest_pos)
-
-		_apply_foot_target(_left_target, left_ground, _left_ground_normal)
-		_apply_foot_target(_right_target, right_ground, _right_ground_normal)
-
-		_update_hip(delta, left_ground.y, right_ground.y, 0.0)
-
-		# Reset phase so next move starts cleanly
-		_phase = 0.0
-		_left_plant_pos = left_ground
-		_right_plant_pos = right_ground
-		_left_prev_cycle = 0.0
-		_right_prev_cycle = 0.5  # Right foot offset by half cycle
+		# Idle — handle turn-in-place or rest
+		_process_idle_or_turn(delta)
 
 	_apply_influence()
+
+
+## Handle idle state with turn-in-place detection and foot stepping.
+func _process_idle_or_turn(delta: float) -> void:
+	_prev_yaw = _visuals.global_rotation.y
+
+	# Calculate where feet SHOULD be based on current facing
+	var left_target_pos := _calculate_ideal_foot_position(-1.0)
+	var right_target_pos := _calculate_ideal_foot_position(1.0)
+
+	# Process ongoing step
+	if _is_turning_in_place:
+		_process_turn_step(delta, left_target_pos, right_target_pos)
+	else:
+		# Check if either foot has drifted too far from ideal position
+		var left_drift := _horizontal_distance(_left_plant_pos, left_target_pos)
+		var right_drift := _horizontal_distance(_right_plant_pos, right_target_pos)
+		var threshold := stride_length * turn_drift_threshold
+
+		if left_drift > threshold or right_drift > threshold:
+			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift)
+		else:
+			# Feet stay planted at current world positions with stored yaw
+			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
+			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
+			_update_hip(delta, _left_plant_pos.y, _right_plant_pos.y, 0.0)
+
+	# Reset phase so next move starts cleanly
+	_phase = 0.0
+	_left_prev_cycle = 0.0
+	_right_prev_cycle = 0.5
+
+
+## Calculate ideal foot position based on character position and facing.
+## side: -1.0 for left foot, +1.0 for right foot
+func _calculate_ideal_foot_position(side: float) -> Vector3:
+	if _visuals.controller == null:
+		return Vector3.ZERO
+
+	var char_pos := _visuals.controller.global_position
+	var facing := _visuals.global_basis
+
+	# Lateral offset perpendicular to facing direction
+	var lateral: Vector3 = facing.x * side * foot_lateral_offset
+
+	# Forward/back stagger: left foot forward, right foot back
+	var forward: Vector3 = -facing.z * side * stance_stagger
+
+	var target_pos: Vector3 = char_pos + lateral + forward
+	return _raycast_ground(target_pos)
+
+
+## Horizontal distance between two points (ignoring Y).
+func _horizontal_distance(a: Vector3, b: Vector3) -> float:
+	var diff := a - b
+	diff.y = 0.0
+	return diff.length()
+
+
+## Start a turn-in-place step.
+func _start_turn_step(left_target: Vector3, right_target: Vector3, left_drift: float, right_drift: float) -> void:
+	_is_turning_in_place = true
+	_turn_step_progress = 0.0
+
+	# Step the foot that's furthest from its target
+	_stepping_foot = 0 if left_drift >= right_drift else 1
+
+	# Set up step start/end positions
+	_left_step_start = _left_plant_pos
+	_left_step_end = left_target
+	_right_step_start = _right_plant_pos
+	_right_step_end = right_target
+
+
+## Process ongoing turn-in-place step animation.
+func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector3) -> void:
+	# Advance step progress
+	_turn_step_progress += turn_step_speed * delta
+
+	# Update targets in case character is still rotating
+	_left_step_end = left_target
+	_right_step_end = right_target
+
+	# Get current yaw for stepping foot target
+	var current_yaw := _visuals.global_rotation.y
+
+	if _turn_step_progress >= 1.0:
+		# First foot step complete — update plant position AND yaw
+		if _stepping_foot == 0:
+			_left_plant_pos = _left_step_end
+			_left_plant_yaw = current_yaw
+		else:
+			_right_plant_pos = _right_step_end
+			_right_plant_yaw = current_yaw
+
+		# Check if other foot needs to step
+		var left_drift := _horizontal_distance(_left_plant_pos, left_target)
+		var right_drift := _horizontal_distance(_right_plant_pos, right_target)
+		var threshold := stride_length * turn_drift_threshold
+
+		var other_foot := 1 if _stepping_foot == 0 else 0
+		var other_drift := right_drift if other_foot == 1 else left_drift
+
+		if other_drift > threshold:
+			# Other foot needs to step
+			_stepping_foot = other_foot
+			_turn_step_progress = 0.0
+			if _stepping_foot == 0:
+				_left_step_start = _left_plant_pos
+			else:
+				_right_step_start = _right_plant_pos
+		else:
+			# Turn complete - update planted yaw to current facing
+			_is_turning_in_place = false
+			_left_plant_pos = _left_step_end
+			_right_plant_pos = _right_step_end
+			var final_yaw := _visuals.global_rotation.y
+			_left_plant_yaw = final_yaw
+			_right_plant_yaw = final_yaw
+
+		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis)
+		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis)
+		_update_hip(delta, _left_plant_pos.y, _right_plant_pos.y, 0.0)
+		return
+
+	# Animate the stepping foot
+	var current_progress: float = _turn_step_progress
+	var arc_height: float = turn_step_height * sin(current_progress * PI)
+	var target_yaw := _visuals.global_rotation.y
+
+	var left_pos: Vector3
+	var right_pos: Vector3
+	var left_yaw: float
+	var right_yaw: float
+
+	if _stepping_foot == 0:
+		# Left is stepping — interpolate toward target yaw
+		left_pos = _left_step_start.lerp(_left_step_end, current_progress)
+		left_pos.y += arc_height
+		left_yaw = lerp_angle(_left_plant_yaw, target_yaw, current_progress)
+		# Right stays planted
+		right_pos = _right_plant_pos
+		right_yaw = _right_plant_yaw
+	else:
+		# Right is stepping — interpolate toward target yaw
+		right_pos = _right_step_start.lerp(_right_step_end, current_progress)
+		right_pos.y += arc_height
+		right_yaw = lerp_angle(_right_plant_yaw, target_yaw, current_progress)
+		# Left stays planted
+		left_pos = _left_plant_pos
+		left_yaw = _left_plant_yaw
+
+	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis)
+	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis)
+
+	# Hip follows lowest foot
+	_update_hip(delta, left_pos.y, right_pos.y, 0.0)
 
 
 ## Process one foot's position for the current cycle value.
@@ -216,7 +605,7 @@ func _process_foot(
 		var ground_pos := plant_pos.lerp(next_plant, swing_t)
 
 		# Arc height
-		var arc_height: float = config.step_height * sin(swing_t * PI)
+		var arc_height: float = step_height * sin(swing_t * PI)
 		ground_pos.y += arc_height
 
 		return ground_pos
@@ -230,13 +619,13 @@ func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Ve
 	var char_pos := _visuals.controller.global_position
 
 	# Forward offset based on stride
-	var forward_offset: Vector3 = move_dir * config.stride_length * 0.5
+	var forward_offset: Vector3 = move_dir * stride_length * 0.5
 
 	# Lateral offset perpendicular to movement direction
-	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * config.foot_lateral_offset
+	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * foot_lateral_offset
 	if lateral.is_zero_approx():
 		# Fallback: use character's right vector
-		lateral = _visuals.controller.global_basis.x * side * config.foot_lateral_offset
+		lateral = _visuals.controller.global_basis.x * side * foot_lateral_offset
 
 	var predicted: Vector3 = char_pos + forward_offset + lateral
 
@@ -249,11 +638,11 @@ func _raycast_ground(world_pos: Vector3) -> Vector3:
 	if _space_state == null:
 		return world_pos
 
-	var origin: Vector3 = world_pos + Vector3.UP * config.ray_height
-	var end: Vector3 = world_pos + Vector3.DOWN * config.ray_depth
+	var origin: Vector3 = world_pos + Vector3.UP * ray_height
+	var end: Vector3 = world_pos + Vector3.DOWN * ray_depth
 
 	var query := PhysicsRayQueryParameters3D.create(origin, end)
-	query.collision_mask = config.ground_layers
+	query.collision_mask = ground_layers
 	if _visuals.controller:
 		query.exclude = [_visuals.controller.get_rid()]
 
@@ -300,16 +689,16 @@ func _clamp_plant_distance(plant_pos: Vector3, max_dist: float) -> Vector3:
 func _update_hip(delta: float, left_y: float, right_y: float, bob: float) -> void:
 	var target_offset := bob
 
-	if config.hip_drop_enabled and _visuals.controller:
+	if hip_drop_enabled and _visuals.controller:
 		var char_y := _visuals.controller.global_position.y
 		var lowest_foot := minf(left_y, right_y)
 		var ground_drop := lowest_foot - char_y
-		ground_drop = clampf(ground_drop, -config.max_hip_drop, 0.0)
+		ground_drop = clampf(ground_drop, -max_hip_drop, 0.0)
 		target_offset += ground_drop
 
 	_current_hip_offset = lerpf(
 		_current_hip_offset, target_offset,
-		1.0 - exp(-config.hip_smooth_speed * delta)
+		1.0 - exp(-hip_smooth_speed * delta)
 	)
 
 	# Apply to visual root Y — NOT pelvis bone (avoids bone-space drift)
@@ -317,16 +706,15 @@ func _update_hip(delta: float, left_y: float, right_y: float, bob: float) -> voi
 
 
 ## Blend IK influence up when moving, down at idle.
-func _update_influence(delta: float, is_moving: bool) -> void:
+func _update_influence(delta: float, _is_moving: bool) -> void:
 	var grounded := _visuals.is_grounded()
-	var target: float = 1.0 if (is_moving and grounded) else 0.0
-
-	if not grounded:
-		target = 0.0
+	# For procedural stride wheel, IK should be active whenever grounded
+	# (feet need to stay planted whether moving, idle, or turning)
+	var target: float = 1.0 if grounded else 0.0
 
 	_current_influence = lerpf(
 		_current_influence, target,
-		1.0 - exp(-config.influence_blend_speed * delta)
+		1.0 - exp(-influence_blend_speed * delta)
 	)
 
 
@@ -339,28 +727,42 @@ func _apply_influence() -> void:
 
 
 ## Position and rotate a foot target Marker3D.
-func _apply_foot_target(target: Marker3D, world_pos: Vector3, ground_normal: Vector3) -> void:
+## yaw: The Y rotation (facing direction) for the foot.
+## ground_normal: The ground normal from raycast for slope adaptation.
+## rest_basis: The foot bone's rest orientation (captured at setup).
+func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground_normal: Vector3, rest_basis: Basis) -> void:
 	if target == null:
 		return
 
+	# Build foot basis from rest pose + yaw delta + ground tilt
+	var foot_basis := _compute_foot_basis(yaw, ground_normal, rest_basis)
+
 	target.global_position = world_pos
-	target.basis = _compute_foot_rotation(ground_normal)
+	target.global_transform = Transform3D(foot_basis, world_pos)
 
 
-## Construct a basis aligned to the ground normal for foot rotation.
-func _compute_foot_rotation(ground_normal: Vector3) -> Basis:
-	if ground_normal.is_equal_approx(Vector3.UP):
-		return Basis.IDENTITY
+## Compute foot basis from yaw delta and ground normal.
+## Preserves the foot bone's rest orientation while rotating to face the target yaw.
+func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis) -> Basis:
+	# Compute how much we need to rotate from the initial character yaw
+	var delta_yaw := yaw - _initial_char_yaw
 
-	var angle := Vector3.UP.angle_to(ground_normal)
-	angle = clampf(angle, 0.0, deg_to_rad(config.max_foot_angle))
-	angle *= config.foot_rotation_weight
+	# Rotate the rest basis around Y by the delta
+	var yaw_rotation := Basis(Vector3.UP, delta_yaw)
+	var result := yaw_rotation * rest_basis
 
-	var axis := Vector3.UP.cross(ground_normal).normalized()
-	if axis.is_zero_approx():
-		return Basis.IDENTITY
+	# Apply ground normal tilt if not flat
+	if not ground_normal.is_equal_approx(Vector3.UP):
+		var angle := Vector3.UP.angle_to(ground_normal)
+		angle = clampf(angle, 0.0, deg_to_rad(max_foot_angle))
+		angle *= foot_rotation_weight
 
-	return Basis(axis, angle)
+		var tilt_axis := Vector3.UP.cross(ground_normal).normalized()
+		if not tilt_axis.is_zero_approx():
+			var tilt_basis := Basis(tilt_axis, angle)
+			result = tilt_basis * result
+
+	return result
 
 
 ## Get a bone's position in world space.
