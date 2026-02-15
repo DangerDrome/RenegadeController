@@ -228,6 +228,12 @@ extends Node
 @export var right_hand_target: NodePath
 ## Forward/back swing amplitude (meters). Arms swing opposite to legs.
 @export_range(0.0, 1.5) var arm_swing_amount: float = 0.15
+## Forward offset added to arm swing - shifts arms forward during movement (meters).
+@export_range(0.0, 0.5) var arm_forward_bias: float = 0.15
+## Arm swing speed relative to legs. 1.0 = synced with legs, 0.5 = half speed.
+@export_range(0.1, 2.0) var arm_swing_speed: float = 1.0
+## Arm looseness/lag. Lower = stiffer, higher = looser with more follow-through.
+@export_range(1.0, 20.0) var arm_smoothing: float = 8.0
 ## Vertical lift at swing extremes (meters). Creates natural arc.
 @export_range(0.0, 0.5) var arm_swing_lift: float = 0.03
 ## Arm influence ramps with this speed (same as foot influence).
@@ -284,6 +290,18 @@ var _right_upperarm_idx: int = -1
 # Arm lengths (calculated at setup)
 var _left_arm_length: float = 0.0
 var _right_arm_length: float = 0.0
+
+# Arm swing randomness (regenerated periodically)
+var _left_arm_phase_offset: float = 0.0
+var _right_arm_phase_offset: float = 0.0
+var _left_arm_amp_scale: float = 1.0
+var _right_arm_amp_scale: float = 1.0
+var _arm_random_timer: float = 0.0
+
+# Smoothed arm positions (for loose/laggy feel)
+var _left_hand_current: Vector3 = Vector3.ZERO
+var _right_hand_current: Vector3 = Vector3.ZERO
+var _arms_initialized: bool = false
 # Phase accumulator — one full TAU = two steps (left + right)
 var _phase: float = 0.0
 
@@ -1069,6 +1087,14 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 	if _left_hand == null and _right_hand == null:
 		return
 
+	# Initialize smoothed positions on first run
+	if not _arms_initialized:
+		if _left_hand:
+			_left_hand_current = _left_hand.position
+		if _right_hand:
+			_right_hand_current = _right_hand.position
+		_arms_initialized = true
+
 	# Update swing influence (blends swing in/out, not the drop)
 	var target_influence := 1.0 if is_moving else 0.0
 	_arm_influence = lerpf(_arm_influence, target_influence, 1.0 - exp(-arm_influence_speed * delta))
@@ -1077,11 +1103,18 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 	var speed_factor := clampf(speed / run_speed, 0.3, 1.0) if is_moving else 0.0
 	var swing_amp := arm_swing_amount * speed_factor
 
-	# Arms swing counter-phase to legs:
-	# Left arm forward when right leg forward (right leg = _phase)
-	# Right arm forward when left leg forward (left leg = _phase + PI)
-	var left_arm_phase := _phase  # Same as right leg
-	var right_arm_phase := _phase + PI  # Same as left leg
+	# Subtle arm randomness (updated every ~0.5 seconds)
+	_arm_random_timer += delta
+	if _arm_random_timer > 0.5:
+		_arm_random_timer = 0.0
+		_left_arm_phase_offset = randf_range(-0.15, 0.15)
+		_right_arm_phase_offset = randf_range(-0.15, 0.15)
+		_left_arm_amp_scale = randf_range(0.9, 1.1)
+		_right_arm_amp_scale = randf_range(0.9, 1.1)
+
+	# Arms swing counter-phase to legs (with speed multiplier and random offsets)
+	var left_arm_phase := _phase * arm_swing_speed + _left_arm_phase_offset
+	var right_arm_phase := (_phase + PI) * arm_swing_speed + _right_arm_phase_offset
 
 	# Calculate swing offset in movement direction
 	var forward := move_dir if move_dir.length_squared() > 0.01 else -_visuals.global_transform.basis.z
@@ -1096,9 +1129,10 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
 			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
 
-			# Swing offset (only when moving)
-			var swing := sin(left_arm_phase) * swing_amp
-			var lift := absf(sin(left_arm_phase)) * arm_swing_lift
+			# Swing offset (only when moving, with random amplitude)
+			# Add forward bias to shift arms forward during movement
+			var swing := sin(left_arm_phase) * swing_amp * _left_arm_amp_scale + arm_forward_bias
+			var lift := absf(sin(left_arm_phase)) * arm_swing_lift * _left_arm_amp_scale
 			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
 			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
 
@@ -1115,7 +1149,9 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 					hand_world = shoulder_world + to_hand.normalized() * max_reach
 					target_pos = (parent.global_transform.inverse() * Transform3D(Basis.IDENTITY, hand_world)).origin
 
-			_left_hand.position = target_pos
+			# Smooth toward target for loose feel
+			_left_hand_current = _left_hand_current.lerp(target_pos, 1.0 - exp(-arm_smoothing * delta))
+			_left_hand.position = _left_hand_current
 
 	# Right arm
 	if _right_hand:
@@ -1125,9 +1161,10 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
 			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
 
-			# Swing offset (only when moving)
-			var swing := sin(right_arm_phase) * swing_amp
-			var lift := absf(sin(right_arm_phase)) * arm_swing_lift
+			# Swing offset (only when moving, with random amplitude)
+			# Add forward bias to shift arms forward during movement
+			var swing := sin(right_arm_phase) * swing_amp * _right_arm_amp_scale + arm_forward_bias
+			var lift := absf(sin(right_arm_phase)) * arm_swing_lift * _right_arm_amp_scale
 			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
 			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
 
@@ -1144,7 +1181,9 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 					hand_world = shoulder_world + to_hand.normalized() * max_reach
 					target_pos = (parent.global_transform.inverse() * Transform3D(Basis.IDENTITY, hand_world)).origin
 
-			_right_hand.position = target_pos
+			# Smooth toward target for loose feel
+			_right_hand_current = _right_hand_current.lerp(target_pos, 1.0 - exp(-arm_smoothing * delta))
+			_right_hand.position = _right_hand_current
 
 
 ## Blend IK influence up when moving, down at idle.
