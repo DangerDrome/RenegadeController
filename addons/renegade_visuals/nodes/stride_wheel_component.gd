@@ -196,6 +196,8 @@ extends Node
 @export var debug_show_char_pos: bool = true
 ## Show movement direction (magenta arrow).
 @export var debug_show_move_dir: bool = true
+## Show stride wheel circles and phase indicators.
+@export var debug_show_stride_wheel: bool = true
 ## Size of debug spheres.
 @export var debug_sphere_size: float = 0.05
 
@@ -281,6 +283,16 @@ var _debug_char_pos: MeshInstance3D
 var _debug_move_dir: MeshInstance3D
 var _debug_left_target: MeshInstance3D
 var _debug_right_target: MeshInstance3D
+var _debug_left_wheel: MeshInstance3D
+var _debug_right_wheel: MeshInstance3D
+var _debug_left_phase: MeshInstance3D
+var _debug_right_phase: MeshInstance3D
+var _debug_left_markers: Array[MeshInstance3D] = []
+var _debug_right_markers: Array[MeshInstance3D] = []
+var _debug_left_spokes: Array[MeshInstance3D] = []
+var _debug_right_spokes: Array[MeshInstance3D] = []
+var _debug_overhead_left_label: Label3D
+var _debug_overhead_right_label: Label3D
 
 # Cache for debug - store last predicted positions
 var _debug_left_predicted_pos: Vector3 = Vector3.ZERO
@@ -1034,6 +1046,85 @@ func _setup_debug() -> void:
 	_debug_move_dir = _create_debug_sphere(Color.MAGENTA, "DIR")
 	_debug_move_dir.name = "MoveDir"
 
+	# Stride wheels - torus showing the wheel path
+	_debug_left_wheel = _create_debug_wheel(Color.GREEN)
+	_debug_left_wheel.name = "LeftWheel"
+	_debug_right_wheel = _create_debug_wheel(Color.BLUE)
+	_debug_right_wheel.name = "RightWheel"
+
+	# Clock position markers (12, 3, 6, 9 o'clock)
+	var marker_labels := ["12", "3", "6", "9"]
+	_debug_left_markers.clear()
+	_debug_right_markers.clear()
+	for i in range(4):
+		var left_marker := _create_debug_sphere(Color.GREEN_YELLOW, marker_labels[i])
+		left_marker.name = "LeftMarker" + str(i)
+		_debug_left_markers.append(left_marker)
+		var right_marker := _create_debug_sphere(Color.DODGER_BLUE, marker_labels[i])
+		right_marker.name = "RightMarker" + str(i)
+		_debug_right_markers.append(right_marker)
+
+	# Spokes on each wheel (4 spokes for visibility)
+	_debug_left_spokes.clear()
+	_debug_right_spokes.clear()
+	for i in range(4):
+		var left_spoke := _create_debug_spoke(Color.GREEN)
+		left_spoke.name = "LeftSpoke" + str(i)
+		_debug_left_spokes.append(left_spoke)
+		var right_spoke := _create_debug_spoke(Color.BLUE)
+		right_spoke.name = "RightSpoke" + str(i)
+		_debug_right_spokes.append(right_spoke)
+
+	# Phase indicators - small spheres showing current position on wheel (no label)
+	_debug_left_phase = _create_debug_sphere(Color.GREEN, "")
+	_debug_left_phase.name = "LeftPhase"
+	_debug_right_phase = _create_debug_sphere(Color.BLUE, "")
+	_debug_right_phase.name = "RightPhase"
+
+	# Overhead labels above player's head
+	_debug_overhead_left_label = _create_overhead_label(Color.GREEN)
+	_debug_overhead_left_label.name = "OverheadLeftLabel"
+	_debug_overhead_right_label = _create_overhead_label(Color.CYAN)
+	_debug_overhead_right_label.name = "OverheadRightLabel"
+
+
+## Create a debug cog tooth (box pointing outward).
+func _create_debug_spoke(color: Color) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.02, 0.15, 0.01)  # Longer rectangular spike
+	mesh_instance.mesh = box
+
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh_instance.material_override = material
+
+	_debug_container.add_child(mesh_instance)
+	return mesh_instance
+
+
+## Create a debug wheel (torus) mesh.
+func _create_debug_wheel(color: Color) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = stride_length * 0.48
+	torus.outer_radius = stride_length * 0.52
+	torus.rings = 32
+	torus.ring_segments = 8
+	mesh_instance.mesh = torus
+
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.albedo_color.a = 0.3
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh_instance.material_override = material
+
+	_debug_container.add_child(mesh_instance)
+	return mesh_instance
+
 
 ## Create a debug sphere mesh with a label.
 func _create_debug_sphere(color: Color, label_text: String) -> MeshInstance3D:
@@ -1065,6 +1156,21 @@ func _create_debug_sphere(color: Color, label_text: String) -> MeshInstance3D:
 
 	_debug_container.add_child(mesh_instance)
 	return mesh_instance
+
+
+## Create an overhead label for displaying phase info above the player.
+func _create_overhead_label(color: Color) -> Label3D:
+	var label := Label3D.new()
+	label.text = ""
+	label.font_size = 24
+	label.pixel_size = 0.002
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.modulate = color
+	label.outline_size = 6
+	label.outline_modulate = Color.BLACK
+	_debug_container.add_child(label)
+	return label
 
 
 ## Update debug visualization positions.
@@ -1134,6 +1240,155 @@ func _update_debug(char_pos: Vector3, move_dir: Vector3) -> void:
 	else:
 		_debug_right_target.visible = false
 
+	# Stride wheels and phase indicators
+	if debug_show_stride_wheel and _debug_left_wheel and _debug_right_wheel:
+		var wheel_radius := stride_length * 0.5
+		var wheel_height := step_height
+
+		# Position wheels at hip height, offset laterally
+		var hip_pos := char_pos + Vector3.UP * 0.5  # Approximate hip height
+		var facing := _visuals.global_basis if _visuals else Basis.IDENTITY
+		# Push wheels further out to the sides for visibility
+		var wheel_lateral := foot_lateral_offset + 0.4
+		var left_offset := -facing.x * wheel_lateral
+		var right_offset := facing.x * wheel_lateral
+
+		# Determine wheel orientation basis
+		var wheel_basis: Basis
+		if move_dir.length_squared() > 0.01:
+			wheel_basis = Basis.looking_at(move_dir, Vector3.UP)
+		else:
+			wheel_basis = facing
+
+		# Left wheel - vertical plane (standing upright like a rolling wheel)
+		# Torus default is XZ plane (flat). Rotate around Z to stand vertical, facing movement.
+		_debug_left_wheel.visible = true
+		_debug_left_wheel.global_position = hip_pos + left_offset
+		_debug_left_wheel.global_basis = wheel_basis * Basis(Vector3.FORWARD, PI * 0.5)
+
+		# Right wheel
+		_debug_right_wheel.visible = true
+		_debug_right_wheel.global_position = hip_pos + right_offset
+		_debug_right_wheel.global_basis = wheel_basis * Basis(Vector3.FORWARD, PI * 0.5)
+
+		# Update wheel sizes based on current stride
+		if _debug_left_wheel.mesh is TorusMesh:
+			var torus := _debug_left_wheel.mesh as TorusMesh
+			torus.inner_radius = wheel_radius * 0.96
+			torus.outer_radius = wheel_radius * 1.04
+		if _debug_right_wheel.mesh is TorusMesh:
+			var torus := _debug_right_wheel.mesh as TorusMesh
+			torus.inner_radius = wheel_radius * 0.96
+			torus.outer_radius = wheel_radius * 1.04
+
+		# Clock position markers at 12, 3, 6, 9 o'clock
+		# In wheel space: 12=top, 3=front, 6=bottom, 9=back
+		var clock_angles: Array[float] = [0.0, PI * 0.5, PI, PI * 1.5]  # 12, 3, 6, 9
+		for i in range(4):
+			var angle: float = clock_angles[i]
+			# Y = height (cos), Z = forward/back (sin) so 12 o'clock = top
+			var marker_local := Vector3(0, cos(angle) * wheel_radius, sin(angle) * wheel_radius)
+
+			if i < _debug_left_markers.size():
+				_debug_left_markers[i].visible = true
+				_debug_left_markers[i].global_position = hip_pos + left_offset + wheel_basis * marker_local
+				_update_sphere_size(_debug_left_markers[i], debug_sphere_size * 0.6)
+
+			if i < _debug_right_markers.size():
+				_debug_right_markers[i].visible = true
+				_debug_right_markers[i].global_position = hip_pos + right_offset + wheel_basis * marker_local
+				_update_sphere_size(_debug_right_markers[i], debug_sphere_size * 0.6)
+
+		# Phase indicators - position on wheel circumference
+		var left_cycle := fmod(_phase / TAU, 1.0)
+		var right_cycle := fmod((_phase + PI) / TAU, 1.0)
+
+		# Convert cycle to wheel angle:
+		# Invert cycle so wheel rolls forward visually
+		var left_angle := (1.0 - left_cycle) * TAU
+		var right_angle := (1.0 - right_cycle) * TAU
+
+		# Calculate position on wheel (Y = height via cos, Z = forward/back via sin)
+		var left_phase_local := Vector3(0, cos(left_angle) * wheel_radius, sin(left_angle) * wheel_radius)
+		var right_phase_local := Vector3(0, cos(right_angle) * wheel_radius, sin(right_angle) * wheel_radius)
+
+		_debug_left_phase.visible = true
+		_debug_right_phase.visible = true
+		_update_sphere_size(_debug_left_phase, debug_sphere_size * 0.8)
+		_update_sphere_size(_debug_right_phase, debug_sphere_size * 0.8)
+
+		_debug_left_phase.global_position = hip_pos + left_offset + wheel_basis * left_phase_local
+		_debug_right_phase.global_position = hip_pos + right_offset + wheel_basis * right_phase_local
+
+		# Update overhead labels with percentage and state
+		var left_pct := int(left_cycle * 100)
+		var right_pct := int(right_cycle * 100)
+		var left_state := "SWING" if left_cycle >= 0.5 else "STANCE"
+		var right_state := "SWING" if right_cycle >= 0.5 else "STANCE"
+
+		# Position overhead labels above player's head
+		var head_pos := char_pos + Vector3.UP * 2.2
+		if _debug_overhead_left_label:
+			_debug_overhead_left_label.visible = true
+			_debug_overhead_left_label.global_position = head_pos
+			_debug_overhead_left_label.text = "L %d%% %s" % [left_pct, left_state]
+		if _debug_overhead_right_label:
+			_debug_overhead_right_label.visible = true
+			_debug_overhead_right_label.global_position = head_pos + Vector3.DOWN * 0.12
+			_debug_overhead_right_label.text = "R %d%% %s" % [right_pct, right_state]
+
+		# Position cog teeth on wheel rim, rotating with phase
+		var tooth_count := _debug_left_spokes.size()
+		for i in range(tooth_count):
+			var tooth_base_angle: float = (float(i) / float(tooth_count)) * TAU
+			# Add phase offset so teeth rotate with the gait cycle
+			var left_tooth_angle: float = tooth_base_angle + left_angle
+			var right_tooth_angle: float = tooth_base_angle + right_angle
+
+			# Position on the wheel rim (cos for Y, sin for Z so 0 angle = top)
+			var left_tooth_pos := Vector3(0, cos(left_tooth_angle) * wheel_radius, sin(left_tooth_angle) * wheel_radius)
+			var right_tooth_pos := Vector3(0, cos(right_tooth_angle) * wheel_radius, sin(right_tooth_angle) * wheel_radius)
+
+			if i < _debug_left_spokes.size():
+				_debug_left_spokes[i].visible = true
+				var left_rim_pos: Vector3 = hip_pos + left_offset + wheel_basis * left_tooth_pos
+				var left_center: Vector3 = hip_pos + left_offset
+				var left_outward: Vector3 = (left_rim_pos - left_center).normalized()
+				# Offset by half spike height so base sits on rim
+				var left_world_pos: Vector3 = left_rim_pos + left_outward * 0.075
+				_debug_left_spokes[i].global_position = left_world_pos
+				_debug_left_spokes[i].global_basis = _basis_from_y(left_outward)
+
+			if i < _debug_right_spokes.size():
+				_debug_right_spokes[i].visible = true
+				var right_rim_pos: Vector3 = hip_pos + right_offset + wheel_basis * right_tooth_pos
+				var right_center: Vector3 = hip_pos + right_offset
+				var right_outward: Vector3 = (right_rim_pos - right_center).normalized()
+				var right_world_pos: Vector3 = right_rim_pos + right_outward * 0.075
+				_debug_right_spokes[i].global_position = right_world_pos
+				_debug_right_spokes[i].global_basis = _basis_from_y(right_outward)
+	else:
+		if _debug_left_wheel:
+			_debug_left_wheel.visible = false
+		if _debug_right_wheel:
+			_debug_right_wheel.visible = false
+		if _debug_left_phase:
+			_debug_left_phase.visible = false
+		if _debug_right_phase:
+			_debug_right_phase.visible = false
+		for marker in _debug_left_markers:
+			marker.visible = false
+		for marker in _debug_right_markers:
+			marker.visible = false
+		for spoke in _debug_left_spokes:
+			spoke.visible = false
+		for spoke in _debug_right_spokes:
+			spoke.visible = false
+		if _debug_overhead_left_label:
+			_debug_overhead_left_label.visible = false
+		if _debug_overhead_right_label:
+			_debug_overhead_right_label.visible = false
+
 
 ## Update a sphere mesh size.
 func _update_sphere_size(mesh_instance: MeshInstance3D, size: float) -> void:
@@ -1141,6 +1396,26 @@ func _update_sphere_size(mesh_instance: MeshInstance3D, size: float) -> void:
 		var sphere := mesh_instance.mesh as SphereMesh
 		sphere.radius = size
 		sphere.height = size * 2.0
+
+
+## Update label text on a debug sphere.
+func _update_debug_label(mesh_instance: MeshInstance3D, text: String) -> void:
+	if mesh_instance == null:
+		return
+	for child in mesh_instance.get_children():
+		if child is Label3D:
+			child.text = text
+			return
+
+
+## Create a basis with Y axis pointing in the given direction.
+func _basis_from_y(y_dir: Vector3) -> Basis:
+	var up := y_dir.normalized()
+	var right := up.cross(Vector3.FORWARD).normalized()
+	if right.is_zero_approx():
+		right = up.cross(Vector3.RIGHT).normalized()
+	var forward := right.cross(up).normalized()
+	return Basis(right, up, forward)
 
 
 ## Cleanup debug meshes.

@@ -48,7 +48,9 @@
       "mcp__serena__find_file",
       "mcp__filesystem__edit_file",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:blog.littlepolygon.com)",
+      "WebFetch(domain:dev.epicgames.com)"
     ]
   },
   "outputStyle": "default"
