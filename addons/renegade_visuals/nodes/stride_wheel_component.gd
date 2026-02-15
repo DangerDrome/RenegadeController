@@ -13,13 +13,13 @@ extends Node
 
 @export_group("Stride")
 ## Base stride length at walk speed. Stride scales up with speed.
-@export var stride_length: float = 0.7:
+@export var stride_length: float = 0.65:
 	set(value):
 		stride_length = value
 		if config:
 			config.stride_length = value
 ## Maximum stride length at run speed.
-@export var max_stride_length: float = 1.8:
+@export var max_stride_length: float = 1.6:
 	set(value):
 		max_stride_length = value
 		if config:
@@ -37,13 +37,13 @@ extends Node
 		if config:
 			config.run_speed = value
 ## Peak height of foot arc during swing phase.
-@export var step_height: float = 0.15:
+@export var step_height: float = 0.1:
 	set(value):
 		step_height = value
 		if config:
 			config.step_height = value
 ## Lateral offset from character center for foot placement.
-@export var foot_lateral_offset: float = 0.15:
+@export var foot_lateral_offset: float = 0.12:
 	set(value):
 		foot_lateral_offset = value
 		if config:
@@ -55,13 +55,19 @@ extends Node
 		if config:
 			config.foot_height = value
 ## How far ahead of character to plant foot (as fraction of stride). 0.5 = centered stride.
-@export_range(0.3, 0.8) var plant_ahead_ratio: float = 0.5:
+@export_range(0.3, 0.8) var plant_ahead_ratio: float = 0.65:
 	set(value):
 		plant_ahead_ratio = value
 		if config:
 			config.plant_ahead_ratio = value
+## How much feet cross toward centerline when walking. 0 = normal, 1 = inline/runway walk.
+@export_range(0.0, 1.5) var crossover_amount: float = 0.0:
+	set(value):
+		crossover_amount = value
+		if config:
+			config.crossover_amount = value
 ## Fraction of gait cycle spent in stance (foot planted). Lower = foot lifts earlier.
-@export_range(0.3, 0.6) var stance_ratio: float = 0.5:
+@export_range(0.3, 0.6) var stance_ratio: float = 0.55:
 	set(value):
 		stance_ratio = value
 		if config:
@@ -69,37 +75,37 @@ extends Node
 
 @export_group("Hip")
 ## Vertical pelvis bob amplitude during walk cycle.
-@export var hip_bob_amount: float = 0.03:
+@export var hip_bob_amount: float = 0.025:
 	set(value):
 		hip_bob_amount = value
 		if config:
 			config.hip_bob_amount = value
 ## Hip offset (negative = lower hips, causes knee bend). -0.05 to -0.15 typical.
-@export var hip_offset: float = -0.08:
+@export var hip_offset: float = -0.06:
 	set(value):
 		hip_offset = value
 		if config:
 			config.hip_offset = value
 ## Body offset along movement direction. Positive = body trails (feet lead), Negative = body leads.
-@export_range(-0.5, 0.5) var body_trail_distance: float = 0.25:
+@export_range(-0.5, 0.5) var body_trail_distance: float = 0.08:
 	set(value):
 		body_trail_distance = value
 		if config:
 			config.body_trail_distance = value
 ## Forward lean angle (degrees) during locomotion. Tilts torso forward into movement.
-@export_range(-90.0, 90.0) var forward_lean_angle: float = 8.0:
+@export_range(-90.0, 90.0) var forward_lean_angle: float = 5.0:
 	set(value):
 		forward_lean_angle = value
 		if config:
 			config.forward_lean_angle = value
 ## Smoothing speed for hip offset changes.
-@export_range(1.0, 30.0) var hip_smooth_speed: float = 10.0:
+@export_range(1.0, 30.0) var hip_smooth_speed: float = 12.0:
 	set(value):
 		hip_smooth_speed = value
 		if config:
 			config.hip_smooth_speed = value
 ## Smoothing speed for spine lean rotation. Higher = snappier response.
-@export_range(1.0, 30.0) var spine_smooth_speed: float = 3.0:
+@export_range(1.0, 30.0) var spine_smooth_speed: float = 4.0:
 	set(value):
 		spine_smooth_speed = value
 		if config:
@@ -133,13 +139,13 @@ extends Node
 		if config:
 			config.idle_threshold = value
 ## Speed at which IK influence blends in/out.
-@export_range(1.0, 20.0) var influence_blend_speed: float = 8.0:
+@export_range(1.0, 20.0) var influence_blend_speed: float = 10.0:
 	set(value):
 		influence_blend_speed = value
 		if config:
 			config.influence_blend_speed = value
 ## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
-@export_range(5.0, 50.0) var foot_smooth_speed: float = 20.0:
+@export_range(5.0, 50.0) var foot_smooth_speed: float = 15.0:
 	set(value):
 		foot_smooth_speed = value
 		if config:
@@ -185,19 +191,19 @@ extends Node
 
 @export_group("Foot Rotation")
 ## How much the foot rotates to match ground normal (0-1).
-@export_range(0.0, 1.0) var foot_rotation_weight: float = 0.8:
+@export_range(0.0, 1.0) var foot_rotation_weight: float = 0.7:
 	set(value):
 		foot_rotation_weight = value
 		if config:
 			config.foot_rotation_weight = value
 ## Maximum foot rotation angle in degrees.
-@export_range(0.0, 60.0) var max_foot_angle: float = 35.0:
+@export_range(0.0, 60.0) var max_foot_angle: float = 30.0:
 	set(value):
 		max_foot_angle = value
 		if config:
 			config.max_foot_angle = value
 ## Maximum toe-down pitch during swing lift-off (degrees). Creates "peel off" effect.
-@export_range(0.0, 60.0) var swing_pitch_angle: float = 25.0:
+@export_range(0.0, 60.0) var swing_pitch_angle: float = 20.0:
 	set(value):
 		swing_pitch_angle = value
 		if config:
@@ -214,6 +220,26 @@ extends Node
 @export var left_foot_target: NodePath
 ## Marker3D target the right leg IK solver points at.
 @export var right_foot_target: NodePath
+
+@export_group("Arm Swing")
+## Marker3D target for left hand IK. Leave empty to disable arm swing.
+@export var left_hand_target: NodePath
+## Marker3D target for right hand IK. Leave empty to disable arm swing.
+@export var right_hand_target: NodePath
+## Forward/back swing amplitude (meters). Arms swing opposite to legs.
+@export_range(0.0, 1.5) var arm_swing_amount: float = 0.15
+## Vertical lift at swing extremes (meters). Creates natural arc.
+@export_range(0.0, 0.5) var arm_swing_lift: float = 0.03
+## Arm influence ramps with this speed (same as foot influence).
+@export_range(1.0, 20.0) var arm_influence_speed: float = 10.0
+## How far to drop hands from T-pose rest position (meters). Creates natural hanging arms.
+@export_range(0.0, 2.0) var arm_rest_drop: float = 0.3
+## How far to raise hands from dropped position (meters). Creates elbow bend.
+@export_range(0.0, 1.0) var arm_rest_raise: float = 0.15
+## Move hands up in world space (meters).
+@export_range(0.0, 1.0) var arm_rest_up: float = 0.0
+## Maximum reach from shoulder to hand (fraction of full arm length). Less than 1.0 forces elbow bend.
+@export_range(0.5, 1.0) var arm_max_reach: float = 0.95
 
 @export_group("Debug")
 ## Enable debug visualization.
@@ -240,12 +266,24 @@ var _right_ik: Node
 var _left_target: Marker3D
 var _right_target: Marker3D
 
+# Arm IK targets (optional - for arm swing)
+var _left_hand: Marker3D
+var _right_hand: Marker3D
+var _left_hand_rest: Vector3 = Vector3.ZERO  # Rest position (captured at start)
+var _right_hand_rest: Vector3 = Vector3.ZERO
+var _arm_influence: float = 0.0  # Current arm swing influence
+
 # Bone indices
 var _pelvis_idx: int = -1
 var _spine_01_idx: int = -1
 var _left_foot_idx: int = -1
 var _right_foot_idx: int = -1
+var _left_upperarm_idx: int = -1
+var _right_upperarm_idx: int = -1
 
+# Arm lengths (calculated at setup)
+var _left_arm_length: float = 0.0
+var _right_arm_length: float = 0.0
 # Phase accumulator — one full TAU = two steps (left + right)
 var _phase: float = 0.0
 
@@ -346,6 +384,7 @@ func _sync_from_config() -> void:
 	foot_lateral_offset = config.foot_lateral_offset
 	foot_height = config.foot_height
 	plant_ahead_ratio = config.plant_ahead_ratio
+	crossover_amount = config.crossover_amount
 	stance_ratio = config.stance_ratio
 	hip_bob_amount = config.hip_bob_amount
 	hip_offset = config.hip_offset
@@ -414,6 +453,24 @@ func _setup() -> void:
 	_spine_01_idx = _skeleton.find_bone(skel_config.spine_01)
 	_left_foot_idx = _skeleton.find_bone(skel_config.left_foot)
 	_right_foot_idx = _skeleton.find_bone(skel_config.right_foot)
+	_left_upperarm_idx = _skeleton.find_bone(skel_config.left_upperarm)
+	_right_upperarm_idx = _skeleton.find_bone(skel_config.right_upperarm)
+
+	# Calculate arm lengths (upperarm + forearm + hand)
+	var left_lowerarm_idx := _skeleton.find_bone(&"lowerarm_l")
+	var left_hand_idx := _skeleton.find_bone(&"hand_l")
+	var right_lowerarm_idx := _skeleton.find_bone(&"lowerarm_r")
+	var right_hand_idx := _skeleton.find_bone(&"hand_r")
+
+	if _left_upperarm_idx != -1 and left_lowerarm_idx != -1 and left_hand_idx != -1:
+		var upper_len := _skeleton.get_bone_rest(left_lowerarm_idx).origin.length()
+		var lower_len := _skeleton.get_bone_rest(left_hand_idx).origin.length()
+		_left_arm_length = upper_len + lower_len
+
+	if _right_upperarm_idx != -1 and right_lowerarm_idx != -1 and right_hand_idx != -1:
+		var upper_len := _skeleton.get_bone_rest(right_lowerarm_idx).origin.length()
+		var lower_len := _skeleton.get_bone_rest(right_hand_idx).origin.length()
+		_right_arm_length = upper_len + lower_len
 
 	if _pelvis_idx == -1:
 		push_warning("StrideWheelComponent: Pelvis bone '%s' not found." % skel_config.pelvis_bone)
@@ -440,6 +497,16 @@ func _setup() -> void:
 		_left_target = get_node_or_null(left_foot_target) as Marker3D
 	if not right_foot_target.is_empty():
 		_right_target = get_node_or_null(right_foot_target) as Marker3D
+
+	# Resolve arm targets (optional - for arm swing)
+	if not left_hand_target.is_empty():
+		_left_hand = get_node_or_null(left_hand_target) as Marker3D
+		if _left_hand:
+			_left_hand_rest = _left_hand.position  # Local position in parent
+	if not right_hand_target.is_empty():
+		_right_hand = get_node_or_null(right_hand_target) as Marker3D
+		if _right_hand:
+			_right_hand_rest = _right_hand.position
 
 	# Capture foot bone rest orientations (before any IK modifies them)
 	# This preserves the skeleton's intended foot direction
@@ -616,9 +683,15 @@ func _physics_process(delta: float) -> void:
 		var extension_drop := -spread_factor * spread_factor * step_height * 0.5
 
 		_update_hip(delta, hip_bob + extension_drop, move_dir)
+
+		# Arm swing (counter-phase to legs)
+		_update_arm_swing(delta, speed, move_dir, true)
 	else:
 		# Idle — handle turn-in-place or rest
 		_process_idle_or_turn(delta)
+
+		# Blend arms back to rest
+		_update_arm_swing(delta, 0.0, Vector3.ZERO, false)
 
 	_apply_influence()
 
@@ -884,10 +957,12 @@ func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Ve
 	var forward_offset: Vector3 = move_dir * effective_stride * plant_ahead_ratio
 
 	# Lateral offset perpendicular to movement direction
-	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * foot_lateral_offset
-	if lateral.is_zero_approx():
-		# Fallback: use character's right vector
-		lateral = _visuals.controller.global_basis.x * side * foot_lateral_offset
+	# Crossover reduces lateral offset: 0 = normal, 1 = inline (runway walk), >1 = cross over centerline
+	var crossover_scale: float = 1.0 - crossover_amount
+	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * foot_lateral_offset * crossover_scale
+	if lateral.is_zero_approx() and crossover_amount < 1.0:
+		# Fallback: use character's right vector (only if not intentionally zeroed by crossover)
+		lateral = _visuals.controller.global_basis.x * side * foot_lateral_offset * crossover_scale
 
 	var predicted: Vector3 = char_pos + forward_offset + lateral
 
@@ -985,6 +1060,91 @@ func _update_hip(delta: float, bob: float, move_dir: Vector3 = Vector3.ZERO) -> 
 
 		var rest_pose := _skeleton.get_bone_rest(_spine_01_idx)
 		_skeleton.set_bone_pose(_spine_01_idx, Transform3D(_current_spine_basis, rest_pose.origin))
+
+
+## Update arm swing positions. Arms swing opposite to legs.
+## Also applies arm_rest_drop to lower hands from T-pose for natural idle.
+func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving: bool) -> void:
+	# Skip if no arm targets assigned
+	if _left_hand == null and _right_hand == null:
+		return
+
+	# Update swing influence (blends swing in/out, not the drop)
+	var target_influence := 1.0 if is_moving else 0.0
+	_arm_influence = lerpf(_arm_influence, target_influence, 1.0 - exp(-arm_influence_speed * delta))
+
+	# Scale swing with speed (faster = bigger swing)
+	var speed_factor := clampf(speed / run_speed, 0.3, 1.0) if is_moving else 0.0
+	var swing_amp := arm_swing_amount * speed_factor
+
+	# Arms swing counter-phase to legs:
+	# Left arm forward when right leg forward (right leg = _phase)
+	# Right arm forward when left leg forward (left leg = _phase + PI)
+	var left_arm_phase := _phase  # Same as right leg
+	var right_arm_phase := _phase + PI  # Same as left leg
+
+	# Calculate swing offset in movement direction
+	var forward := move_dir if move_dir.length_squared() > 0.01 else -_visuals.global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+
+	# Left arm
+	if _left_hand:
+		var parent := _left_hand.get_parent() as Node3D
+		if parent:
+			# Rest offset: drop down, raise for bend, world up adjustment
+			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
+			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
+
+			# Swing offset (only when moving)
+			var swing := sin(left_arm_phase) * swing_amp
+			var lift := absf(sin(left_arm_phase)) * arm_swing_lift
+			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
+			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
+
+			# Calculate target position
+			var target_pos: Vector3 = _left_hand_rest + rest_offset_local + swing_local * _arm_influence
+
+			# Clamp reach to force elbow bend
+			if _left_upperarm_idx != -1 and _left_arm_length > 0.0:
+				var shoulder_world: Vector3 = (_skeleton.global_transform * _skeleton.get_bone_global_pose(_left_upperarm_idx)).origin
+				var hand_world: Vector3 = parent.global_transform * Transform3D(Basis.IDENTITY, target_pos).origin
+				var max_reach := _left_arm_length * arm_max_reach
+				var to_hand := hand_world - shoulder_world
+				if to_hand.length() > max_reach:
+					hand_world = shoulder_world + to_hand.normalized() * max_reach
+					target_pos = (parent.global_transform.inverse() * Transform3D(Basis.IDENTITY, hand_world)).origin
+
+			_left_hand.position = target_pos
+
+	# Right arm
+	if _right_hand:
+		var parent := _right_hand.get_parent() as Node3D
+		if parent:
+			# Rest offset: drop down, raise for bend, world up adjustment
+			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
+			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
+
+			# Swing offset (only when moving)
+			var swing := sin(right_arm_phase) * swing_amp
+			var lift := absf(sin(right_arm_phase)) * arm_swing_lift
+			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
+			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
+
+			# Calculate target position
+			var target_pos: Vector3 = _right_hand_rest + rest_offset_local + swing_local * _arm_influence
+
+			# Clamp reach to force elbow bend
+			if _right_upperarm_idx != -1 and _right_arm_length > 0.0:
+				var shoulder_world: Vector3 = (_skeleton.global_transform * _skeleton.get_bone_global_pose(_right_upperarm_idx)).origin
+				var hand_world: Vector3 = parent.global_transform * Transform3D(Basis.IDENTITY, target_pos).origin
+				var max_reach := _right_arm_length * arm_max_reach
+				var to_hand := hand_world - shoulder_world
+				if to_hand.length() > max_reach:
+					hand_world = shoulder_world + to_hand.normalized() * max_reach
+					target_pos = (parent.global_transform.inverse() * Transform3D(Basis.IDENTITY, hand_world)).origin
+
+			_right_hand.position = target_pos
 
 
 ## Blend IK influence up when moving, down at idle.
