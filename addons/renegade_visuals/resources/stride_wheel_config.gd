@@ -71,3 +71,5 @@ extends Resource
 @export_range(0.0, 1.0) var foot_rotation_weight: float = 0.8
 ## Maximum foot rotation angle in degrees.
 @export_range(0.0, 60.0) var max_foot_angle: float = 35.0
+## Maximum toe-down pitch during swing lift-off (degrees). Creates "peel off" effect.
+@export_range(0.0, 60.0) var swing_pitch_angle: float = 25.0

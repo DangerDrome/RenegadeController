@@ -196,6 +196,12 @@ extends Node
 		max_foot_angle = value
 		if config:
 			config.max_foot_angle = value
+## Maximum toe-down pitch during swing lift-off (degrees). Creates "peel off" effect.
+@export_range(0.0, 60.0) var swing_pitch_angle: float = 25.0:
+	set(value):
+		swing_pitch_angle = value
+		if config:
+			config.swing_pitch_angle = value
 
 @export_group("IK Nodes")
 ## TwoBoneIK3D solver for the left leg.
@@ -276,6 +282,7 @@ var _right_rest_pos: Vector3 = Vector3.ZERO
 
 # Turn-in-place state
 var _prev_yaw: float = 0.0
+var _was_moving: bool = false  # Track previous frame movement state
 var _is_turning_in_place: bool = false
 var _turn_step_progress: float = 0.0  # 0–1 for step animation
 var _left_step_start: Vector3 = Vector3.ZERO
@@ -360,6 +367,7 @@ func _sync_from_config() -> void:
 	max_leg_reach = config.max_leg_reach
 	foot_rotation_weight = config.foot_rotation_weight
 	max_foot_angle = config.max_foot_angle
+	swing_pitch_angle = config.swing_pitch_angle
 
 
 ## Calculate effective stride length based on current speed.
@@ -614,12 +622,26 @@ func _physics_process(delta: float) -> void:
 
 	_apply_influence()
 
+	# Track movement state for next frame transition detection
+	_was_moving = is_moving
+
 	# Update debug visualization
 	_update_debug(char_pos, move_dir)
 
 
 ## Handle idle state with turn-in-place detection and foot stepping.
 func _process_idle_or_turn(delta: float) -> void:
+	# If we just stopped moving, update plant positions to where feet currently are
+	# This prevents snapping back to old plant positions when stopping mid-swing
+	if _was_moving:
+		_left_plant_pos = _left_current_pos
+		_right_plant_pos = _right_current_pos
+		_left_plant_yaw = _visuals.global_rotation.y
+		_right_plant_yaw = _visuals.global_rotation.y
+		# Reset swing state
+		_left_swing_t = 0.0
+		_right_swing_t = 0.0
+
 	_prev_yaw = _visuals.global_rotation.y
 
 	# Calculate where feet SHOULD be based on current facing
@@ -1052,17 +1074,14 @@ func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis, 
 	var yaw_rotation := Basis(Vector3.UP, delta_yaw)
 	var result := yaw_rotation * rest_basis
 
-	# Swing phase pitch - toes down at lift-off, level at mid-swing, slight up at landing
-	if swing_t > 0.0:
+	# Swing phase pitch - toes down at lift-off, level at mid-swing
+	if swing_t > 0.0 and swing_pitch_angle > 0.0:
 		# Pitch curve: negative at start (toes down), approaches zero at landing
-		# DEBUG: Using 45 degrees to make rotation very visible
-		var pitch_angle := -sin((1.0 - swing_t) * PI * 0.5) * deg_to_rad(45.0)
+		var pitch_angle := -sin((1.0 - swing_t) * PI * 0.5) * deg_to_rad(swing_pitch_angle)
 		if pitch_angle != 0.0:
 			# Rotate around the foot's local lateral axis (not world X)
 			var pitch_axis := result.x.normalized()
 			result = Basis(pitch_axis, pitch_angle) * result
-			# DEBUG: Uncomment to verify swing_t values
-			#print("Swing pitch: swing_t=%.2f, angle=%.1f deg" % [swing_t, rad_to_deg(pitch_angle)])
 
 	# Apply ground normal tilt if not flat (only when planted, not during swing)
 	if swing_t == 0.0 and not ground_normal.is_equal_approx(Vector3.UP):
