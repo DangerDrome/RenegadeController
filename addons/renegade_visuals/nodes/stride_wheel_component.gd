@@ -279,6 +279,9 @@ var _left_hand_rest: Vector3 = Vector3.ZERO  # Rest position (captured at start)
 var _right_hand_rest: Vector3 = Vector3.ZERO
 var _arm_influence: float = 0.0  # Current arm swing influence
 
+# Feet rotation modifier (toggled based on walk/idle state)
+var _feet_xform: Node
+
 # Bone indices
 var _pelvis_idx: int = -1
 var _spine_01_idx: int = -1
@@ -339,6 +342,7 @@ var _right_rest_pos: Vector3 = Vector3.ZERO
 # Turn-in-place state
 var _prev_yaw: float = 0.0
 var _was_moving: bool = false  # Track previous frame movement state
+var _is_walking: bool = false  # True only during active walking (not idle/turn)
 var _is_turning_in_place: bool = false
 var _turn_step_progress: float = 0.0  # 0–1 for step animation
 var _left_step_start: Vector3 = Vector3.ZERO
@@ -357,8 +361,8 @@ var _initial_char_yaw: float = 0.0  # Character yaw when rest basis was captured
 # Smoothed foot target state (lerped each frame to avoid snapping)
 var _left_current_pos: Vector3 = Vector3.ZERO
 var _right_current_pos: Vector3 = Vector3.ZERO
-var _left_current_basis: Basis = Basis.IDENTITY
-var _right_current_basis: Basis = Basis.IDENTITY
+var _left_current_quat: Quaternion = Quaternion.IDENTITY
+var _right_current_quat: Quaternion = Quaternion.IDENTITY
 var _left_foot_initialized: bool = false
 var _right_foot_initialized: bool = false
 
@@ -550,6 +554,9 @@ func _setup() -> void:
 	# Initialize yaw tracking for turn-in-place
 	_prev_yaw = initial_yaw
 
+	# Find feet_xform modifier (used for turn-in-place, disabled during walking)
+	_feet_xform = _skeleton.get_node_or_null("feet_xform")
+
 	# Setup rotation modifiers to copy Marker3D rotation to foot bones
 	_setup_foot_rotation_modifiers(skel_config)
 
@@ -557,10 +564,8 @@ func _setup() -> void:
 	_setup_debug()
 
 
-## Setup foot rotation - we'll apply rotation directly to bones after IK runs.
-## CopyTransformModifier3D approach doesn't work reliably with TwoBoneIK3D.
+## Setup foot rotation - apply rotation directly to bones after IK runs.
 func _setup_foot_rotation_modifiers(_skel_config: SkeletonConfig) -> void:
-	# Connect to skeleton_updated to apply foot rotation AFTER IK solvers run
 	if _skeleton and not _skeleton.skeleton_updated.is_connected(_apply_foot_bone_rotations):
 		_skeleton.skeleton_updated.connect(_apply_foot_bone_rotations)
 
@@ -571,6 +576,9 @@ func _apply_foot_bone_rotations() -> void:
 	if _skeleton == null:
 		return
 	if _current_influence < 0.01:
+		return
+	# Skip rotation when not walking - keep feet locked during idle/turn
+	if not _is_walking:
 		return
 
 	# Apply left foot rotation from Marker3D
@@ -632,8 +640,11 @@ func _physics_process(delta: float) -> void:
 	_debug_move_dir_vec = move_dir
 
 	if is_moving:
-		# Reset turn-in-place state when starting to move
+		# Walking mode - disable feet_xform so code handles rotation
+		_is_walking = true
 		_is_turning_in_place = false
+		if _feet_xform:
+			_feet_xform.active = false
 
 		# Track yaw so _prev_yaw is up-to-date when we stop
 		_prev_yaw = _visuals.global_rotation.y
@@ -651,10 +662,18 @@ func _physics_process(delta: float) -> void:
 
 		# IMPORTANT: Update plant positions BEFORE processing feet
 		# This prevents one-frame delay when foot plants at new position
+		# Also update ground normal and yaw here since foot is planting
+		var current_yaw := _visuals.global_rotation.y
 		if _crossed_threshold(left_cycle, _left_prev_cycle, 0.0):
 			_left_plant_pos = _predict_plant_position(move_dir, speed, -1.0)
+			_left_plant_yaw = current_yaw
+			# Raycast again with normal update to capture the planted ground normal
+			_raycast_ground(_left_plant_pos, true, true)
 		if _crossed_threshold(right_cycle, _right_prev_cycle, 0.0):
 			_right_plant_pos = _predict_plant_position(move_dir, speed, 1.0)
+			_right_plant_yaw = current_yaw
+			# Raycast again with normal update to capture the planted ground normal
+			_raycast_ground(_right_plant_pos, true, false)
 
 		# Update debug predicted positions (always, not just on threshold)
 		_debug_left_predicted_pos = _predict_plant_position(move_dir, speed, -1.0)
@@ -679,13 +698,15 @@ func _physics_process(delta: float) -> void:
 		_left_prev_cycle = left_cycle
 		_right_prev_cycle = right_cycle
 
-		# Apply positions to targets (during locomotion, feet follow character facing)
-		var current_yaw := _visuals.global_rotation.y
-		_apply_foot_target(_left_target, left_pos, current_yaw, _left_ground_normal, _left_foot_rest_basis, _left_swing_t, delta)
-		_apply_foot_target(_right_target, right_pos, current_yaw, _right_ground_normal, _right_foot_rest_basis, _right_swing_t, delta)
-		# Update planted yaw so it's current when we stop
-		_left_plant_yaw = current_yaw
-		_right_plant_yaw = current_yaw
+		# Apply positions to targets
+		# Planted foot: use stored yaw + ground normal (locked)
+		# Swinging foot: use current yaw + pitch, no ground normal
+		var left_yaw := _left_plant_yaw if _left_swing_t == 0.0 else current_yaw
+		var right_yaw := _right_plant_yaw if _right_swing_t == 0.0 else current_yaw
+		var left_normal := _left_ground_normal if _left_swing_t == 0.0 else Vector3.UP
+		var right_normal := _right_ground_normal if _right_swing_t == 0.0 else Vector3.UP
+		_apply_foot_target(_left_target, left_pos, left_yaw, left_normal, _left_foot_rest_basis, _left_swing_t, delta, true)
+		_apply_foot_target(_right_target, right_pos, right_yaw, right_normal, _right_foot_rest_basis, _right_swing_t, delta, true)
 
 		# Hip adjustment for natural knee bend:
 		# 1. Bob: vertical oscillation during gait cycle
@@ -705,7 +726,10 @@ func _physics_process(delta: float) -> void:
 		# Arm swing (counter-phase to legs)
 		_update_arm_swing(delta, speed, move_dir, true)
 	else:
-		# Idle — handle turn-in-place or rest
+		# Idle mode - enable feet_xform so feet stay locked
+		_is_walking = false
+		if _feet_xform:
+			_feet_xform.active = true
 		_process_idle_or_turn(delta)
 
 		# Blend arms back to rest
@@ -751,9 +775,9 @@ func _process_idle_or_turn(delta: float) -> void:
 		if left_drift > threshold or right_drift > threshold:
 			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift)
 		else:
-			# Feet stay planted at current world positions with stored yaw
-			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, 0.0, delta)
-			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, 0.0, delta)
+			# Feet stay planted at current world positions with stored yaw - NO swing pitch
+			_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, 0.0, delta, false)
+			_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, 0.0, delta, false)
 			_update_hip(delta, 0.0)
 
 	# Reset phase so next move starts cleanly
@@ -778,7 +802,8 @@ func _calculate_ideal_foot_position(side: float) -> Vector3:
 	var forward: Vector3 = -facing.z * side * stance_stagger
 
 	var target_pos: Vector3 = char_pos + lateral + forward
-	return _raycast_ground(target_pos)
+	# Don't update ground normal during ideal position calculation - it's done when foot plants
+	return _raycast_ground(target_pos, false, side < 0)
 
 
 ## Horizontal distance between two points (ignoring Y).
@@ -820,9 +845,13 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		if _stepping_foot == 0:
 			_left_plant_pos = _left_step_end
 			_left_plant_yaw = current_yaw
+			# Update ground normal for planted foot
+			_raycast_ground(_left_plant_pos, true, true)
 		else:
 			_right_plant_pos = _right_step_end
 			_right_plant_yaw = current_yaw
+			# Update ground normal for planted foot
+			_raycast_ground(_right_plant_pos, true, false)
 
 		# Check if other foot needs to step
 		var left_drift := _horizontal_distance(_left_plant_pos, left_target)
@@ -848,9 +877,12 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 			var final_yaw := _visuals.global_rotation.y
 			_left_plant_yaw = final_yaw
 			_right_plant_yaw = final_yaw
+			# Update ground normals for both planted feet
+			_raycast_ground(_left_plant_pos, true, true)
+			_raycast_ground(_right_plant_pos, true, false)
 
-		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, 0.0, delta)
-		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, 0.0, delta)
+		_apply_foot_target(_left_target, _left_plant_pos, _left_plant_yaw, _left_ground_normal, _left_foot_rest_basis, 0.0, delta, false)
+		_apply_foot_target(_right_target, _right_plant_pos, _right_plant_yaw, _right_ground_normal, _right_foot_rest_basis, 0.0, delta, false)
 		_update_hip(delta, 0.0)
 		return
 
@@ -890,8 +922,8 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		left_pos.y += plant_dip
 		left_yaw = _left_plant_yaw
 
-	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis, left_swing_t, delta)
-	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis, right_swing_t, delta)
+	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis, left_swing_t, delta, false)
+	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis, right_swing_t, delta, false)
 
 	# Hip follows lowest foot
 	_update_hip(delta, 0.0)
@@ -989,7 +1021,8 @@ func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Ve
 
 
 ## Raycast down from a position to find the ground point.
-func _raycast_ground(world_pos: Vector3) -> Vector3:
+## update_normal: If true, store the hit normal for foot rotation. Only set true when foot plants.
+func _raycast_ground(world_pos: Vector3, update_normal: bool = false, is_left: bool = true) -> Vector3:
 	if _space_state == null:
 		return world_pos
 
@@ -1005,12 +1038,13 @@ func _raycast_ground(world_pos: Vector3) -> Vector3:
 	if result.is_empty():
 		return world_pos
 
-	# Store normal for foot rotation (determine which foot by proximity)
-	var hit_normal: Vector3 = result.normal
-	if world_pos.distance_squared_to(_left_rest_pos) < world_pos.distance_squared_to(_right_rest_pos):
-		_left_ground_normal = hit_normal
-	else:
-		_right_ground_normal = hit_normal
+	# Only update ground normal when explicitly requested (foot planting)
+	if update_normal:
+		var hit_normal: Vector3 = result.normal
+		if is_left:
+			_left_ground_normal = hit_normal
+		else:
+			_right_ground_normal = hit_normal
 
 	# Raise hit position by foot_height so sole sits on ground (not ankle)
 	return result.position + Vector3.UP * foot_height
@@ -1213,12 +1247,13 @@ func _apply_influence() -> void:
 ## rest_basis: The foot bone's rest orientation (captured at setup).
 ## swing_t: Swing phase progress (0 = planted, >0 = in swing). Used for foot pitch during swing.
 ## delta: Frame delta for smoothing.
-func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground_normal: Vector3, rest_basis: Basis, swing_t: float, delta: float) -> void:
+## apply_swing_pitch: If true, apply heel peel during swing. False = lock rotation (turn-in-place).
+func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground_normal: Vector3, rest_basis: Basis, swing_t: float, delta: float, apply_swing_pitch: bool = true) -> void:
 	if target == null:
 		return
 
 	# Build foot basis from rest pose + yaw delta + ground tilt + swing pitch
-	var target_basis := _compute_foot_basis(yaw, ground_normal, rest_basis, swing_t)
+	var target_basis := _compute_foot_basis(yaw, ground_normal, rest_basis, swing_t, apply_swing_pitch)
 
 	# Determine which foot and get/set smoothed state
 	var is_left := target == _left_target
@@ -1232,40 +1267,52 @@ func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground
 	var speed_mult := 1.0 + clampf(distance_to_target / far_threshold, 0.0, 1.0)
 	var smooth_factor := 1.0 - exp(-foot_smooth_speed * speed_mult * delta)
 
+	var target_quat := target_basis.get_rotation_quaternion()
+
+	# Snap rotation for now to debug
+	var rot_smooth := 1.0
+
 	if is_left:
 		if not _left_foot_initialized:
 			_left_current_pos = world_pos
-			_left_current_basis = target_basis
+			_left_current_quat = target_quat
 			_left_foot_initialized = true
 		else:
 			_left_current_pos = _left_current_pos.lerp(world_pos, smooth_factor)
-			_left_current_basis = _left_current_basis.slerp(target_basis, smooth_factor)
+			_left_current_quat = _left_current_quat.slerp(target_quat, rot_smooth)
 	else:
 		if not _right_foot_initialized:
 			_right_current_pos = world_pos
-			_right_current_basis = target_basis
+			_right_current_quat = target_quat
 			_right_foot_initialized = true
 		else:
 			_right_current_pos = _right_current_pos.lerp(world_pos, smooth_factor)
-			_right_current_basis = _right_current_basis.slerp(target_basis, smooth_factor)
+			_right_current_quat = _right_current_quat.slerp(target_quat, rot_smooth)
 
 	# Apply smoothed values
 	var final_pos: Vector3
-	var final_basis: Basis
+	var final_quat: Quaternion
 	if is_left:
 		final_pos = _left_current_pos
-		final_basis = _left_current_basis
+		final_quat = _left_current_quat
 	else:
 		final_pos = _right_current_pos
-		final_basis = _right_current_basis
+		final_quat = _right_current_quat
 
-	target.global_transform = Transform3D(final_basis, final_pos)
+	target.global_transform = Transform3D(Basis(final_quat), final_pos)
 
 
 ## Compute foot basis from yaw delta, ground normal, and swing phase.
 ## Preserves the foot bone's rest orientation while rotating to face the target yaw.
-## swing_t: 0 = planted/just lifted, 1 = about to land. Adds pitch during swing.
-func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis, swing_t: float) -> Basis:
+## swing_t: 0 = planted, >0 = in swing.
+## apply_pitch: If true, apply heel peel pitch during swing. If false and swinging, just release to rest.
+func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis, swing_t: float, apply_pitch: bool = true) -> Basis:
+	# If swinging and not applying pitch, return rest basis relative to current character yaw
+	if swing_t > 0.0 and not apply_pitch:
+		var delta_yaw := yaw - _initial_char_yaw
+		var yaw_rotation := Basis(Vector3.UP, delta_yaw)
+		return yaw_rotation * rest_basis
+
 	# Compute how much we need to rotate from the initial character yaw
 	var delta_yaw := yaw - _initial_char_yaw
 
@@ -1273,9 +1320,9 @@ func _compute_foot_basis(yaw: float, ground_normal: Vector3, rest_basis: Basis, 
 	var yaw_rotation := Basis(Vector3.UP, delta_yaw)
 	var result := yaw_rotation * rest_basis
 
-	# Swing phase pitch - toes down at lift-off, level at mid-swing
+	# Swing phase pitch - toe points down at lift-off, levels at landing
 	if swing_t > 0.0 and swing_pitch_angle > 0.0:
-		# Pitch curve: negative at start (toes down), approaches zero at landing
+		# Pitch curve: negative at start (toe down), approaches zero at landing
 		var pitch_angle := -sin((1.0 - swing_t) * PI * 0.5) * deg_to_rad(swing_pitch_angle)
 		if pitch_angle != 0.0:
 			# Rotate around the foot's local lateral axis (not world X)

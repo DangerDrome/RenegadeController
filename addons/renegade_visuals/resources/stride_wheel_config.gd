@@ -12,7 +12,7 @@ extends Resource
 ## Speed considered "running" (uses max_stride_length).
 @export var run_speed: float = 5.0
 ## Peak height of foot arc during swing phase.
-@export var step_height: float = 0.1
+@export var step_height: float = 0.15
 ## Lateral offset from character center for foot placement.
 @export var foot_lateral_offset: float = 0.12
 ## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
