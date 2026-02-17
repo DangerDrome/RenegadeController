@@ -130,7 +130,6 @@ custom_minimum_size = Vector2(192, 96)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
-mouse_filter = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Root/Layout/Header/Time_Mult" unique_id=1525497653]
@@ -140,7 +139,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 1
 
 [node name="VSeparator" type="VSeparator" parent="Root/Layout/Header/Time_Mult/HBoxContainer" unique_id=1405656562]
 layout_mode = 2
@@ -262,7 +260,6 @@ theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
 clip_contents = true
 custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
-size_flags_horizontal = 8
 theme_override_styles/panel = SubResource("StyleBoxFlat_kpfma")
 
 [node name="DebugLabel" type="RichTextLabel" parent="Root/Layout/Center/Toasts" unique_id=306679595]
@@ -538,17 +535,12 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
 
-[node name="Minimap" parent="Root/Layout/Footer/MiniMap/Panel" instance=ExtResource("15_minimap")]
+[node name="Minimap" parent="Root/Layout/Footer/MiniMap/Panel" unique_id=644023839 instance=ExtResource("15_minimap")]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = 12.0
 offset_top = 12.0
 offset_right = -12.0
 offset_bottom = -12.0
-grow_horizontal = 2
-grow_vertical = 2
 view_size = 50.0
 camera_height = 80.0
 

@@ -46,7 +46,7 @@ extends Resource
 ## Body offset along movement direction. Positive = body trails (feet lead), Negative = body leads.
 @export_range(-0.5, 0.5) var body_trail_distance: float = 0.1
 ## Spine lean angle (degrees) during locomotion. Tilts torso forward into movement.
-@export_range(-20.0, 30.0) var spine_lean_angle: float = 3.0
+@export_range(-30.0, 45.0) var spine_lean_angle: float = 8.0
 ## Smoothing speed for torso (hip and spine) movements. Higher = snappier response.
 @export_range(1.0, 30.0) var torso_smooth_speed: float = 10.0
 
@@ -79,6 +79,14 @@ extends Resource
 @export_range(1.0, 20.0) var ik_blend_speed: float = 10.0
 ## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
 @export_range(5.0, 50.0) var foot_smooth_speed: float = 10.0
+
+@export_group("Soft IK")
+## Enable soft IK to prevent knee snapping at full leg extension.
+@export var soft_ik_enabled: bool = true
+## How much to pull foot target closer when near max reach (0 = none, 1 = max).
+@export_range(0.0, 1.0) var ik_softness: float = 0.3
+## Fraction of max leg reach where softening begins (0.8 = starts at 80% reach).
+@export_range(0.5, 1.0) var ik_soft_start: float = 0.85
 
 @export_group("Turn In Place")
 ## Enable procedural foot stepping when turning in place.

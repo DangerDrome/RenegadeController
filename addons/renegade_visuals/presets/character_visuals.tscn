@@ -399,7 +399,7 @@ height = 0.3813311
 radius = 0.05810547
 height = 0.15151793
 
-[sub_resource type="Resource" id="Resource_0c14i"]
+[sub_resource type="Resource" id="Resource_gxbdi"]
 script = ExtResource("9_gxbdi")
 metadata/_custom_type_script = "uid://bfrn5yi5jt0yu"
 
@@ -1896,11 +1896,11 @@ visible = false
 script = ExtResource("3_nj4ge")
 
 [node name="Physical Bone pelvis" type="PhysicalBone3D" parent="UEFN/Skeleton3D/PhysicalBoneSimulator3D" unique_id=759675223]
-transform = Transform3D(-1, -4.0410623e-06, -1.9828402e-08, -4.032986e-06, 0.99828845, -0.05848262, 2.5612638e-07, -0.05848262, -0.99828845, 2.1858315e-05, 0.009224953, 0.95836794)
+transform = Transform3D(-1, -4.0410623e-06, -1.9828402e-08, -4.032986e-06, 0.99828845, -0.05848262, 2.5612638e-07, -0.05848262, -0.99828845, 2.1434957e-05, 0.009224953, 0.95836794)
 collision_layer = 128
 joint_type = 5
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1860042e-05, -0.00056059763, 0.027256055)
-body_offset = Transform3D(3.4086648e-07, -0.09420608, -0.9955527, -4.023358e-06, 0.9955527, -0.09420608, 1, 4.035447e-06, -3.951116e-08, 0.027082026, 0.0031257905, -2.1856702e-05)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1436683e-05, -0.0005605977, 0.027256055)
+body_offset = Transform3D(3.4086648e-07, -0.09420608, -0.9955527, -4.023358e-06, 0.9955527, -0.09420608, 1, 4.035447e-06, -3.951116e-08, 0.027082026, 0.0031257905, -2.1433343e-05)
 mass = 5.0
 gravity_scale = 2.0
 linear_damp = 1.5
@@ -2215,11 +2215,11 @@ transform = Transform3D(1, 7.750245e-12, 0, 0, 0, 1, 1.7763568e-15, -1, 0, -0.00
 shape = SubResource("CapsuleShape3D_eox3e")
 
 [node name="Physical Bone spine_04" type="PhysicalBone3D" parent="UEFN/Skeleton3D/PhysicalBoneSimulator3D" unique_id=117002891]
-transform = Transform3D(-1, 2.1304082e-05, 2.32345e-05, 1.9298868e-05, 0.99653876, -0.08312959, -2.4925077e-05, -0.08312959, -0.99653876, -1.3773393e-05, 0.03160061, 1.2628863)
+transform = Transform3D(-1, 2.1304082e-05, 2.32345e-05, 1.9298868e-05, 0.99653876, -0.08312959, -2.4925077e-05, -0.08312959, -0.99653876, -1.3561714e-05, 0.03160061, 1.2628863)
 collision_layer = 128
 joint_type = 5
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2598114e-05, 3.2910633e-05, 0.051270716)
-body_offset = Transform3D(-2.329424e-05, -1.6152859e-05, -1.0000001, 2.130866e-05, 1.0000001, -1.6152859e-05, 1, -2.1311162e-05, -2.3293682e-05, 0.051270723, -3.20822e-05, 1.3793099e-05)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2386435e-05, 3.291063e-05, 0.051270716)
+body_offset = Transform3D(-2.329424e-05, -1.6152859e-05, -1.0000001, 2.130866e-05, 1.0000001, -1.6152859e-05, 1, -2.1311162e-05, -2.3293682e-05, 0.051270723, -3.20822e-05, 1.358142e-05)
 mass = 15.0
 friction = 0.25
 bounce = 0.5
@@ -3092,11 +3092,11 @@ transform = Transform3D(1, 2.270184e-12, -1.2398971e-11, -7.1054274e-14, 2.08616
 shape = SubResource("CapsuleShape3D_tcxax")
 
 [node name="Physical Bone neck_02" type="PhysicalBone3D" parent="UEFN/Skeleton3D/PhysicalBoneSimulator3D" unique_id=1101178851]
-transform = Transform3D(-1, -3.184464e-05, -2.3489587e-05, -3.62381e-05, 0.97541755, 0.22036475, 1.589472e-05, 0.22036475, -0.97541755, -2.6012533e-05, 0.02380841, 1.4915463)
+transform = Transform3D(-1, -3.184464e-05, -2.3489587e-05, -3.62381e-05, 0.97541755, 0.22036475, 1.589472e-05, 0.22036475, -0.97541755, -2.6435891e-05, 0.02380841, 1.4915463)
 collision_layer = 128
 joint_type = 5
-joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.6601789e-05, -0.0004207077, 0.024297578)
-body_offset = Transform3D(2.3430413e-05, 3.260374e-05, -1.0000001, -3.1858544e-05, 1.0000001, 3.260374e-05, 1, 3.1855685e-05, 2.3431014e-05, 0.024297595, 0.00041991472, 2.6045875e-05)
+joint_offset = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7025148e-05, -0.0004207077, 0.024297578)
+body_offset = Transform3D(2.3430413e-05, 3.260374e-05, -1.0000001, -3.1858544e-05, 1.0000001, 3.260374e-05, 1, 3.1855685e-05, 2.3431014e-05, 0.024297595, 0.00041991472, 2.6469233e-05)
 mass = 2.0
 friction = 0.25
 bounce = 0.5
@@ -3755,18 +3755,22 @@ debug_color_hit_point = Color(1, 1, 0, 1)
 
 [node name="StrideWheel" type="Node" parent="." unique_id=2091963722]
 script = ExtResource("11_stride_wheel")
-config = SubResource("Resource_0c14i")
+config = SubResource("Resource_gxbdi")
 debug_hip = false
 hip_rock_x = 0.0
 hip_rock_y = 0.0
 hip_rock_z = 0.0
-spine_lean_angle = 6.7280000000000015
+spine_lean_angle = 45.0
 torso_smooth_speed = 15.0
 shoulder_rotation_enabled = true
 shoulder_counter_rotation = 1.5
 spine_twist_cascade = 1.0
 shoulder_rotation_amount = 2.0
-turn_in_place_enabled = false
+foot_smooth_speed = 16.0
+soft_ik_enabled = false
+ik_softness = 0.62
+ik_soft_start = 1.0
+max_leg_reach = 0.95
 foot_rotation_enabled = true
 foot_rotation_weight = 1.0
 knee_tracking_enabled = true
@@ -3779,8 +3783,11 @@ right_foot_target = NodePath("../UEFN/IKTargets/R_foot")
 left_knee_target = NodePath("../UEFN/IKTargets/L_knee")
 right_knee_target = NodePath("../UEFN/IKTargets/R_knee")
 head_target = NodePath("../UEFN/IKTargets/Head_traget")
-head_idle_timeout = 0.5
-head_return_speed = 5.0
+head_look_modifier = NodePath("../UEFN/Skeleton3D/Head_LookAt")
+head_idle_timeout = 0.8
+head_return_speed = 1.0
+head_anticipation_speed = 50.0
+head_look_distance = 15.0
 arm_swing_enabled = true
 left_hand_target = NodePath("../UEFN/IKTargets/L_hand")
 right_hand_target = NodePath("../UEFN/IKTargets/R_hand")
@@ -3792,3 +3799,4 @@ arm_max_reach = 0.99
 debug_enabled = true
 debug_show_plant_pos = false
 debug_show_predicted = false
+debug_show_move_dir = true

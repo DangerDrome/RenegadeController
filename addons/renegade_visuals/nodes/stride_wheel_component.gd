@@ -135,7 +135,7 @@ extends Node
 		if config:
 			config.body_trail_distance = value
 ## Spine lean angle (degrees) during locomotion. Tilts torso forward into movement.
-@export_range(-20.0, 30.0) var spine_lean_angle: float = 3.0:
+@export_range(-30.0, 45.0) var spine_lean_angle: float = 8.0:
 	set(value):
 		spine_lean_angle = value
 		if config:
@@ -224,6 +224,26 @@ extends Node
 		foot_smooth_speed = value
 		if config:
 			config.foot_smooth_speed = value
+
+@export_group("Soft IK")
+## Enable soft IK to prevent knee snapping at full leg extension.
+@export var soft_ik_enabled: bool = true:
+	set(value):
+		soft_ik_enabled = value
+		if config:
+			config.soft_ik_enabled = value
+## How much to pull foot target closer when near max reach (0 = none, 1 = max).
+@export_range(0.0, 1.0) var ik_softness: float = 0.3:
+	set(value):
+		ik_softness = value
+		if config:
+			config.ik_softness = value
+## Fraction of max leg reach where softening begins (0.8 = starts at 80% reach).
+@export_range(0.5, 1.0) var ik_soft_start: float = 0.85:
+	set(value):
+		ik_soft_start = value
+		if config:
+			config.ik_soft_start = value
 
 @export_group("Turn In Place")
 ## Enable procedural foot stepping when turning in place.
@@ -453,12 +473,22 @@ extends Node
 @export_group("Head Look-At")
 ## Marker3D target the head LookAt modifier points at. Updated to follow cursor.
 @export var head_target: NodePath
+## The LookAtModifier3D node for head rotation. Influence is controlled based on state.
+@export var head_look_modifier: NodePath
 ## Time (seconds) before head returns to forward when cursor is idle.
 @export_range(0.5, 10.0) var head_idle_timeout: float = 2.0
 ## How fast the head tracks the cursor. Higher = snappier.
 @export_range(1.0, 20.0) var head_track_speed: float = 8.0
 ## How fast the head returns to forward when idle. Lower = more natural.
 @export_range(1.0, 10.0) var head_return_speed: float = 3.0
+## Enable head anticipation - head looks toward movement/turn direction.
+@export var head_anticipation_enabled: bool = true
+## How fast the head responds to movement direction changes. Higher = snappier anticipation.
+@export_range(10.0, 50.0) var head_anticipation_speed: float = 25.0
+## How far ahead to look when moving (meters). Scales with speed.
+@export_range(2.0, 15.0) var head_look_distance: float = 5.0
+## How much the head anticipates turns (0 = none, 1 = full turn anticipation).
+@export_range(0.0, 1.0) var head_turn_anticipation: float = 0.5
 
 @export_group("Arm Swing")
 ## Enable procedural arm swing during walking.
@@ -527,12 +557,18 @@ var _right_knee: Marker3D
 var _left_knee_rest: Vector3 = Vector3.ZERO  # Rest position relative to thigh
 var _right_knee_rest: Vector3 = Vector3.ZERO
 
-# Head look-at target (updated to follow cursor)
+# Head look-at target (updated to follow cursor and movement direction)
 var _head_target: Marker3D
+var _head_look_mod: LookAtModifier3D  # The LookAtModifier3D to control influence
+var _head_influence: float = 0.0  # Current head look influence (smoothed)
 var _head_target_goal: Vector3 = Vector3.ZERO  # Smoothed head target position
 var _last_cursor_pos: Vector3 = Vector3.ZERO   # Previous cursor position for movement detection
-var _cursor_idle_time: float = 0.0             # Time since cursor last moved
+var _cursor_idle_time: float = 999.0           # Time since cursor last moved (start high = inactive)
+var _cursor_has_moved: bool = false            # True only after cursor has actually moved
 var _head_is_idle: bool = false                # True when head has returned to forward
+var _head_look_direction: Vector3 = Vector3.ZERO  # Smoothed movement direction for head anticipation
+var _prev_yaw_for_head: float = 0.0            # Previous yaw for turn detection
+var _head_yaw_delta: float = 0.0               # Current frame yaw change for turn detection
 
 # Feet rotation modifier (toggled based on walk/idle state)
 var _feet_xform: Node
@@ -550,6 +586,10 @@ var _right_upperarm_idx: int = -1
 # Arm lengths (calculated at setup)
 var _left_arm_length: float = 0.0
 var _right_arm_length: float = 0.0
+
+# Leg lengths (calculated at setup for soft IK)
+var _left_leg_length: float = 0.0
+var _right_leg_length: float = 0.0
 
 # Arm swing randomness (regenerated periodically)
 var _left_arm_phase_offset: float = 0.0
@@ -586,6 +626,11 @@ var _current_lean_angle: float = 0.0  # Forward tilt in radians
 var _current_hip_rock: Vector3 = Vector3.ZERO  # Hip rock on all 3 axes in radians
 var _current_move_dir: Vector3 = Vector3.ZERO  # Current movement direction (for lean axis)
 var _pelvis_rest_basis: Basis = Basis.IDENTITY  # Pelvis rest pose
+
+# Acceleration tracking for dynamic motion scaling
+var _prev_velocity: Vector3 = Vector3.ZERO
+var _current_acceleration: float = 0.0  # Smoothed forward acceleration (m/s²)
+var _accel_factor: float = 0.0  # Normalized acceleration factor (-0.3 to 1.0)
 var _current_pelvis_basis: Basis = Basis.IDENTITY  # Smoothed pelvis rotation
 
 # Spine (cascading counter-rotation)
@@ -734,6 +779,10 @@ func _sync_from_config() -> void:
 	idle_threshold = config.idle_threshold
 	ik_blend_speed = config.ik_blend_speed
 	foot_smooth_speed = config.foot_smooth_speed
+	# Soft IK
+	soft_ik_enabled = config.soft_ik_enabled
+	ik_softness = config.ik_softness
+	ik_soft_start = config.ik_soft_start
 	# Turn in place
 	turn_in_place_enabled = config.turn_in_place_enabled
 	debug_turn_in_place = config.debug_turn_in_place
@@ -773,6 +822,33 @@ func _sync_from_config() -> void:
 	start_acceleration = config.start_acceleration
 	stop_plant_distance = config.stop_plant_distance
 	stop_decel_threshold = config.stop_decel_threshold
+
+
+## Update acceleration tracking for dynamic motion scaling.
+## Must be called early in _physics_process before other systems use _accel_factor.
+func _update_acceleration(delta: float) -> void:
+	var current_velocity := Vector3.ZERO
+	if _visuals.controller:
+		current_velocity = _visuals.controller.velocity
+
+	# Use velocity direction for acceleration calc (not input direction)
+	# This ensures deceleration is detected even after input stops
+	var velocity_dir := current_velocity.normalized() if current_velocity.length_squared() > 0.01 else _prev_velocity.normalized()
+
+	# Calculate forward acceleration (velocity change in velocity direction)
+	var velocity_change := current_velocity - _prev_velocity
+	var forward_accel := 0.0
+	if velocity_dir.length_squared() > 0.01 and delta > 0.0:
+		forward_accel = velocity_change.dot(velocity_dir) / delta
+	_prev_velocity = current_velocity
+
+	# Smooth the acceleration heavily to avoid jitter
+	var accel_smooth := 1.0 - exp(-5.0 * delta)
+	_current_acceleration = lerpf(_current_acceleration, forward_accel, accel_smooth)
+
+	# Convert to normalized factor: ~10 m/s² = full acceleration (1.0)
+	# Clamp negative to -0.3 for slight backswing on deceleration
+	_accel_factor = clampf(_current_acceleration / 10.0, -0.3, 1.0)
 
 
 ## Calculate effective stride length based on current speed.
@@ -854,6 +930,10 @@ func get_hip_rock_values() -> Dictionary:
 		"shoulder_twist": _current_shoulder_twist,
 		"lean_angle": _current_lean_angle,
 		"move_direction": _current_move_dir,
+		# Head look data
+		"head_target": _head_target_goal,
+		"head_look_enabled": head_anticipation_enabled and _head_target_goal != Vector3.ZERO,
+		"head_anticipation_speed": head_anticipation_speed,
 	}
 
 
@@ -998,6 +1078,20 @@ func _setup() -> void:
 		var lower_len := _skeleton.get_bone_rest(right_hand_idx).origin.length()
 		_right_arm_length = upper_len + lower_len
 
+	# Calculate leg lengths (thigh + calf) for soft IK
+	var left_calf_idx := _skeleton.find_bone(skel_config.left_calf)
+	var right_calf_idx := _skeleton.find_bone(skel_config.right_calf)
+
+	if _left_thigh_idx != -1 and left_calf_idx != -1 and _left_foot_idx != -1:
+		var thigh_len := _skeleton.get_bone_rest(left_calf_idx).origin.length()
+		var calf_len := _skeleton.get_bone_rest(_left_foot_idx).origin.length()
+		_left_leg_length = thigh_len + calf_len
+
+	if _right_thigh_idx != -1 and right_calf_idx != -1 and _right_foot_idx != -1:
+		var thigh_len := _skeleton.get_bone_rest(right_calf_idx).origin.length()
+		var calf_len := _skeleton.get_bone_rest(_right_foot_idx).origin.length()
+		_right_leg_length = thigh_len + calf_len
+
 	if _pelvis_idx == -1:
 		push_warning("StrideWheelComponent: Pelvis bone '%s' not found." % skel_config.pelvis_bone)
 	if _spine_01_idx == -1:
@@ -1052,6 +1146,10 @@ func _setup() -> void:
 	# Resolve head target (optional - for head look-at to follow cursor)
 	if not head_target.is_empty():
 		_head_target = get_node_or_null(head_target) as Marker3D
+
+	# Resolve head look modifier (optional - for controlling influence)
+	if not head_look_modifier.is_empty():
+		_head_look_mod = get_node_or_null(head_look_modifier) as LookAtModifier3D
 
 	# Resolve knee pole targets (optional - for knee direction tracking)
 	if not left_knee_target.is_empty():
@@ -1148,7 +1246,8 @@ func _apply_foot_bone_rotations() -> void:
 		_skeleton.set_bone_pose_rotation(_right_foot_idx, blended_basis.get_rotation_quaternion())
 
 
-## Update head target marker to follow cursor position (for LookAtModifier3D).
+## Update head target marker to follow cursor and movement direction (for LookAtModifier3D).
+## Priority: Active cursor tracking > Movement direction anticipation > Forward look
 func _update_head_target(delta: float) -> void:
 	if _head_target == null:
 		return
@@ -1162,12 +1261,64 @@ func _update_head_target(delta: float) -> void:
 
 	var head_pos := _visuals.global_position + Vector3.UP * 1.6  # Approximate head height
 	var forward := -_visuals.global_basis.z
-	var default_look := head_pos + forward * 5.0  # Default: look 5m ahead
+	var default_look := head_pos + forward * head_look_distance  # Default: look ahead
 
+	# Calculate yaw delta for turn detection (used by both turn anticipation and cursor tracking)
+	var current_yaw := _visuals.global_rotation.y
+	_head_yaw_delta = angle_difference(_prev_yaw_for_head, current_yaw)
+	_prev_yaw_for_head = current_yaw
+
+	# === MOVEMENT DIRECTION ANTICIPATION ===
+	var movement_goal := default_look
+	var is_moving := false
+
+	if head_anticipation_enabled:
+		# Get INPUT direction from character (where player WANTS to go)
+		# This is key for anticipation - input leads velocity
+		var input_dir := Vector3.ZERO
+		if char_body.move_direction.length_squared() > 0.01:
+			input_dir = char_body.move_direction.normalized()
+			input_dir.y = 0.0
+
+		var velocity := _visuals.get_velocity()
+		var horizontal_vel := Vector3(velocity.x, 0.0, velocity.z)
+		var speed := horizontal_vel.length()
+
+		# Use input direction for head look (anticipation), velocity for speed check
+		var has_input := input_dir.length_squared() > 0.01
+
+		if has_input or speed > idle_threshold:
+			is_moving = true
+
+			# Head looks DIRECTLY toward INPUT direction (no blending, no extra smoothing)
+			# This is key for anticipation - head must respond instantly to input
+			var look_target_dir := input_dir if has_input else horizontal_vel.normalized()
+
+			# Look distance scales with speed
+			var speed_factor := clampf(speed / run_speed, 0.5, 1.5)
+			var look_dist := head_look_distance * speed_factor
+
+			# Movement goal: look directly in input direction (single smooth on final target only)
+			movement_goal = head_pos + look_target_dir * look_dist
+
+		# === TURN ANTICIPATION ===
+		# If turning significantly and not moving much, anticipate the turn
+		if absf(_head_yaw_delta) > 0.01 and speed < walk_speed * 0.5:
+			# Turn direction: positive = turning right, negative = turning left
+			var turn_rate := _head_yaw_delta / delta if delta > 0 else 0.0
+			# Anticipate by looking slightly in the turn direction
+			var right_vec: Vector3 = -forward.cross(Vector3.UP)
+			var turn_offset: Vector3 = right_vec * sign(turn_rate) * head_turn_anticipation * 2.0
+			movement_goal = head_pos + (forward + turn_offset).normalized() * head_look_distance
+
+	# === CURSOR TRACKING ===
 	var cursor_goal := default_look
 	var cursor_is_valid := false
+	var cursor_is_active := false  # Actively being moved
 
-	# Check if controller has a valid aim target (cursor hit something)
+	# Detect if character is turning (cursor world pos changes without mouse movement)
+	var is_turning := absf(_head_yaw_delta) > 0.005
+
 	if char_body.controller.has_aim_target():
 		var cursor_pos := char_body.controller.get_aim_target()
 
@@ -1185,24 +1336,50 @@ func _update_head_target(delta: float) -> void:
 				cursor_goal = cursor_pos
 				cursor_is_valid = true
 
-				# Check if cursor has moved
-				if _last_cursor_pos != Vector3.ZERO:
-					var cursor_moved := cursor_pos.distance_squared_to(_last_cursor_pos) > 0.01
+				# Check if cursor has moved (only when NOT turning - turning moves cursor without mouse input)
+				if _last_cursor_pos != Vector3.ZERO and not is_turning:
+					var cursor_moved := cursor_pos.distance_squared_to(_last_cursor_pos) > 0.01  # ~0.1m movement
 					if cursor_moved:
 						_cursor_idle_time = 0.0
+						_cursor_has_moved = true  # Mark that user has actually moved cursor
 						_head_is_idle = false
+						cursor_is_active = true
 					else:
 						_cursor_idle_time += delta
+				elif not is_turning:
+					_cursor_idle_time += delta
 				_last_cursor_pos = cursor_pos
 
-	# If no valid cursor or cursor is idle for too long, return to forward look
+	# === DETERMINE FINAL GOAL ===
+	# Priority: Aiming > Cursor moving > Movement direction > Idle
 	var goal := default_look
 	var smooth_speed := head_return_speed
 
-	if cursor_is_valid and _cursor_idle_time < head_idle_timeout:
-		# Actively tracking cursor
+	# Check if player is actively aiming (holding right click)
+	var is_aiming := char_body.is_aiming
+
+	# Cursor is "active" if moved this frame OR within the idle timeout period
+	var cursor_actively_moving := cursor_is_active or (cursor_is_valid and _cursor_has_moved and _cursor_idle_time < head_idle_timeout)
+
+	if is_aiming and cursor_is_valid:
+		# AIMING (right click held) - always look at cursor
 		goal = cursor_goal
 		smooth_speed = head_track_speed
+		_head_is_idle = false
+	elif cursor_actively_moving:
+		# Cursor is being moved - look at cursor (even while walking)
+		goal = cursor_goal
+		smooth_speed = head_track_speed
+		_head_is_idle = false
+	elif is_moving and head_anticipation_enabled:
+		# Moving (cursor not active) - look in direction of travel
+		# But if cursor was recently used, transition slowly using head_return_speed
+		if cursor_is_valid and _cursor_has_moved:
+			goal = movement_goal
+			smooth_speed = head_return_speed  # Slow transition from cursor to movement
+		else:
+			goal = movement_goal
+			smooth_speed = head_anticipation_speed
 		_head_is_idle = false
 	else:
 		# Idle - return to forward look
@@ -1215,6 +1392,10 @@ func _update_head_target(delta: float) -> void:
 	# Smoothly lerp toward goal (frame-rate independent)
 	_head_target_goal = _head_target_goal.lerp(goal, 1.0 - exp(-smooth_speed * delta))
 	_head_target.global_position = _head_target_goal
+
+	# Keep LookAtModifier3D influence at 1.0 - the marker position handles smooth transitions
+	if _head_look_mod != null:
+		_head_look_mod.influence = 1.0
 
 
 func _physics_process(delta: float) -> void:
@@ -1235,7 +1416,13 @@ func _physics_process(delta: float) -> void:
 	var speed := horizontal_vel.length()
 	var is_moving: bool = speed > idle_threshold
 	var move_dir: Vector3 = horizontal_vel.normalized() if is_moving else Vector3.ZERO
-	_current_move_dir = move_dir  # Store for HipRockModifier lean axis
+
+	# Update acceleration factor early - used by hip, arm, and shoulder systems
+	_update_acceleration(delta)
+
+	# Smooth move direction to prevent snap when stopping
+	var dir_smooth := 1.0 - exp(-3.0 * delta)
+	_current_move_dir = _current_move_dir.lerp(move_dir, dir_smooth)
 
 	# Update influence
 	_update_influence(delta, is_moving)
@@ -1331,9 +1518,11 @@ func _physics_process(delta: float) -> void:
 		_apply_foot_target(_right_target, right_pos, right_yaw, right_normal, _right_foot_rest_basis, _right_swing_t, delta, true)
 
 		# Hip adjustment for natural knee bend:
-		# 1. Bob: vertical oscillation during gait cycle
+		# 1. Bob: vertical oscillation during gait cycle (scaled by acceleration)
 		# 2. Extension drop: hip lowers when legs are spread apart (Pythagorean theorem)
-		var hip_bob: float = -absf(sin(_phase)) * hip_bob_amount
+		# Acceleration scaling: more vigorous bob when accelerating into movement
+		var accel_bob_scale := 1.0 + maxf(0.0, _accel_factor) * 0.5
+		var hip_bob: float = -absf(sin(_phase)) * hip_bob_amount * accel_bob_scale
 
 		# Calculate leg extension drop - when feet are spread apart, hip must drop
 		# to maintain contact (otherwise legs would need to stretch)
@@ -1345,15 +1534,19 @@ func _physics_process(delta: float) -> void:
 
 		# Hip rock: tilts toward stance leg (away from swing leg)
 		# sin(_phase) gives smooth oscillation synced to gait
+		# Y-axis (twist) scales with acceleration for more dynamic hip drive
 		var phase_sin := sin(_phase)
+		var accel_rock_scale := 1.0 + maxf(0.0, _accel_factor) * 0.5
 		var hip_rock := Vector3(
 			phase_sin * hip_rock_x,
-			phase_sin * hip_rock_y,
+			phase_sin * hip_rock_y * accel_rock_scale,  # Acceleration-scaled twist
 			phase_sin * hip_rock_z
 		)
 
 		# Shoulder twist: follows stride phase with its own amplitude (opposite to hip twist)
-		var shoulder_twist := phase_sin * shoulder_rotation_amount
+		# Scales with acceleration for more vigorous arm/shoulder pump when starting
+		var accel_shoulder_scale := 1.0 + maxf(0.0, _accel_factor) * 0.5
+		var shoulder_twist := phase_sin * shoulder_rotation_amount * accel_shoulder_scale
 
 		_update_hip(delta, hip_bob + extension_drop, hip_rock, move_dir, shoulder_twist)
 
@@ -1862,8 +2055,13 @@ func _update_hip(delta: float, bob: float, rock: Vector3 = Vector3.ZERO, move_di
 	)
 
 	# Torso lag: offset torso BEHIND movement direction so feet appear to lead
-	var target_lag := -move_dir * body_trail_distance if hip_motion_enabled else Vector3.ZERO
-	_current_hip_forward = _current_hip_forward.lerp(target_lag, smooth_factor)
+	# Acceleration scaling: more trail when accelerating (body lags), less when stopping (body catches up)
+	# Use consistent slow smoothing to prevent snaps on direction changes
+	var accel_trail_scale := 1.0 + _accel_factor * 0.5  # +50% at full accel, -15% at full decel
+	var effective_trail := body_trail_distance * accel_trail_scale
+	var target_lag := -move_dir * effective_trail if hip_motion_enabled else Vector3.ZERO
+	var lag_smooth := 1.0 - exp(-3.0 * delta)  # Slow, consistent smoothing
+	_current_hip_forward = _current_hip_forward.lerp(target_lag, lag_smooth)
 
 	# Slope detection and lean (only if slope adaptation is enabled)
 	var slope_angle := 0.0
@@ -1872,25 +2070,38 @@ func _update_hip(delta: float, bob: float, rock: Vector3 = Vector3.ZERO, move_di
 	var slope_smooth := 1.0 - exp(-slope_smooth_speed * delta)
 	_current_slope_angle = lerpf(_current_slope_angle, slope_angle, slope_smooth)
 
-	# Forward lean: tilt torso forward when moving + lean into slopes
-	var base_lean := deg_to_rad(spine_lean_angle) if move_dir.length_squared() > 0.01 and hip_motion_enabled else 0.0
+	# Acceleration-based spine lean:
+	# - Starting movement: lean forward (positive _accel_factor)
+	# - Cruising: gradually straighten (zero _accel_factor)
+	# - Stopping: lean back slightly (negative _accel_factor), then slowly return to upright
+	# _accel_factor is calculated early in _update_acceleration() and shared across all systems
+	var base_lean := deg_to_rad(spine_lean_angle) * _accel_factor if hip_motion_enabled else 0.0
+
+	# Add slope lean
 	var slope_lean := _current_slope_angle * slope_lean_amount if slope_adaptation_enabled else 0.0
 	var target_lean := base_lean + slope_lean
-	_current_lean_angle = lerpf(_current_lean_angle, target_lean, smooth_factor)
+
+	# Use consistent slow smoothing for lean to prevent snaps on direction change
+	var lean_smooth := 1.0 - exp(-3.0 * delta)
+	_current_lean_angle = lerpf(_current_lean_angle, target_lean, lean_smooth)
 
 	# Hip rock: 3-axis rotation synced with gait (convert degrees to radians)
+	# Use consistent slow smoothing to prevent snaps
 	var effective_rock := rock if hip_motion_enabled else Vector3.ZERO
 	var target_rock := Vector3(
 		deg_to_rad(effective_rock.x),
 		deg_to_rad(effective_rock.y),
 		deg_to_rad(effective_rock.z)
 	)
-	_current_hip_rock = _current_hip_rock.lerp(target_rock, smooth_factor)
+	var rock_smooth := 1.0 - exp(-5.0 * delta)  # Slightly faster for gait sync
+	_current_hip_rock = _current_hip_rock.lerp(target_rock, rock_smooth)
 
 	# Shoulder twist: smooth the phase-based twist (convert degrees to radians)
 	var effective_shoulder_twist := shoulder_twist if shoulder_rotation_enabled else 0.0
 	var target_shoulder_twist := deg_to_rad(effective_shoulder_twist)
-	_current_shoulder_twist = lerpf(_current_shoulder_twist, target_shoulder_twist, smooth_factor)
+	# Use slower smoothing to prevent jitter on direction changes
+	var twist_smooth := 1.0 - exp(-3.0 * delta)
+	_current_shoulder_twist = lerpf(_current_shoulder_twist, target_shoulder_twist, twist_smooth)
 
 	# Apply position to visual root
 	_visuals.position.y = _current_hip_offset
@@ -1923,9 +2134,10 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 	var target_influence := 1.0 if is_moving else 0.0
 	_arm_influence = lerpf(_arm_influence, target_influence, 1.0 - exp(-ik_blend_speed * delta))
 
-	# Scale swing with speed (faster = bigger swing)
+	# Scale swing with speed (faster = bigger swing) and acceleration (more pump when starting)
 	var speed_factor := clampf(speed / run_speed, 0.3, 1.0) if is_moving else 0.0
-	var swing_amp := arm_swing_amount * speed_factor
+	var accel_arm_scale := 1.0 + maxf(0.0, _accel_factor) * 0.5  # Up to 50% more swing when accelerating
+	var swing_amp := arm_swing_amount * speed_factor * accel_arm_scale
 
 	# Subtle arm randomness (updated every ~0.5 seconds)
 	_arm_random_timer += delta
@@ -2086,6 +2298,57 @@ func _apply_influence() -> void:
 		_right_ik.set("influence", _current_influence)
 
 
+## Apply soft IK clamping to prevent knee snapping at full leg extension.
+## Pulls foot target closer to hip when approaching max reach, creating smooth bend.
+## Returns the adjusted world position.
+func _apply_soft_ik(world_pos: Vector3, is_left: bool) -> Vector3:
+	if not soft_ik_enabled or ik_softness <= 0.0:
+		return world_pos
+
+	# Get thigh (hip joint) world position
+	var thigh_idx := _left_thigh_idx if is_left else _right_thigh_idx
+	if thigh_idx == -1 or _skeleton == null:
+		return world_pos
+
+	var hip_pos := _get_bone_world_position(thigh_idx)
+
+	# Use actual leg length calculated from skeleton bones
+	var leg_length := _left_leg_length if is_left else _right_leg_length
+	if leg_length <= 0.0:
+		return world_pos  # Leg length not calculated, skip soft IK
+
+	# Calculate current distance from hip to target
+	var to_target := world_pos - hip_pos
+	var distance := to_target.length()
+
+	if distance < 0.001:
+		return world_pos
+
+	# Apply constant minimum bend + soft falloff near max reach
+	# This ensures knee is never fully straight
+	var max_reach := leg_length
+	var soft_start_dist := max_reach * ik_soft_start
+
+	# Base compression: always pull back slightly to maintain minimum knee bend
+	# ik_softness controls how much minimum bend (0.3 = always 3% shorter than distance)
+	var min_bend_factor := 1.0 - (ik_softness * 0.1)  # e.g., 0.3 softness = 0.97 factor
+
+	# Additional compression near max reach
+	var extra_compression := 0.0
+	if distance > soft_start_dist:
+		var excess_ratio := (distance - soft_start_dist) / (max_reach - soft_start_dist)
+		excess_ratio = clampf(excess_ratio, 0.0, 2.0)
+		extra_compression = excess_ratio * excess_ratio * ik_softness * 0.3
+
+	var total_scale := min_bend_factor - extra_compression
+	total_scale = clampf(total_scale, 0.5, 1.0)  # Never compress more than 50%
+
+	var new_distance := distance * total_scale
+	var direction := to_target.normalized()
+
+	return hip_pos + direction * new_distance
+
+
 ## Position and rotate a foot target Marker3D with smoothing.
 ## yaw: The Y rotation (facing direction) for the foot.
 ## ground_normal: The ground normal from raycast for slope adaptation.
@@ -2101,20 +2364,17 @@ func _apply_foot_target(target: Marker3D, world_pos: Vector3, yaw: float, ground
 	var is_left := target == _left_target
 	var stance_progress := _left_stance_progress if is_left else _right_stance_progress
 
+	# Apply soft IK to prevent knee snapping at full extension
+	world_pos = _apply_soft_ik(world_pos, is_left)
+
 	# Build foot basis from rest pose + yaw delta + ground tilt + swing/stance pitch
 	var target_basis := _compute_foot_basis(yaw, ground_normal, rest_basis, swing_t, stance_progress, apply_swing_pitch)
 	var current_pos: Vector3 = _left_current_pos if is_left else _right_current_pos
 
 	# Always smooth foot movement
-	var distance_to_target := current_pos.distance_to(world_pos)
-	var far_threshold := stride_length * 0.5
-
-	# Consistent smoothing with slight boost when far
-	var speed_mult := 1.0 + clampf(distance_to_target / far_threshold, 0.0, 1.0)
-	# Boost smoothing when foot is in swing phase (swing_t > 0) so arc animation is visible
-	if swing_t > 0.0:
-		speed_mult *= 3.0
-	var smooth_factor := 1.0 - exp(-foot_smooth_speed * speed_mult * delta)
+	# Use consistent smoothing speed - no boost during swing
+	# The arc shape comes from _process_foot(), not from faster smoothing
+	var smooth_factor := 1.0 - exp(-foot_smooth_speed * delta)
 
 	var target_quat := target_basis.get_rotation_quaternion()
 

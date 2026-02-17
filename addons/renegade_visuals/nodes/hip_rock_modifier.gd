@@ -18,6 +18,15 @@ var _spine_01_rest_basis: Basis = Basis.IDENTITY
 var _spine_02_rest_basis: Basis = Basis.IDENTITY
 var _spine_03_rest_basis: Basis = Basis.IDENTITY
 
+## Smoothed lean axis to prevent snap on 180 turns.
+var _current_lean_axis: Vector3 = Vector3.RIGHT
+## Lean blend factor - fades out during direction changes.
+var _lean_blend: float = 1.0
+## Smoothed spine counter-twists to prevent jitter.
+var _spine_01_twist: float = 0.0
+var _spine_02_twist: float = 0.0
+var _spine_03_twist: float = 0.0
+
 
 func _ready() -> void:
 	# Find stride wheel component - it's a sibling of CharacterVisuals root
@@ -125,25 +134,31 @@ func _process_modification() -> void:
 	# shoulder_twist is the base rotation from stride phase (in radians)
 	# spine_twist_cascade controls how much twist builds up through the spine
 	# shoulder_counter_rotation controls the final shoulder twist
-	if shoulder_rotation_enabled and shoulder_twist != 0.0:
+	if shoulder_rotation_enabled:
+		var delta := get_process_delta_time()
+		var twist_smooth := 1.0 - exp(-2.0 * delta)  # Very slow to prevent jitter
 
 		# Spine counter-rotation using GLOBAL pose to ensure world-space yaw
 		# Work in skeleton's global space, then convert back to local
 
 		# Spine_01: lean + small counter-twist
 		if _spine_01_idx != -1:
-			var counter_twist := -shoulder_twist * spine_twist_cascade
-			_apply_global_yaw_and_lean(_spine_01_idx, counter_twist, lean_angle, move_direction)
+			var target_twist := -shoulder_twist * spine_twist_cascade
+			_spine_01_twist = lerpf(_spine_01_twist, target_twist, twist_smooth)
+			_apply_global_yaw_and_lean(_spine_01_idx, _spine_01_twist, lean_angle, move_direction)
 
 		# Spine_02: more counter-twist (building up through spine)
 		if _spine_02_idx != -1:
-			var counter_twist := -shoulder_twist * spine_twist_cascade * 2.0
-			_apply_global_yaw_and_lean(_spine_02_idx, counter_twist, 0.0, move_direction)
+			var target_twist := -shoulder_twist * spine_twist_cascade * 2.0
+			_spine_02_twist = lerpf(_spine_02_twist, target_twist, twist_smooth)
+			_apply_global_yaw_and_lean(_spine_02_idx, _spine_02_twist, 0.0, move_direction)
 
 		# Spine_03: full shoulder counter-rotation
 		if _spine_03_idx != -1:
-			var counter_twist := -shoulder_twist * shoulder_counter_rotation
-			_apply_global_yaw_and_lean(_spine_03_idx, counter_twist, 0.0, move_direction)
+			var target_twist := -shoulder_twist * shoulder_counter_rotation
+			_spine_03_twist = lerpf(_spine_03_twist, target_twist, twist_smooth)
+			_apply_global_yaw_and_lean(_spine_03_idx, _spine_03_twist, 0.0, move_direction)
+
 
 
 ## Apply yaw and lean rotation in TRUE world space (accounting for skeleton rotation)
@@ -166,14 +181,16 @@ func _apply_global_yaw_and_lean(bone_idx: int, yaw_angle: float, lean_angle: flo
 	# Apply yaw in skeleton-global space
 	var new_global_basis := yaw_rotation * global_pose.basis
 
-	# Apply forward lean around axis perpendicular to movement direction
-	# Lean axis = cross product of UP and move_dir (gives us the "right" relative to movement)
-	if lean_angle != 0.0 and move_dir.length_squared() > 0.001:
-		# Calculate lean axis: perpendicular to both UP and movement direction
-		var lean_axis_world := Vector3.UP.cross(move_dir).normalized()
-		var lean_axis_in_skeleton := skeleton.global_transform.basis.inverse() * lean_axis_world
-		var lean_rotation := Basis(lean_axis_in_skeleton.normalized(), lean_angle)
-		new_global_basis = lean_rotation * new_global_basis
+	# Apply forward lean around the character's RIGHT axis (perpendicular to facing)
+	# This avoids axis flip issues during 180 turns - lean is always relative to character facing
+	if lean_angle != 0.0:
+		# Use skeleton's right vector as lean axis (character always leans forward/back relative to facing)
+		var char_right := skeleton.global_transform.basis.x.normalized()
+		var lean_axis_in_skeleton := skeleton.global_transform.basis.inverse() * char_right
+
+		if absf(lean_angle) > 0.001:
+			var lean_rotation := Basis(lean_axis_in_skeleton.normalized(), lean_angle)
+			new_global_basis = lean_rotation * new_global_basis
 
 	# Convert back to local pose relative to parent
 	var parent_idx := skeleton.get_bone_parent(bone_idx)
