@@ -105,19 +105,19 @@ extends Node
 		if config:
 			config.hip_bob_amount = value
 ## Side-to-side hip rock on X axis (degrees). Hip drops on swing leg side.
-@export_range(0.0, 15.0) var hip_rock_x: float = 15.0:
+@export_range(0.0, 15.0) var hip_rock_x: float = 0.0:
 	set(value):
 		hip_rock_x = value
 		if config:
 			config.hip_rock_x = value
 ## Hip twist on Y axis (degrees). Hip rotates toward swing leg.
-@export_range(0.0, 15.0) var hip_rock_y: float = 15.0:
+@export_range(0.0, 15.0) var hip_rock_y: float = 0.0:
 	set(value):
 		hip_rock_y = value
 		if config:
 			config.hip_rock_y = value
 ## Forward/back hip rock on Z axis (degrees). Hip tilts with gait.
-@export_range(0.0, 15.0) var hip_rock_z: float = 15.0:
+@export_range(0.0, 15.0) var hip_rock_z: float = 0.0:
 	set(value):
 		hip_rock_z = value
 		if config:
@@ -135,13 +135,13 @@ extends Node
 		if config:
 			config.body_trail_distance = value
 ## Spine lean angle (degrees) during locomotion. Tilts torso forward into movement.
-@export_range(-30.0, 45.0) var spine_lean_angle: float = 8.0:
+@export_range(-30.0, 45.0) var spine_lean_angle: float = 45.0:
 	set(value):
 		spine_lean_angle = value
 		if config:
 			config.spine_lean_angle = value
 ## Smoothing speed for torso (hip and spine) movements. Higher = snappier response.
-@export_range(1.0, 30.0) var torso_smooth_speed: float = 10.0:
+@export_range(1.0, 30.0) var torso_smooth_speed: float = 15.0:
 	set(value):
 		torso_smooth_speed = value
 		if config:
@@ -149,7 +149,7 @@ extends Node
 
 @export_group("Shoulder Counter-Rotation")
 ## Enable shoulder and spine counter-rotation opposite to hips.
-@export var shoulder_rotation_enabled: bool = false:
+@export var shoulder_rotation_enabled: bool = true:
 	set(value):
 		shoulder_rotation_enabled = value
 		if config:
@@ -161,19 +161,19 @@ extends Node
 		if config:
 			config.debug_shoulder = value
 ## How much shoulders twist opposite to hips (0 = none, 1 = equal and opposite).
-@export_range(0.0, 1.5) var shoulder_counter_rotation: float = 0.7:
+@export_range(0.0, 1.5) var shoulder_counter_rotation: float = 1.5:
 	set(value):
 		shoulder_counter_rotation = value
 		if config:
 			config.shoulder_counter_rotation = value
 ## Additional spine twist cascading up from hips (fraction of hip_rock_y applied to each spine bone).
-@export_range(0.0, 1.0) var spine_twist_cascade: float = 0.3:
+@export_range(0.0, 1.0) var spine_twist_cascade: float = 1.0:
 	set(value):
 		spine_twist_cascade = value
 		if config:
 			config.spine_twist_cascade = value
 ## Shoulder rotation amplitude in degrees. Controls how much shoulders twist during walk cycle.
-@export_range(0.0, 45.0) var shoulder_rotation_amount: float = 15.0:
+@export_range(0.0, 45.0) var shoulder_rotation_amount: float = 2.0:
 	set(value):
 		shoulder_rotation_amount = value
 		if config:
@@ -219,7 +219,7 @@ extends Node
 		if config:
 			config.ik_blend_speed = value
 ## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
-@export_range(5.0, 50.0) var foot_smooth_speed: float = 10.0:
+@export_range(5.0, 50.0) var foot_smooth_speed: float = 16.0:
 	set(value):
 		foot_smooth_speed = value
 		if config:
@@ -227,19 +227,19 @@ extends Node
 
 @export_group("Soft IK")
 ## Enable soft IK to prevent knee snapping at full leg extension.
-@export var soft_ik_enabled: bool = true:
+@export var soft_ik_enabled: bool = false:
 	set(value):
 		soft_ik_enabled = value
 		if config:
 			config.soft_ik_enabled = value
 ## How much to pull foot target closer when near max reach (0 = none, 1 = max).
-@export_range(0.0, 1.0) var ik_softness: float = 0.3:
+@export_range(0.0, 1.0) var ik_softness: float = 0.62:
 	set(value):
 		ik_softness = value
 		if config:
 			config.ik_softness = value
 ## Fraction of max leg reach where softening begins (0.8 = starts at 80% reach).
-@export_range(0.5, 1.0) var ik_soft_start: float = 0.85:
+@export_range(0.5, 1.0) var ik_soft_start: float = 1.0:
 	set(value):
 		ik_soft_start = value
 		if config:
@@ -295,7 +295,7 @@ extends Node
 		if config:
 			config.stance_stagger = value
 ## Maximum leg reach as multiplier of stride length. Prevents over-stretching.
-@export_range(0.8, 2.0) var max_leg_reach: float = 1.2:
+@export_range(0.8, 2.0) var max_leg_reach: float = 0.95:
 	set(value):
 		max_leg_reach = value
 		if config:
@@ -303,7 +303,7 @@ extends Node
 
 @export_group("Foot Rotation")
 ## Enable foot rotation to match ground normal and swing pitch.
-@export var foot_rotation_enabled: bool = false:
+@export var foot_rotation_enabled: bool = true:
 	set(value):
 		foot_rotation_enabled = value
 		if config:
@@ -315,7 +315,7 @@ extends Node
 		if config:
 			config.debug_foot_rotation = value
 ## How much the foot rotates to match ground normal (0-1).
-@export_range(0.0, 1.0) var foot_rotation_weight: float = 0.7:
+@export_range(0.0, 1.0) var foot_rotation_weight: float = 1.0:
 	set(value):
 		foot_rotation_weight = value
 		if config:
@@ -367,7 +367,7 @@ extends Node
 
 @export_group("Knee Tracking")
 ## Enable knee pole targets to track movement direction.
-@export var knee_tracking_enabled: bool = false:
+@export var knee_tracking_enabled: bool = true:
 	set(value):
 		knee_tracking_enabled = value
 		if config:
@@ -393,7 +393,7 @@ extends Node
 
 @export_group("Slope Adaptation")
 ## Enable body lean when walking on slopes.
-@export var slope_adaptation_enabled: bool = false:
+@export var slope_adaptation_enabled: bool = true:
 	set(value):
 		slope_adaptation_enabled = value
 		if config:
@@ -405,7 +405,7 @@ extends Node
 		if config:
 			config.debug_slope = value
 ## How much the body leans into slopes (0 = none, 1 = match slope angle).
-@export_range(0.0, 1.0) var slope_lean_amount: float = 0.5:
+@export_range(0.0, 1.0) var slope_lean_amount: float = 0.2:
 	set(value):
 		slope_lean_amount = value
 		if config:
@@ -498,24 +498,178 @@ extends Node
 ## Marker3D target for right hand IK. Leave empty to disable arm swing.
 @export var right_hand_target: NodePath
 ## Forward/back swing amplitude (meters). Arms swing opposite to legs.
-@export_range(0.0, 2.0) var arm_swing_amount: float = 1.5
+@export_range(0.0, 2.0) var arm_swing_amount: float = 0.4
 ## Forward offset added to arm swing - shifts arms forward during movement (meters).
 @export_range(0.0, 0.5) var arm_forward_bias: float = 0.15
 ## Phase offset to align arm swing with opposite leg (0.25 = arm forward when opposite foot plants).
 ## 0.0 = arms at center when foot plants, 0.25 = correct natural timing, 0.5 = arms opposite.
-@export_range(0.0, 0.5) var arm_phase_offset: float = 0.25
+@export_range(0.0, 0.5) var arm_phase_offset: float = 0.3
 ## Arm looseness/lag. Lower = stiffer, higher = looser with more follow-through.
 @export_range(1.0, 30.0) var arm_smoothing: float = 20.0
 ## Vertical lift at swing extremes (meters). Creates natural arc.
 @export_range(0.0, 0.5) var arm_swing_lift: float = 0.03
 ## How far to drop hands from T-pose rest position (meters). Creates natural hanging arms.
-@export_range(0.0, 2.5) var arm_rest_drop: float = 2.0
+@export_range(0.0, 2.5) var arm_rest_drop: float = 0.1
 ## How far to raise hands from dropped position (meters). Creates elbow bend.
 @export_range(0.0, 0.5) var arm_rest_raise: float = 0.0
 ## Move hands up in world space (meters).
 @export_range(0.0, 0.5) var arm_rest_up: float = 0.0
 ## Maximum reach from shoulder to hand (fraction of full arm length). Less than 1.0 forces elbow bend.
-@export_range(0.5, 1.0) var arm_max_reach: float = 0.987
+@export_range(0.5, 1.0) var arm_max_reach: float = 0.99
+
+@export_group("Turn Banking")
+## Enable lateral body lean when turning.
+@export var turn_banking_enabled: bool = true:
+	set(value):
+		turn_banking_enabled = value
+		if config:
+			config.turn_banking_enabled = value
+## Show debug visualization for turn banking.
+@export var debug_banking: bool = false:
+	set(value):
+		debug_banking = value
+		if config:
+			config.debug_banking = value
+## Maximum bank angle in degrees (lateral lean).
+@export_range(0.0, 90.0) var max_bank_angle: float = 15.0:
+	set(value):
+		max_bank_angle = value
+		if config:
+			config.max_bank_angle = value
+## Maximum twist angle in degrees (torso rotation into turn).
+@export_range(0.0, 45.0) var max_turn_twist: float = 45.0:
+	set(value):
+		max_turn_twist = value
+		if config:
+			config.max_turn_twist = value
+## Bank smoothing speed.
+@export_range(1.0, 30.0) var bank_smooth_speed: float = 1.5:
+	set(value):
+		bank_smooth_speed = value
+		if config:
+			config.bank_smooth_speed = value
+## Bank decay multiplier. 1 = same as attack, 10 = instant return, 0.5 = draggy.
+@export_range(0.1, 10.0) var bank_decay_mult: float = 10.0:
+	set(value):
+		bank_decay_mult = value
+		if config:
+			config.bank_decay_mult = value
+## Minimum speed for banking.
+@export_range(0.0, 5.0) var bank_min_speed: float = 0.5:
+	set(value):
+		bank_min_speed = value
+		if config:
+			config.bank_min_speed = value
+## Multiplier for turn rate to bank angle. Higher = more aggressive banking.
+@export_range(0.5, 10.0) var bank_sensitivity: float = 0.5:
+	set(value):
+		bank_sensitivity = value
+		if config:
+			config.bank_sensitivity = value
+
+@export_group("Procedural Breathing")
+## Enable breathing motion.
+@export var breathing_enabled: bool = true:
+	set(value):
+		breathing_enabled = value
+		if config:
+			config.breathing_enabled = value
+## Breaths per minute at rest.
+@export_range(8.0, 20.0) var breath_rate_idle: float = 15.0:
+	set(value):
+		breath_rate_idle = value
+		if config:
+			config.breath_rate_idle = value
+## Breaths per minute when running.
+@export_range(20.0, 60.0) var breath_rate_exertion: float = 60.0:
+	set(value):
+		breath_rate_exertion = value
+		if config:
+			config.breath_rate_exertion = value
+## Chest expansion amount.
+@export_range(0.0, 0.05) var breath_chest_amount: float = 0.05:
+	set(value):
+		breath_chest_amount = value
+		if config:
+			config.breath_chest_amount = value
+## Shoulder rise amount.
+@export_range(0.0, 0.03) var breath_shoulder_amount: float = 0.0:
+	set(value):
+		breath_shoulder_amount = value
+		if config:
+			config.breath_shoulder_amount = value
+
+@export_group("Idle Sway")
+## Enable weight shifting when idle.
+@export var idle_sway_enabled: bool = true:
+	set(value):
+		idle_sway_enabled = value
+		if config:
+			config.idle_sway_enabled = value
+## Time between weight shifts.
+@export_range(2.0, 8.0) var sway_period: float = 8.0:
+	set(value):
+		sway_period = value
+		if config:
+			config.sway_period = value
+## Lateral hip shift amount.
+@export_range(0.0, 0.1) var sway_hip_shift: float = 0.036:
+	set(value):
+		sway_hip_shift = value
+		if config:
+			config.sway_hip_shift = value
+## Hip tilt during sway.
+@export_range(0.0, 10.0) var sway_hip_tilt: float = 3.0:
+	set(value):
+		sway_hip_tilt = value
+		if config:
+			config.sway_hip_tilt = value
+
+@export_group("Clavicle Motion")
+## Enable clavicle motion with arm swing.
+@export var clavicle_enabled: bool = true:
+	set(value):
+		clavicle_enabled = value
+		if config:
+			config.clavicle_enabled = value
+## Clavicle forward rotation amount (degrees).
+@export_range(0.0, 45.0) var clavicle_swing_amount: float = 10.0:
+	set(value):
+		clavicle_swing_amount = value
+		if config:
+			config.clavicle_swing_amount = value
+## Clavicle elevation/depression amount (degrees).
+@export_range(0.0, 30.0) var clavicle_elevation_amount: float = 3.0:
+	set(value):
+		clavicle_elevation_amount = value
+		if config:
+			config.clavicle_elevation_amount = value
+
+@export_group("Gait Refinement")
+## Use realistic gait curves.
+@export var gait_curves_enabled: bool = true:
+	set(value):
+		gait_curves_enabled = value
+		if config:
+			config.gait_curves_enabled = value
+## Asymmetry between left/right (affects step height variation).
+@export_range(0.0, 1.0) var gait_asymmetry: float = 0.05:
+	set(value):
+		gait_asymmetry = value
+		if config:
+			config.gait_asymmetry = value
+## Random cadence variation (regenerated each step).
+@export_range(0.0, 0.5) var cadence_variation: float = 0.1:
+	set(value):
+		cadence_variation = value
+		if config:
+			config.cadence_variation = value
+## Stance sharpness - controls swing timing curve (higher = snappier lift/plant).
+@export_range(1.0, 10.0) var stance_sharpness: float = 1.0:
+	set(value):
+		stance_sharpness = value
+		if config:
+			config.stance_sharpness = value
 
 @export_group("Debug")
 ## Enable debug visualization.
@@ -645,6 +799,38 @@ var _current_shoulder_twist: float = 0.0  # Smoothed shoulder twist in radians
 # Influence
 var _current_influence: float = 0.0
 
+# Turn banking state
+var _current_bank_angle: float = 0.0  # Current lateral bank in radians
+var _current_turn_twist: float = 0.0  # Current torso twist in radians
+var _prev_yaw: float = 0.0  # Previous frame yaw for turn rate calculation
+
+# Breathing state
+var _breath_phase: float = 0.0  # Current breath cycle phase (0 to TAU)
+var _current_breath_rate: float = 12.0  # Current breaths per minute (smoothed)
+var _exertion_level: float = 0.0  # 0 = resting, 1 = max exertion
+
+# Idle sway state
+var _sway_phase: float = 0.0  # Current sway cycle phase
+var _idle_time: float = 0.0  # Time spent idle
+var _current_sway_offset: Vector3 = Vector3.ZERO  # Hip lateral offset from sway
+var _current_sway_tilt: float = 0.0  # Hip tilt from sway
+
+# Gait refinement state
+var _left_cadence_offset: float = 0.0  # Random timing offset for left foot
+var _right_cadence_offset: float = 0.0  # Random timing offset for right foot
+var _left_amp_variation: float = 1.0  # Amplitude variation for left side
+var _right_amp_variation: float = 1.0  # Amplitude variation for right side
+
+# Clavicle bone indices
+var _clavicle_l_idx: int = -1
+var _clavicle_r_idx: int = -1
+# Clavicle rest bases (bind pose)
+var _clavicle_l_rest_basis: Basis = Basis.IDENTITY
+var _clavicle_r_rest_basis: Basis = Basis.IDENTITY
+# Smoothed clavicle rotation (radians)
+var _clavicle_l_rotation: Vector3 = Vector3.ZERO  # X=protraction, Y=elevation
+var _clavicle_r_rotation: Vector3 = Vector3.ZERO
+
 # Physics
 var _space_state: PhysicsDirectSpaceState3D
 
@@ -652,8 +838,7 @@ var _space_state: PhysicsDirectSpaceState3D
 var _left_rest_pos: Vector3 = Vector3.ZERO
 var _right_rest_pos: Vector3 = Vector3.ZERO
 
-# Turn-in-place state
-var _prev_yaw: float = 0.0
+# Turn-in-place state (uses _prev_yaw from Turn banking state)
 var _was_moving: bool = false  # Track previous frame movement state
 var _is_walking: bool = false  # True only during active walking (not idle/turn)
 var _is_turning_in_place: bool = false
@@ -822,6 +1007,35 @@ func _sync_from_config() -> void:
 	start_acceleration = config.start_acceleration
 	stop_plant_distance = config.stop_plant_distance
 	stop_decel_threshold = config.stop_decel_threshold
+	# Turn banking
+	turn_banking_enabled = config.turn_banking_enabled
+	debug_banking = config.debug_banking
+	max_bank_angle = config.max_bank_angle
+	max_turn_twist = config.max_turn_twist
+	bank_smooth_speed = config.bank_smooth_speed
+	bank_decay_mult = config.bank_decay_mult
+	bank_min_speed = config.bank_min_speed
+	bank_sensitivity = config.bank_sensitivity
+	# Breathing
+	breathing_enabled = config.breathing_enabled
+	breath_rate_idle = config.breath_rate_idle
+	breath_rate_exertion = config.breath_rate_exertion
+	breath_chest_amount = config.breath_chest_amount
+	breath_shoulder_amount = config.breath_shoulder_amount
+	# Idle sway
+	idle_sway_enabled = config.idle_sway_enabled
+	sway_period = config.sway_period
+	sway_hip_shift = config.sway_hip_shift
+	sway_hip_tilt = config.sway_hip_tilt
+	# Clavicle motion
+	clavicle_enabled = config.clavicle_enabled
+	clavicle_swing_amount = config.clavicle_swing_amount
+	clavicle_elevation_amount = config.clavicle_elevation_amount
+	# Gait refinement
+	gait_curves_enabled = config.gait_curves_enabled
+	gait_asymmetry = config.gait_asymmetry
+	cadence_variation = config.cadence_variation
+	stance_sharpness = config.stance_sharpness
 
 
 ## Update acceleration tracking for dynamic motion scaling.
@@ -849,6 +1063,166 @@ func _update_acceleration(delta: float) -> void:
 	# Convert to normalized factor: ~10 m/s² = full acceleration (1.0)
 	# Clamp negative to -0.3 for slight backswing on deceleration
 	_accel_factor = clampf(_current_acceleration / 10.0, -0.3, 1.0)
+
+
+## Update turn banking - lateral lean and torso twist into turns like a motorcycle.
+func _update_turn_banking(delta: float, speed: float) -> void:
+	if not turn_banking_enabled:
+		_current_bank_angle = lerpf(_current_bank_angle, 0.0, 1.0 - exp(-bank_smooth_speed * delta))
+		_current_turn_twist = lerpf(_current_turn_twist, 0.0, 1.0 - exp(-bank_smooth_speed * delta))
+		return
+
+	# Calculate turn rate from yaw change
+	var current_yaw := _visuals.global_rotation.y
+	var yaw_delta := angle_difference(_prev_yaw, current_yaw)
+	# Don't update _prev_yaw here - it's used for turn-in-place detection too
+
+	var turn_rate := yaw_delta / delta if delta > 0 else 0.0
+
+	# Only bank/twist when moving fast enough
+	var target_bank := 0.0
+	var target_twist := 0.0
+	if speed > bank_min_speed:
+		# Proportional to turn rate and speed
+		var speed_factor := clampf((speed - bank_min_speed) / (run_speed - bank_min_speed), 0.0, 1.0)
+
+		# Bank = lateral lean (rotation around forward axis)
+		target_bank = turn_rate * speed_factor * deg_to_rad(max_bank_angle) * bank_sensitivity
+		target_bank = clampf(target_bank, -deg_to_rad(max_bank_angle), deg_to_rad(max_bank_angle))
+
+		# Twist = torso rotation into turn (rotation around up axis)
+		target_twist = turn_rate * speed_factor * deg_to_rad(max_turn_twist) * bank_sensitivity
+		target_twist = clampf(target_twist, -deg_to_rad(max_turn_twist), deg_to_rad(max_turn_twist))
+
+	# Use configurable decay speed when returning to neutral
+	var bank_speed := bank_smooth_speed
+	var twist_speed := bank_smooth_speed
+	if absf(target_bank) < absf(_current_bank_angle):
+		bank_speed *= bank_decay_mult
+	if absf(target_twist) < absf(_current_turn_twist):
+		twist_speed *= bank_decay_mult
+
+	_current_bank_angle = lerpf(_current_bank_angle, target_bank, 1.0 - exp(-bank_speed * delta))
+	_current_turn_twist = lerpf(_current_turn_twist, target_twist, 1.0 - exp(-twist_speed * delta))
+
+
+## Update procedural breathing - subtle chest/shoulder movement.
+func _update_breathing(delta: float, speed: float) -> void:
+	if not breathing_enabled:
+		return
+
+	# Calculate exertion based on recent speed (smoothed)
+	var target_exertion := clampf(speed / run_speed, 0.0, 1.0)
+	_exertion_level = lerpf(_exertion_level, target_exertion, 1.0 - exp(-0.5 * delta))
+
+	# Interpolate breath rate based on exertion
+	var target_rate := lerpf(breath_rate_idle, breath_rate_exertion, _exertion_level)
+	_current_breath_rate = lerpf(_current_breath_rate, target_rate, 1.0 - exp(-0.5 * delta))
+
+	# Advance breath phase (convert BPM to radians per second)
+	var breath_speed := (_current_breath_rate / 60.0) * TAU
+	_breath_phase += breath_speed * delta
+	_breath_phase = fmod(_breath_phase, TAU)
+
+
+## Get current breath offset for chest/spine.
+func _get_breath_offset() -> float:
+	if not breathing_enabled:
+		return 0.0
+	# Use sine wave for smooth breathing, biased upward (inhale longer than exhale)
+	var breath := sin(_breath_phase)
+	# Remap to 0-1 range with slight inhale bias
+	return (breath * 0.5 + 0.5) * breath_chest_amount
+
+
+## Update idle sway - weight shifting when standing still.
+func _update_idle_sway(delta: float, is_moving: bool) -> void:
+	if not idle_sway_enabled:
+		_current_sway_offset = _current_sway_offset.lerp(Vector3.ZERO, 1.0 - exp(-5.0 * delta))
+		_current_sway_tilt = lerpf(_current_sway_tilt, 0.0, 1.0 - exp(-5.0 * delta))
+		return
+
+	if is_moving:
+		_idle_time = 0.0
+		_current_sway_offset = _current_sway_offset.lerp(Vector3.ZERO, 1.0 - exp(-5.0 * delta))
+		_current_sway_tilt = lerpf(_current_sway_tilt, 0.0, 1.0 - exp(-5.0 * delta))
+		return
+
+	_idle_time += delta
+
+	# Only start swaying after being idle for a moment
+	if _idle_time < 0.5:
+		return
+
+	# Advance sway phase
+	var sway_speed := TAU / sway_period
+	_sway_phase += sway_speed * delta
+	_sway_phase = fmod(_sway_phase, TAU)
+
+	# Calculate sway using smooth sine
+	var sway_amount := sin(_sway_phase)
+
+	# Lateral hip shift in LOCAL space (X = right in character space)
+	# This is applied directly to _visuals.position which is local to character body
+	_current_sway_offset = Vector3(sway_amount * sway_hip_shift, 0.0, 0.0)
+
+	# Hip tilt (roll)
+	_current_sway_tilt = sway_amount * deg_to_rad(sway_hip_tilt)
+
+
+## Apply gait curve to swing interpolation for more natural foot timing.
+## Returns modified t value with quick lift, slow plant characteristic.
+## stance_sharpness controls how aggressive the curve is (1 = linear, higher = snappier).
+func _apply_gait_curve(swing_t: float, _is_left: bool) -> float:
+	if not gait_curves_enabled:
+		return swing_t
+
+	# Clamp to valid range
+	var t := clampf(swing_t, 0.0, 1.0)
+
+	# stance_sharpness controls the curve intensity:
+	# 1.0 = linear (no shaping)
+	# 2.0 = moderate snap (default)
+	# 5.0+ = very snappy lift and soft landing
+	#
+	# Using asymmetric curve: fast lift (first half), slow descent (second half)
+	var shaped: float
+	if t < 0.5:
+		# First half: quick lift - use power < 1 to accelerate
+		var lift_power := 1.0 / stance_sharpness  # e.g., 0.5 for sharpness=2
+		shaped = pow(t * 2.0, lift_power) * 0.5
+	else:
+		# Second half: slow descent - use power > 1 to decelerate
+		var land_power := stance_sharpness  # e.g., 2.0 for sharpness=2
+		shaped = 0.5 + pow((t - 0.5) * 2.0, land_power) * 0.5
+
+	return shaped
+
+
+## Regenerate random gait variations (called each step for organic feel).
+## Creates actual L/R asymmetry by applying opposite offsets to each side.
+func _regenerate_cadence() -> void:
+	# Cadence variation adds per-step randomness on top of base asymmetry
+	var cadence_left := 0.0
+	var cadence_right := 0.0
+	if cadence_variation > 0:
+		cadence_left = randf_range(-cadence_variation, cadence_variation)
+		cadence_right = randf_range(-cadence_variation, cadence_variation)
+
+	# Asymmetry creates consistent L/R difference (like a limp)
+	# One side gets +asymmetry, other gets -asymmetry, plus random cadence
+	if gait_asymmetry > 0 or cadence_variation > 0:
+		# Base asymmetry offset (consistent direction)
+		var asymmetry_offset := gait_asymmetry * 0.5  # Half to each side
+		# Left gets positive, right gets negative (or vice versa randomly at start)
+		_left_amp_variation = 1.0 + asymmetry_offset + cadence_left
+		_right_amp_variation = 1.0 - asymmetry_offset + cadence_right
+		# Clamp to reasonable range
+		_left_amp_variation = clampf(_left_amp_variation, 0.2, 2.0)
+		_right_amp_variation = clampf(_right_amp_variation, 0.2, 2.0)
+	else:
+		_left_amp_variation = 1.0
+		_right_amp_variation = 1.0
 
 
 ## Calculate effective stride length based on current speed.
@@ -934,6 +1308,16 @@ func get_hip_rock_values() -> Dictionary:
 		"head_target": _head_target_goal,
 		"head_look_enabled": head_anticipation_enabled and _head_target_goal != Vector3.ZERO,
 		"head_anticipation_speed": head_anticipation_speed,
+		# AAA features
+		"bank_angle": _current_bank_angle,
+		"turn_twist": _current_turn_twist,
+		"debug_banking": debug_banking,
+		"breath_offset": _get_breath_offset(),
+		"sway_offset": _current_sway_offset,
+		"sway_tilt": _current_sway_tilt,
+		# Clavicle motion (applied by modifier to run after AnimationTree)
+		"clavicle_l_rotation": _clavicle_l_rotation,  # X=protraction, Y=elevation
+		"clavicle_r_rotation": _clavicle_r_rotation,
 	}
 
 
@@ -1061,6 +1445,15 @@ func _setup() -> void:
 	# Thigh bones for knee tracking
 	_left_thigh_idx = _skeleton.find_bone(skel_config.left_thigh)
 	_right_thigh_idx = _skeleton.find_bone(skel_config.right_thigh)
+
+	# Clavicle bones for shoulder blade motion
+	_clavicle_l_idx = _skeleton.find_bone(&"clavicle_l")
+	_clavicle_r_idx = _skeleton.find_bone(&"clavicle_r")
+	# Cache clavicle rest bases
+	if _clavicle_l_idx != -1:
+		_clavicle_l_rest_basis = _skeleton.get_bone_rest(_clavicle_l_idx).basis
+	if _clavicle_r_idx != -1:
+		_clavicle_r_rest_basis = _skeleton.get_bone_rest(_clavicle_r_idx).basis
 
 	# Calculate arm lengths (upperarm + forearm + hand)
 	var left_lowerarm_idx := _skeleton.find_bone(&"lowerarm_l")
@@ -1193,6 +1586,9 @@ func _setup() -> void:
 
 	# Setup rotation modifiers to copy Marker3D rotation to foot bones
 	_setup_foot_rotation_modifiers(skel_config)
+
+	# Initialize gait variations
+	_regenerate_cadence()
 
 	# Setup debug visualization
 	_setup_debug()
@@ -1420,6 +1816,11 @@ func _physics_process(delta: float) -> void:
 	# Update acceleration factor early - used by hip, arm, and shoulder systems
 	_update_acceleration(delta)
 
+	# Update AAA features
+	_update_turn_banking(delta, speed)
+	_update_breathing(delta, speed)
+	_update_idle_sway(delta, is_moving)
+
 	# Smooth move direction to prevent snap when stopping
 	var dir_smooth := 1.0 - exp(-3.0 * delta)
 	_current_move_dir = _current_move_dir.lerp(move_dir, dir_smooth)
@@ -1465,24 +1866,28 @@ func _physics_process(delta: float) -> void:
 		_phase += phase_speed * delta
 		_phase = fmod(_phase, TAU)
 
-		# Compute per-foot cycle values (0–1)
-		var left_cycle := fmod(_phase / TAU, 1.0)
-		var right_cycle := fmod((_phase + PI) / TAU, 1.0)
+		# Compute per-foot cycle values (0–1) - raw phase for plant detection
+		var left_cycle_raw := fmod(_phase / TAU, 1.0)
+		var right_cycle_raw := fmod((_phase + PI) / TAU, 1.0)
 
 		# IMPORTANT: Update plant positions BEFORE processing feet
 		# This prevents one-frame delay when foot plants at new position
 		# Also update ground normal and yaw here since foot is planting
 		var current_yaw := _visuals.global_rotation.y
-		if _crossed_threshold(left_cycle, _left_prev_cycle, 0.0):
+		if _crossed_threshold(left_cycle_raw, _left_prev_cycle, 0.0):
 			_left_plant_pos = _predict_plant_position(move_dir, speed, -1.0)
 			_left_plant_yaw = current_yaw
 			# Raycast again with normal update to capture the planted ground normal
 			_raycast_ground(_left_plant_pos, true, true)
-		if _crossed_threshold(right_cycle, _right_prev_cycle, 0.0):
+			# Regenerate cadence for variation on each step
+			_regenerate_cadence()
+		if _crossed_threshold(right_cycle_raw, _right_prev_cycle, 0.0):
 			_right_plant_pos = _predict_plant_position(move_dir, speed, 1.0)
 			_right_plant_yaw = current_yaw
 			# Raycast again with normal update to capture the planted ground normal
 			_raycast_ground(_right_plant_pos, true, false)
+			# Regenerate cadence for variation on each step
+			_regenerate_cadence()
 
 		# Update debug predicted positions (always, not just on threshold)
 		_debug_left_predicted_pos = _predict_plant_position(move_dir, speed, -1.0)
@@ -1492,20 +1897,21 @@ func _physics_process(delta: float) -> void:
 		_left_plant_pos = _clamp_plant_distance(_left_plant_pos, effective_stride * max_leg_reach)
 		_right_plant_pos = _clamp_plant_distance(_right_plant_pos, effective_stride * max_leg_reach)
 
-		# Process each foot with updated plant positions
+		# Process each foot - use raw cycles for consistent phase detection
+		# Gait curve shaping is applied inside _process_foot to swing interpolation only
 		var left_pos := _process_foot(
-			left_cycle, _left_prev_cycle,
+			left_cycle_raw, _left_prev_cycle,
 			_left_plant_pos, _left_rest_pos,
 			move_dir, speed, -1.0, delta  # left side
 		)
 		var right_pos := _process_foot(
-			right_cycle, _right_prev_cycle,
+			right_cycle_raw, _right_prev_cycle,
 			_right_plant_pos, _right_rest_pos,
 			move_dir, speed, 1.0, delta  # right side
 		)
 
-		_left_prev_cycle = left_cycle
-		_right_prev_cycle = right_cycle
+		_left_prev_cycle = left_cycle_raw
+		_right_prev_cycle = right_cycle_raw
 
 		# Apply positions to targets
 		# Planted foot: use stored yaw + ground normal (locked)
@@ -1553,6 +1959,9 @@ func _physics_process(delta: float) -> void:
 		# Arm swing (counter-phase to legs)
 		_update_arm_swing(delta, speed, move_dir, true)
 
+		# Clavicle motion follows arm swing
+		_update_clavicle(delta, speed, true)
+
 		# Knee pole tracking (knees point toward movement)
 		_update_knee_poles(delta, move_dir, true)
 	else:
@@ -1564,6 +1973,9 @@ func _physics_process(delta: float) -> void:
 
 		# Blend arms back to rest
 		_update_arm_swing(delta, 0.0, Vector3.ZERO, false)
+
+		# Blend clavicle back to rest
+		_update_clavicle(delta, 0.0, false)
 
 		# Blend knee poles back to rest
 		_update_knee_poles(delta, Vector3.ZERO, false)
@@ -1891,6 +2303,9 @@ func _process_foot(
 	# Dynamic stance ratio - feet spend less time on ground at higher speeds
 	var effective_stance := _get_effective_stance_ratio(speed)
 
+	# Get amplitude variation for this side (gait asymmetry)
+	var amp_variation := _left_amp_variation if side < 0 else _right_amp_variation
+
 	if cycle < effective_stance:
 		# Plant phase — foot stays at planted world position
 		# Track stance progress for heel-to-toe roll (0-1 within stance)
@@ -1914,8 +2329,11 @@ func _process_foot(
 		else:
 			_right_swing_t = swing_t
 
+		# Apply gait curve shaping to swing interpolation (affects timing feel)
+		var shaped_t := _apply_gait_curve(swing_t, side < 0)
+
 		# Smoothstep for horizontal movement (ease-in lift, ease-out land)
-		var eased_t := swing_t * swing_t * (3.0 - 2.0 * swing_t)
+		var eased_t := shaped_t * shaped_t * (3.0 - 2.0 * shaped_t)
 
 		# Target is recalculated each frame to track character movement
 		var raw_target := _predict_plant_position(move_dir, speed, side)
@@ -1943,8 +2361,9 @@ func _process_foot(
 		# Arc height - quick lift, soft landing
 		# pow(t, 0.6) lifts faster at start, settles slower at end
 		# Step height scales with speed (shuffling at slow speeds, full height at run)
+		# Apply amplitude variation for subtle left/right asymmetry
 		var lift_t := pow(swing_t, 0.6)
-		var effective_step_height := _get_effective_step_height(speed)
+		var effective_step_height := _get_effective_step_height(speed) * amp_variation
 		var arc_height: float = effective_step_height * sin(lift_t * PI)
 		ground_pos.y += arc_height
 
@@ -1962,6 +2381,10 @@ func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Ve
 
 	# Use effective stride (scales with speed)
 	var effective_stride := _get_effective_stride(speed)
+
+	# Apply gait asymmetry to stride length (limp effect)
+	var amp_variation := _left_amp_variation if side < 0 else _right_amp_variation
+	effective_stride *= amp_variation
 
 	# Forward offset: plant ahead of current position
 	# Higher plant_ahead_ratio = foot lands further forward from body center
@@ -2103,10 +2526,10 @@ func _update_hip(delta: float, bob: float, rock: Vector3 = Vector3.ZERO, move_di
 	var twist_smooth := 1.0 - exp(-3.0 * delta)
 	_current_shoulder_twist = lerpf(_current_shoulder_twist, target_shoulder_twist, twist_smooth)
 
-	# Apply position to visual root
+	# Apply position to visual root (including idle sway lateral offset)
 	_visuals.position.y = _current_hip_offset
-	_visuals.position.x = _current_hip_forward.x
-	_visuals.position.z = _current_hip_forward.z
+	_visuals.position.x = _current_hip_forward.x + _current_sway_offset.x
+	_visuals.position.z = _current_hip_forward.z + _current_sway_offset.z
 
 	# Hip rock and spine rotation are now applied by HipRockModifier (a SkeletonModifier3D)
 	# This ensures they run AFTER AnimationTree and don't get overwritten.
@@ -2222,6 +2645,46 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 			# Smooth toward target for loose feel
 			_right_hand_current = _right_hand_current.lerp(target_pos, 1.0 - exp(-arm_smoothing * delta))
 			_right_hand.position = _right_hand_current
+
+
+## Update clavicle/shoulder blade motion with arm swing.
+## Clavicle protracts (rotates forward) when arm swings forward.
+## NOTE: This only updates smoothed rotation values. Actual bone poses are
+## applied by HipRockModifier (SkeletonModifier3D) to run AFTER AnimationTree.
+func _update_clavicle(delta: float, speed: float, is_moving: bool) -> void:
+	# Smoothing factor
+	var smooth := 1.0 - exp(-arm_smoothing * delta)
+
+	if not clavicle_enabled:
+		# Blend to zero when disabled
+		_clavicle_l_rotation = _clavicle_l_rotation.lerp(Vector3.ZERO, smooth)
+		_clavicle_r_rotation = _clavicle_r_rotation.lerp(Vector3.ZERO, smooth)
+		return
+
+	# Same arm phase calculation as _update_arm_swing
+	var phase_offset_rad := arm_phase_offset * TAU
+	var left_arm_phase := _phase - phase_offset_rad + _left_arm_phase_offset
+	var right_arm_phase := _phase + phase_offset_rad + _right_arm_phase_offset
+
+	# Scale with speed and influence
+	var speed_factor := clampf(speed / run_speed, 0.0, 1.0) if is_moving else 0.0
+	var swing_scale := speed_factor * _arm_influence
+
+	# Convert degrees to radians
+	var swing_rad := deg_to_rad(clavicle_swing_amount)
+	var elev_rad := deg_to_rad(clavicle_elevation_amount)
+
+	# Left clavicle - protraction when arm swings forward
+	var target_protraction_l := sin(left_arm_phase) * swing_rad * swing_scale
+	var target_elevation_l := absf(sin(left_arm_phase)) * elev_rad * swing_scale
+	_clavicle_l_rotation.x = lerpf(_clavicle_l_rotation.x, target_protraction_l, smooth)
+	_clavicle_l_rotation.y = lerpf(_clavicle_l_rotation.y, target_elevation_l, smooth)
+
+	# Right clavicle - protraction when arm swings forward
+	var target_protraction_r := sin(right_arm_phase) * swing_rad * swing_scale
+	var target_elevation_r := absf(sin(right_arm_phase)) * elev_rad * swing_scale
+	_clavicle_r_rotation.x = lerpf(_clavicle_r_rotation.x, target_protraction_r, smooth)
+	_clavicle_r_rotation.y = lerpf(_clavicle_r_rotation.y, target_elevation_r, smooth)
 
 
 ## Update knee pole target positions to track movement direction.
@@ -3054,18 +3517,18 @@ func _cleanup_debug() -> void:
 
 
 ## Print bone axis reference to console for IK debugging.
-## Shows which local axes map to world directions for key bones.
+## Shows which local axes map to world directions for ALL bones.
 func _print_bone_axes() -> void:
 	if _skeleton == null:
 		print("ERROR: No skeleton to analyze")
 		return
 
 	print("=" .repeat(70))
-	print("BONE AXIS REFERENCE (for IK rotations)")
+	print("COMPLETE BONE AXIS REFERENCE (for IK/procedural rotations)")
 	print("See: addons/renegade_visuals/docs/skeleton_reference.md")
 	print("=" .repeat(70))
 
-	# Core bones to analyze
+	# Core bones to analyze (with cached indices)
 	var bones_to_check: Array = [
 		["pelvis", _pelvis_idx],
 		["spine_01", _spine_01_idx],
@@ -3077,8 +3540,23 @@ func _print_bone_axes() -> void:
 		["right_thigh", _right_thigh_idx],
 	]
 
-	# Add more bones dynamically
-	var extra_bones := ["calf_l", "calf_r", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "hand_l", "hand_r"]
+	# Add ALL important bones dynamically - comprehensive list
+	var extra_bones := [
+		# Spine chain
+		"root",
+		# Neck and head
+		"neck_01", "neck_02", "head",
+		# Left arm chain
+		"clavicle_l", "upperarm_l", "upperarm_twist_01_l", "lowerarm_l", "lowerarm_twist_01_l", "hand_l",
+		# Right arm chain
+		"clavicle_r", "upperarm_r", "upperarm_twist_01_r", "lowerarm_r", "lowerarm_twist_01_r", "hand_r",
+		# Left leg chain
+		"thigh_l", "thigh_twist_01_l", "calf_l", "calf_twist_01_l", "foot_l", "ball_l",
+		# Right leg chain
+		"thigh_r", "thigh_twist_01_r", "calf_r", "calf_twist_01_r", "foot_r", "ball_r",
+		# Fingers (just index for reference)
+		"index_01_l", "index_01_r",
+	]
 	for bone_name in extra_bones:
 		var idx := _skeleton.find_bone(bone_name)
 		if idx != -1:
@@ -3104,13 +3582,67 @@ func _print_bone_axes() -> void:
 		print("  Local Y -> %s" % _basis_axis_to_world_dir(basis.y))
 		print("  Local Z -> %s" % _basis_axis_to_world_dir(basis.z))
 		print("  Bone points along: %s" % bone_dir)
-		print("  TWIST AXIS: Y (rotate around local Y for yaw)" if basis.y.dot(Vector3.UP) > 0.9 else "  TWIST AXIS: Check orientation!")
+
+		# Provide rotation recommendations based on bone orientation
+		var twist_axis := _get_twist_axis_recommendation(basis)
+		var pitch_axis := _get_pitch_axis_recommendation(basis)
+		var roll_axis := _get_roll_axis_recommendation(basis)
+		print("  TWIST (yaw): %s" % twist_axis)
+		print("  PITCH (nod): %s" % pitch_axis)
+		print("  ROLL (tilt): %s" % roll_axis)
 
 	print("")
 	print("=" .repeat(70))
-	print("KEY: For this skeleton, Local Y = World Up for torso/spine bones.")
-	print("     Use Y axis (Euler component 1) for twist/yaw rotations.")
+	print("ROTATION AXIS GUIDE:")
+	print("  TWIST = rotation around vertical (world up) axis")
+	print("  PITCH = rotation around lateral (world right) axis")
+	print("  ROLL  = rotation around forward (world forward) axis")
+	print("")
+	print("Use Vector3.UP/RIGHT/FORWARD with Basis.rotated() for world-aligned rotation")
 	print("=" .repeat(70))
+
+
+## Get recommended axis for twist/yaw rotation (around world up).
+func _get_twist_axis_recommendation(basis: Basis) -> String:
+	var x_up := absf(basis.x.dot(Vector3.UP))
+	var y_up := absf(basis.y.dot(Vector3.UP))
+	var z_up := absf(basis.z.dot(Vector3.UP))
+
+	if y_up > x_up and y_up > z_up:
+		return "Vector3.UP (local Y ≈ world up, %.0f%%)" % [y_up * 100]
+	elif x_up > y_up and x_up > z_up:
+		return "Vector3.RIGHT (local X ≈ world up, %.0f%%)" % [x_up * 100]
+	else:
+		return "Vector3.FORWARD (local Z ≈ world up, %.0f%%)" % [z_up * 100]
+
+
+## Get recommended axis for pitch rotation (around world right).
+func _get_pitch_axis_recommendation(basis: Basis) -> String:
+	var x_right := absf(basis.x.dot(Vector3.RIGHT))
+	var y_right := absf(basis.y.dot(Vector3.RIGHT))
+	var z_right := absf(basis.z.dot(Vector3.RIGHT))
+
+	if x_right > y_right and x_right > z_right:
+		return "Vector3.RIGHT (local X ≈ world right, %.0f%%)" % [x_right * 100]
+	elif y_right > x_right and y_right > z_right:
+		return "Vector3.UP (local Y ≈ world right, %.0f%%)" % [y_right * 100]
+	else:
+		return "Vector3.FORWARD (local Z ≈ world right, %.0f%%)" % [z_right * 100]
+
+
+## Get recommended axis for roll rotation (around world forward).
+func _get_roll_axis_recommendation(basis: Basis) -> String:
+	# Note: Godot uses -Z as forward, so we check against BACK (positive Z)
+	var x_fwd := absf(basis.x.dot(Vector3.BACK))
+	var y_fwd := absf(basis.y.dot(Vector3.BACK))
+	var z_fwd := absf(basis.z.dot(Vector3.BACK))
+
+	if z_fwd > x_fwd and z_fwd > y_fwd:
+		return "Vector3.FORWARD (local Z ≈ world forward, %.0f%%)" % [z_fwd * 100]
+	elif x_fwd > y_fwd and x_fwd > z_fwd:
+		return "Vector3.RIGHT (local X ≈ world forward, %.0f%%)" % [x_fwd * 100]
+	else:
+		return "Vector3.UP (local Y ≈ world forward, %.0f%%)" % [y_fwd * 100]
 
 
 ## Get bone direction by checking child position.

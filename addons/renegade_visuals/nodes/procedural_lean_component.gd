@@ -111,15 +111,20 @@ func _update_lean(delta: float) -> void:
 func _update_pelvis_tilt(delta: float) -> void:
 	if _pelvis_idx == -1:
 		return
-	
+
 	var ground_normal := _visuals.get_ground_normal()
-	
+
 	# Compute target tilt from ground normal
 	var target_tilt := Quaternion.IDENTITY
-	if not ground_normal.is_equal_approx(Vector3.UP):
-		var tilt_axis := Vector3.UP.cross(ground_normal).normalized()
-		var tilt_angle := Vector3.UP.angle_to(ground_normal) * config.pelvis_tilt_weight
-		if not tilt_axis.is_zero_approx():
+
+	# Only apply tilt if ground is significantly non-flat
+	# Skip when nearly vertical to avoid numerical instability in cross product
+	var angle_from_up := Vector3.UP.angle_to(ground_normal)
+	if angle_from_up > 0.05:  # ~3 degrees threshold
+		var tilt_axis := Vector3.UP.cross(ground_normal)
+		if tilt_axis.length_squared() > 0.001:  # Ensure valid axis
+			tilt_axis = tilt_axis.normalized()
+			var tilt_angle := angle_from_up * config.pelvis_tilt_weight
 			target_tilt = Quaternion(tilt_axis, tilt_angle)
 	
 	# Smooth tilt
