@@ -50,7 +50,10 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(ls:*)",
       "WebFetch(domain:blog.littlepolygon.com)",
-      "WebFetch(domain:dev.epicgames.com)"
+      "WebFetch(domain:dev.epicgames.com)",
+      "WebFetch(domain:amorphicphantasm.com)",
+      "WebFetch(domain:blog.runevision.com)",
+      "Bash(pkill:*)"
     ]
   },
   "outputStyle": "default"

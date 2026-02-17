@@ -210,21 +210,34 @@ func _do_raycast() -> void:
 	var query := PhysicsRayQueryParameters3D.create(from, to, collision_mask)
 	query.collide_with_areas = true
 	query.collide_with_bodies = true
-	
+
+	# Exclude the player from the raycast so cursor passes through them.
+	query.exclude = _get_player_rids()
+
 	var result := _space_state.intersect_ray(query)
-	
+
 	if result.is_empty():
 		has_hit = false
 		hovered_object = null
 		hovering_interactable = false
 		return
-	
+
 	has_hit = true
 	world_position = result.position
 	world_normal = result.normal
 
 	# Check if the hit object is an interactable.
 	var collider: Node3D = result.collider
+	if collider:
+		var parent_path := ""
+		var p := collider.get_parent()
+		while p:
+			if p.is_in_group("player"):
+				parent_path = p.name + "/" + parent_path
+				break
+			p = p.get_parent()
+		if collider.is_in_group("player") or parent_path != "":
+			print("[Cursor3D] WARNING: Hit player-related! Collider: ", collider.name, " RID: ", collider.get_rid() if collider is CollisionObject3D else "N/A", " Parent: ", parent_path)
 	hovered_object = collider
 	hovering_interactable = _is_interactable(collider)
 
@@ -549,7 +562,7 @@ func _update_aim_plane() -> void:
 	var query := PhysicsRayQueryParameters3D.create(start_pos, end_pos, collision_mask)
 	query.collide_with_areas = true
 	query.collide_with_bodies = true
-	query.exclude = [aim_line_origin.get_rid()]
+	query.exclude = _get_player_rids()
 
 	var result := _space_state.intersect_ray(query)
 
@@ -590,6 +603,40 @@ func _set_aim_plane_visible(visible: bool) -> void:
 
 
 #region Helpers
+
+var _player_rids_cache: Array[RID] = []
+var _player_rids_cached: bool = false
+
+## Get RIDs of all player collision objects to exclude from raycast.
+func _get_player_rids() -> Array[RID]:
+	if _player_rids_cached:
+		return _player_rids_cache
+
+	_player_rids_cache.clear()
+
+	# Collect all collision objects from aim_line_origin and its descendants.
+	if aim_line_origin:
+		_collect_collision_rids(aim_line_origin, _player_rids_cache)
+
+	# Also collect from any nodes in the "player" group.
+	for node in get_tree().get_nodes_in_group("player"):
+		_collect_collision_rids(node, _player_rids_cache)
+
+	print("[Cursor3D] Total excluded player RIDs: ", _player_rids_cache.size())
+	_player_rids_cached = true
+	return _player_rids_cache
+
+
+## Recursively collect RIDs of all CollisionObject3D nodes.
+func _collect_collision_rids(node: Node, rids: Array[RID]) -> void:
+	if node is CollisionObject3D:
+		var col_obj: CollisionObject3D = node as CollisionObject3D
+		var rid: RID = col_obj.get_rid()
+		if rid not in rids:
+			rids.append(rid)
+	for child in node.get_children():
+		_collect_collision_rids(child, rids)
+
 
 func _is_interactable(node: Node3D) -> bool:
 	if not node:

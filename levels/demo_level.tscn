@@ -167,6 +167,11 @@ mesh = SubResource("BoxMesh_building")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PIXELIZER/SubViewport/NavigationRegion3D/Environment/Building4" unique_id=856947628]
 shape = SubResource("BoxShape3D_building")
 
+[node name="CSGBox3D" type="CSGBox3D" parent="PIXELIZER/SubViewport/NavigationRegion3D/Environment" unique_id=962355437]
+transform = Transform3D(0.84970874, -0.5272525, 0, 0.5272525, 0.84970874, 0, 0, 0, 1, 16.203619, 0.4585905, 4.8801465)
+use_collision = true
+size = Vector3(7.9992676, 1, 2.8780518)
+
 [node name="NPCs" type="Node3D" parent="PIXELIZER/SubViewport" unique_id=899662163]
 
 [node name="CopS" type="Marker3D" parent="PIXELIZER/SubViewport/NPCs" unique_id=1256697379]
