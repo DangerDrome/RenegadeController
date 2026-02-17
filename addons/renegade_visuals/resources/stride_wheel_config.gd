@@ -96,15 +96,19 @@ extends Resource
 ## Foot drift threshold as fraction of stride_length. Step triggers when foot drifts this far from ideal position.
 @export_range(0.1, 1.0) var turn_drift_threshold: float = 0.3
 ## Maximum rotation (degrees) before forcing a step. Feet step if body turns past this angle.
-@export_range(15.0, 180.0) var max_turn_angle: float = 90.0
+@export_range(15.0, 180.0) var max_turn_angle: float = 45.0
+## Maximum rotation velocity (degrees/frame) to trigger turn-in-place. Higher values = only triggers during slow idle turns.
+@export_range(1.0, 30.0) var max_turn_velocity: float = 5.0
 ## Speed at which feet step to new positions during turn-in-place.
-@export_range(1.0, 20.0) var turn_step_speed: float = 6.0
+@export_range(1.0, 20.0) var turn_step_speed: float = 8.0
 ## Arc height multiplier for turn-in-place (relative to step_height).
-@export_range(1.0, 4.0) var turn_step_height_mult: float = 2.5
+@export_range(1.0, 4.0) var turn_step_height_mult: float = 2.0
 ## How much the hip lowers during turn-in-place (causes knee bend).
-@export_range(0.0, 0.2) var turn_crouch_amount: float = 0.05
-## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
-@export_range(0.0, 0.3) var stance_stagger: float = 0.0
+@export_range(0.0, 0.2) var turn_crouch_amount: float = 0.03
+## Forward/back stagger for idle stance. Positive = left forward/right back, Negative = right forward/left back.
+@export_range(-0.3, 0.3) var stance_stagger: float = 0.0
+## Left/right stagger for idle stance - pushes BOTH feet outward for a wider stance.
+@export_range(0.0, 0.2) var stance_lateral_stagger: float = 0.0
 ## Maximum leg reach as multiplier of stride length. Prevents over-stretching.
 @export_range(0.8, 2.0) var max_leg_reach: float = 0.95
 

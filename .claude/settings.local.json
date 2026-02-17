@@ -53,7 +53,8 @@
       "WebFetch(domain:dev.epicgames.com)",
       "WebFetch(domain:amorphicphantasm.com)",
       "WebFetch(domain:blog.runevision.com)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "mcp__serena__check_onboarding_performed"
     ]
   },
   "outputStyle": "default"

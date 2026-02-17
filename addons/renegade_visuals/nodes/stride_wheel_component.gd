@@ -270,6 +270,12 @@ extends Node
 		max_turn_angle = value
 		if config:
 			config.max_turn_angle = value
+## Maximum rotation velocity (degrees/frame) to trigger turn-in-place. Higher values = only triggers during slow idle turns.
+@export_range(1.0, 30.0) var max_turn_velocity: float = 5.0:
+	set(value):
+		max_turn_velocity = value
+		if config:
+			config.max_turn_velocity = value
 ## Speed at which feet step to new positions during turn-in-place.
 @export_range(1.0, 20.0) var turn_step_speed: float = 6.0:
 	set(value):
@@ -288,12 +294,18 @@ extends Node
 		turn_crouch_amount = value
 		if config:
 			config.turn_crouch_amount = value
-## Forward/back stagger for idle stance (one foot forward, one back). Set to 0 to use rest pose.
-@export_range(0.0, 0.3) var stance_stagger: float = 0.0:
+## Forward/back stagger for idle stance. Positive = left forward/right back, Negative = right forward/left back.
+@export_range(-0.3, 0.3) var stance_stagger: float = 0.0:
 	set(value):
 		stance_stagger = value
 		if config:
 			config.stance_stagger = value
+## Left/right stagger for idle stance - pushes BOTH feet outward for a wider stance.
+@export_range(0.0, 0.2) var stance_lateral_stagger: float = 0.0:
+	set(value):
+		stance_lateral_stagger = value
+		if config:
+			config.stance_lateral_stagger = value
 ## Maximum leg reach as multiplier of stride length. Prevents over-stretching.
 @export_range(0.8, 2.0) var max_leg_reach: float = 0.95:
 	set(value):
@@ -843,6 +855,7 @@ var _was_moving: bool = false  # Track previous frame movement state
 var _is_walking: bool = false  # True only during active walking (not idle/turn)
 var _is_turning_in_place: bool = false
 var _turn_step_progress: float = 0.0  # 0–1 for step animation
+var _turn_step_count: int = 0  # Track how many feet have stepped in this turn sequence
 var _left_step_start: Vector3 = Vector3.ZERO
 var _left_step_end: Vector3 = Vector3.ZERO
 var _right_step_start: Vector3 = Vector3.ZERO
@@ -915,6 +928,11 @@ var _debug_slope_ray: MeshInstance3D
 var _debug_slope_hit: MeshInstance3D
 var _debug_hip_marker: MeshInstance3D
 var _debug_motion_label: Label3D
+var _debug_turn_label: Label3D
+var _debug_left_ideal: MeshInstance3D  # Where left foot SHOULD be
+var _debug_right_ideal: MeshInstance3D  # Where right foot SHOULD be
+var _debug_left_planted: MeshInstance3D  # Where left foot IS planted
+var _debug_right_planted: MeshInstance3D  # Where right foot IS planted
 
 # Cache for debug - store last predicted positions
 var _debug_left_predicted_pos: Vector3 = Vector3.ZERO
@@ -973,10 +991,12 @@ func _sync_from_config() -> void:
 	debug_turn_in_place = config.debug_turn_in_place
 	turn_drift_threshold = config.turn_drift_threshold
 	max_turn_angle = config.max_turn_angle
+	max_turn_velocity = config.max_turn_velocity
 	turn_step_speed = config.turn_step_speed
 	turn_step_height_mult = config.turn_step_height_mult
 	turn_crouch_amount = config.turn_crouch_amount
 	stance_stagger = config.stance_stagger
+	stance_lateral_stagger = config.stance_lateral_stagger
 	max_leg_reach = config.max_leg_reach
 	# Foot rotation
 	foot_rotation_enabled = config.foot_rotation_enabled
@@ -1991,7 +2011,8 @@ func _physics_process(delta: float) -> void:
 
 ## Handle idle state with turn-in-place detection and foot stepping.
 func _process_idle_or_turn(delta: float) -> void:
-	_prev_yaw = _visuals.global_rotation.y
+	# DON'T update _prev_yaw here - we need it from the previous frame to detect rotation!
+	# It gets updated at the END of this function instead
 
 	# Calculate where feet SHOULD be based on current facing
 	var left_target_pos := _calculate_ideal_foot_position(-1.0)
@@ -2008,10 +2029,6 @@ func _process_idle_or_turn(delta: float) -> void:
 		_left_swing_t = 0.0
 		_right_swing_t = 0.0
 		# Immediately check for criss-cross on stop - don't lock feet in crossed position
-		_clamp_feet_no_crossover(left_target_pos, right_target_pos)
-
-	# Prevent criss-cross: snap feet if they cross sides (only when NOT actively stepping)
-	if not _is_turning_in_place:
 		_clamp_feet_no_crossover(left_target_pos, right_target_pos)
 
 	# Process ongoing step
@@ -2031,8 +2048,19 @@ func _process_idle_or_turn(delta: float) -> void:
 		var angle_threshold := deg_to_rad(max_turn_angle)
 		var angle_exceeded := max_yaw_delta > angle_threshold
 
-		if turn_in_place_enabled and (left_drift > threshold or right_drift > threshold or angle_exceeded):
-			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift)
+		# Determine rotation direction: positive = turning right (clockwise), negative = turning left
+		var rotation_delta := angle_difference(current_yaw, _prev_yaw)
+
+		# Only trigger turn-in-place for SLOW rotations (idle adjustments), not active turning
+		# If rotation velocity is high, user is actively turning with mouse/gamepad - don't step
+		var rotation_velocity := absf(rotation_delta)
+		var max_rotation_velocity := deg_to_rad(max_turn_velocity)
+		var is_slow_rotation := rotation_velocity < max_rotation_velocity
+
+		# Only START a new turn if we're not already turning (prevents constant re-triggering)
+		# AND rotation is slow (idle adjustment, not active mouse turning)
+		if turn_in_place_enabled and not _is_turning_in_place and is_slow_rotation and (left_drift > threshold or right_drift > threshold or angle_exceeded):
+			_start_turn_step(left_target_pos, right_target_pos, left_drift, right_drift, rotation_delta)
 		else:
 			# Feet stay planted at current world positions with stored yaw - NO swing pitch
 			# When turn-in-place is disabled, use ideal positions so hip_offset creates knee bend
@@ -2047,6 +2075,9 @@ func _process_idle_or_turn(delta: float) -> void:
 	_left_prev_cycle = 0.0
 	_right_prev_cycle = 0.5
 
+	# Update yaw tracking for NEXT frame's rotation detection
+	_prev_yaw = _visuals.global_rotation.y
+
 
 ## Calculate ideal foot position based on character position and facing.
 ## side: -1.0 for left foot, +1.0 for right foot
@@ -2057,13 +2088,16 @@ func _calculate_ideal_foot_position(side: float) -> Vector3:
 	var char_pos := _visuals.controller.global_position
 	var facing := _visuals.global_basis
 
-	# Lateral offset perpendicular to facing direction
+	# Lateral offset perpendicular to facing direction (symmetric base width)
 	var lateral: Vector3 = facing.x * side * foot_lateral_offset
+
+	# Lateral stagger - BOTH feet pushed outward (wider stance)
+	var lateral_stagger_offset: Vector3 = facing.x * side * stance_lateral_stagger
 
 	# Forward/back stagger: left foot forward, right foot back
 	var forward: Vector3 = -facing.z * side * stance_stagger
 
-	var target_pos: Vector3 = char_pos + lateral + forward
+	var target_pos: Vector3 = char_pos + lateral + lateral_stagger_offset + forward
 	# Don't update ground normal during ideal position calculation - it's done when foot plants
 	return _raycast_ground(target_pos, false, side < 0)
 
@@ -2120,12 +2154,23 @@ func _clamp_feet_no_crossover(left_target: Vector3, right_target: Vector3) -> vo
 
 
 ## Start a turn-in-place step.
-func _start_turn_step(left_target: Vector3, right_target: Vector3, left_drift: float, right_drift: float) -> void:
+func _start_turn_step(left_target: Vector3, right_target: Vector3, left_drift: float, right_drift: float, rotation_delta: float) -> void:
 	_is_turning_in_place = true
 	_turn_step_progress = 0.0
+	_turn_step_count = 0  # Reset counter for new turn sequence
 
-	# Step the foot that's furthest from its target
-	_stepping_foot = 0 if left_drift >= right_drift else 1
+	# Determine which foot to step based on ROTATION DIRECTION, not drift magnitude
+	# Drift includes stance offset mismatches, so it's unreliable for direction
+	# rotation_delta > 0 = turning RIGHT (clockwise) → right foot on outside → step right first
+	# rotation_delta < 0 = turning LEFT (counter-clockwise) → left foot on outside → step left first
+	if absf(rotation_delta) > 0.01:
+		# Clear rotation direction - use it
+		_stepping_foot = 1 if rotation_delta > 0.0 else 0
+		print("TURN START: rotation_delta=%.3f, stepping_foot=%s" % [rotation_delta, "RIGHT" if _stepping_foot == 1 else "LEFT"])
+	else:
+		# No clear rotation, fall back to drift
+		_stepping_foot = 0 if left_drift > right_drift else 1
+		print("TURN START: no rotation, L_drift=%.3f R_drift=%.3f, stepping_foot=%s" % [left_drift, right_drift, "RIGHT" if _stepping_foot == 1 else "LEFT"])
 
 	# Set up step start/end positions
 	_left_step_start = _left_plant_pos
@@ -2147,12 +2192,14 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 	var current_yaw := _visuals.global_rotation.y
 
 	# Priority check: if the OTHER foot is now drifting more, switch to it immediately
+	# DISABLED during staggered stance - both feet will step anyway, let each complete its arc
+	var has_stagger := absf(stance_stagger) > 0.01
 	var left_drift := _horizontal_distance(_left_plant_pos, left_target)
 	var right_drift := _horizontal_distance(_right_plant_pos, right_target)
 	var stepping_drift := left_drift if _stepping_foot == 0 else right_drift
 	var other_drift := right_drift if _stepping_foot == 0 else left_drift
 
-	if other_drift > stepping_drift * 1.3 and _turn_step_progress < 0.7:
+	if not has_stagger and other_drift > stepping_drift * 1.3 and _turn_step_progress < 0.7:
 		# Other foot is significantly more out of place - switch to it
 		if _stepping_foot == 0:
 			_left_plant_pos = _left_step_end
@@ -2168,19 +2215,22 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 			_right_step_start = _right_plant_pos
 
 	# Hard clamp: if legs are spread too far, snap the trailing foot immediately
-	var foot_spread := _horizontal_distance(_left_plant_pos, _right_plant_pos)
-	var max_spread := stride_length * max_leg_reach * 0.6  # Tighter limit for turn
-	if foot_spread > max_spread:
-		# Snap the non-stepping foot to its target immediately
-		if _stepping_foot == 0:
-			_right_plant_pos = right_target
-			_right_plant_yaw = current_yaw
-		else:
-			_left_plant_pos = left_target
-			_left_plant_yaw = current_yaw
+	# DISABLED during staggered stance - both feet will step anyway, don't snap
+	if not has_stagger:
+		var foot_spread := _horizontal_distance(_left_plant_pos, _right_plant_pos)
+		var max_spread := stride_length * max_leg_reach * 0.6  # Tighter limit for turn
+		if foot_spread > max_spread:
+			# Snap the non-stepping foot to its target immediately
+			if _stepping_foot == 0:
+				_right_plant_pos = right_target
+				_right_plant_yaw = current_yaw
+			else:
+				_left_plant_pos = left_target
+				_left_plant_yaw = current_yaw
 
 	# Check if other foot needs to catch up early (at 30% through first step)
-	if _turn_step_progress >= 0.3 and _turn_step_progress < 1.0:
+	# DISABLED during staggered stance - both feet will step anyway, let each complete its arc
+	if not has_stagger and _turn_step_progress >= 0.3 and _turn_step_progress < 1.0:
 		var other_foot := 1 if _stepping_foot == 0 else 0
 		# Recompute drift (positions may have changed from snapping above)
 		left_drift = _horizontal_distance(_left_plant_pos, left_target)
@@ -2218,6 +2268,9 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 			# Update ground normal for planted foot
 			_raycast_ground(_right_plant_pos, true, false)
 
+		# Increment step counter
+		_turn_step_count += 1
+
 		# Check if other foot needs to step
 		left_drift = _horizontal_distance(_left_plant_pos, left_target)
 		right_drift = _horizontal_distance(_right_plant_pos, right_target)
@@ -2226,7 +2279,11 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		var other_foot := 1 if _stepping_foot == 0 else 0
 		other_drift = right_drift if other_foot == 1 else left_drift
 
-		if other_drift > threshold:
+		# With staggered stance, ALWAYS step both feet to maintain stance, but only ONCE each
+		# Reuse has_stagger from earlier in this function
+		var should_step_other := (other_drift > threshold) or (has_stagger and _turn_step_count < 2)
+
+		if should_step_other:
 			# Other foot needs to step
 			_stepping_foot = other_foot
 			_turn_step_progress = 0.0
@@ -2237,6 +2294,7 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		else:
 			# Turn complete - update planted yaw to current facing
 			_is_turning_in_place = false
+			_turn_step_count = 0
 			_left_plant_pos = _left_step_end
 			_right_plant_pos = _right_step_end
 			var final_yaw := _visuals.global_rotation.y
@@ -2290,8 +2348,8 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 	_apply_foot_target(_left_target, left_pos, left_yaw, _left_ground_normal, _left_foot_rest_basis, left_swing_t, delta, false)
 	_apply_foot_target(_right_target, right_pos, right_yaw, _right_ground_normal, _right_foot_rest_basis, right_swing_t, delta, false)
 
-	# Hip follows lowest foot
-	_update_hip(delta, 0.0)
+	# Hip lowers during turn-in-place (creates knee bend on planted foot)
+	_update_hip(delta, plant_dip)
 
 
 ## Process one foot's position for the current cycle value.
@@ -3042,16 +3100,27 @@ func _setup_debug() -> void:
 	# Motion state label
 	_debug_motion_label = _create_overhead_label(Color.WHITE)
 	_debug_motion_label.name = "MotionLabel"
+	# Turn-in-place debug
+	_debug_turn_label = _create_overhead_label(Color.CYAN)
+	_debug_turn_label.name = "TurnLabel"
+	# Ideal foot positions (where feet SHOULD be) - bright cyan/magenta
+	_debug_left_ideal = _create_debug_sphere(Color.CYAN, "L IDEAL")
+	_debug_left_ideal.name = "LeftIdeal"
+	_debug_right_ideal = _create_debug_sphere(Color.MAGENTA, "R IDEAL")
+	_debug_right_ideal.name = "RightIdeal"
+	# Planted foot positions (where feet ARE) - dimmer versions
+	_debug_left_planted = _create_debug_sphere(Color(0, 0.5, 0.5), "L PLANT")
+	_debug_left_planted.name = "LeftPlanted"
+	_debug_right_planted = _create_debug_sphere(Color(0.5, 0, 0.5), "R PLANT")
+	_debug_right_planted.name = "RightPlanted"
 
 
-## Create a debug ray (cylinder for line visualization).
+## Create a debug ray (thin box for line visualization - doesn't show rotation twist).
 func _create_debug_ray(color: Color) -> MeshInstance3D:
 	var mesh_instance := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.005
-	cylinder.bottom_radius = 0.005
-	cylinder.height = 1.0  # Will be scaled as needed
-	mesh_instance.mesh = cylinder
+	var box := BoxMesh.new()
+	box.size = Vector3(0.005, 1.0, 0.005)  # Thin square cross-section, 1m height (scaled as needed)
+	mesh_instance.mesh = box
 
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
@@ -3463,6 +3532,87 @@ func _update_section_debug(char_pos: Vector3, move_dir: Vector3) -> void:
 		if _debug_motion_label:
 			_debug_motion_label.visible = false
 
+	# Turn-in-place debug
+	if debug_turn_in_place:
+		# Calculate drift values for display
+		var left_target := _calculate_ideal_foot_position(-1.0)
+		var right_target := _calculate_ideal_foot_position(1.0)
+		var left_drift := _horizontal_distance(_left_plant_pos, left_target)
+		var right_drift := _horizontal_distance(_right_plant_pos, right_target)
+		var threshold := stride_length * turn_drift_threshold
+
+		# Calculate rotation angle delta
+		var current_yaw := _visuals.global_rotation.y
+		var left_yaw_delta := absf(angle_difference(current_yaw, _left_plant_yaw))
+		var right_yaw_delta := absf(angle_difference(current_yaw, _right_plant_yaw))
+		var max_yaw_delta := maxf(left_yaw_delta, right_yaw_delta)
+		var angle_threshold := deg_to_rad(max_turn_angle)
+
+		# Determine if we're in a turn scenario - ONLY show when NOT walking
+		var is_turn_scenario := not _is_walking and (_motion_state == 0 or _is_turning_in_place)
+
+		if _debug_turn_label:
+			_debug_turn_label.visible = is_turn_scenario
+			if is_turn_scenario:
+				_debug_turn_label.global_position = char_pos + Vector3.UP * 2.7
+
+				# Build status text
+				var status_text := ""
+				if _is_turning_in_place:
+					var foot_name := "LEFT" if _stepping_foot == 0 else "RIGHT"
+					status_text = "[ACTIVE] %s %.0f%%" % [foot_name, _turn_step_progress * 100.0]
+				else:
+					var will_trigger := (left_drift > threshold or right_drift > threshold or max_yaw_delta > angle_threshold)
+					status_text = "[IDLE] %s" % ("READY" if will_trigger else "OK")
+
+				# Add drift info with color coding
+				var left_status := "!" if left_drift > threshold else ""
+				var right_status := "!" if right_drift > threshold else ""
+				status_text += "\nL %.2fm%s R %.2fm%s (%.2f)" % [left_drift, left_status, right_drift, right_status, threshold]
+
+				var yaw_status := "!" if max_yaw_delta > angle_threshold else ""
+				status_text += "\nYaw %.0f°%s (%.0f°)" % [rad_to_deg(max_yaw_delta), yaw_status, rad_to_deg(angle_threshold)]
+
+				_debug_turn_label.text = status_text
+
+		# Show foot position spheres - ideal (bright) vs planted (dim)
+		# IDEAL positions (where feet SHOULD be based on current facing)
+		if _debug_left_ideal:
+			_debug_left_ideal.visible = is_turn_scenario
+			if is_turn_scenario:
+				_debug_left_ideal.global_position = left_target + Vector3.UP * 0.03
+				_update_sphere_size(_debug_left_ideal, debug_sphere_size * 1.2)
+
+		if _debug_right_ideal:
+			_debug_right_ideal.visible = is_turn_scenario
+			if is_turn_scenario:
+				_debug_right_ideal.global_position = right_target + Vector3.UP * 0.03
+				_update_sphere_size(_debug_right_ideal, debug_sphere_size * 1.2)
+
+		# PLANTED positions (where feet ARE currently planted in world space)
+		if _debug_left_planted:
+			_debug_left_planted.visible = is_turn_scenario
+			if is_turn_scenario:
+				_debug_left_planted.global_position = _left_plant_pos + Vector3.UP * 0.01
+				_update_sphere_size(_debug_left_planted, debug_sphere_size)
+
+		if _debug_right_planted:
+			_debug_right_planted.visible = is_turn_scenario
+			if is_turn_scenario:
+				_debug_right_planted.global_position = _right_plant_pos + Vector3.UP * 0.01
+				_update_sphere_size(_debug_right_planted, debug_sphere_size)
+	else:
+		if _debug_turn_label:
+			_debug_turn_label.visible = false
+		if _debug_left_ideal:
+			_debug_left_ideal.visible = false
+		if _debug_right_ideal:
+			_debug_right_ideal.visible = false
+		if _debug_left_planted:
+			_debug_left_planted.visible = false
+		if _debug_right_planted:
+			_debug_right_planted.visible = false
+
 
 ## Position a debug ray (cylinder) between two points.
 func _position_ray(ray: MeshInstance3D, start: Vector3, end: Vector3) -> void:
@@ -3477,8 +3627,16 @@ func _position_ray(ray: MeshInstance3D, start: Vector3, end: Vector3) -> void:
 	ray.scale = Vector3(1.0, length, 1.0)
 	# Position at midpoint
 	ray.global_position = (start + end) * 0.5
-	# Orient Y axis along the direction
-	ray.global_basis = _basis_from_y(dir.normalized())
+	# Orient Y axis along the direction - use world-aligned basis to prevent twist
+	# Build a basis where Y points along the ray, and X/Z stay aligned to world axes
+	var y_axis := dir.normalized()
+	# Choose stable X reference: prefer world RIGHT, fallback to world FORWARD
+	var x_ref := Vector3.RIGHT
+	if absf(y_axis.dot(x_ref)) > 0.95:  # Nearly parallel, use different reference
+		x_ref = Vector3.FORWARD
+	var z_axis := y_axis.cross(x_ref).normalized()
+	var x_axis := z_axis.cross(y_axis).normalized()
+	ray.global_basis = Basis(x_axis, y_axis, z_axis)
 
 
 ## Update a sphere mesh size.
