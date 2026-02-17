@@ -322,7 +322,7 @@ theme_override_styles/separator = SubResource("StyleBoxLine_wo6uv")
 [node name="Stats" type="Panel" parent="Root/Layout/Footer" unique_id=289974137]
 custom_minimum_size = Vector2(420, 192)
 layout_mode = 2
-size_flags_horizontal = 0
+size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_wo6uv")
 
 [node name="NPCSystemData" type="RichTextLabel" parent="Root/Layout/Footer/Stats" unique_id=1847385287]
@@ -340,7 +340,8 @@ theme_override_colors/default_color = Color(1, 1, 1, 1)
 theme_override_fonts/normal_font = ExtResource("7_aibe0")
 theme_override_font_sizes/normal_font_size = 25
 bbcode_enabled = true
-scroll_active = false
+fit_content = true
+scroll_following = true
 
 [node name="VSeparator2" type="VSeparator" parent="Root/Layout/Footer" unique_id=1069726993]
 layout_mode = 2
@@ -479,7 +480,9 @@ theme_override_colors/default_color = Color(1, 1, 1, 1)
 theme_override_fonts/normal_font = ExtResource("7_aibe0")
 theme_override_font_sizes/normal_font_size = 25
 bbcode_enabled = true
+fit_content = true
 scroll_active = false
+scroll_following = true
 
 [node name="VSeparator5" type="VSeparator" parent="Root/Layout/Footer" unique_id=1086861185]
 layout_mode = 2

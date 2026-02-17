@@ -11,10 +11,16 @@ extends Resource
 @export var walk_speed: float = 1.8
 ## Speed considered "running" (uses max_stride_length).
 @export var run_speed: float = 5.0
+## Stride length multiplier when aiming/strafing. Larger steps prevent baby-stepping during strafe movement.
+@export_range(1.0, 3.0) var strafe_stride_multiplier: float = 1.8
 ## Peak height of foot arc during swing phase at run speed.
 @export var step_height: float = 0.2
 ## Minimum step height at slow walk (shuffling). Scales up to step_height at run speed.
 @export var min_step_height: float = 0.1
+## Lateral swing offset (meters). Pushes foot outward during swing to avoid leg collision on backward/sideways strafing.
+@export_range(0.0, 0.3) var swing_lateral_offset: float = 0.08
+## Maximum planted foot rotation (degrees) before forcing adjustment step. Prevents ankle twisting during rapid direction changes.
+@export_range(30.0, 120.0) var max_planted_foot_rotation: float = 75.0
 ## Lateral offset from character center for foot placement.
 @export var foot_lateral_offset: float = 0.1
 ## Height from ankle bone to sole of foot. Raises foot target so sole sits on ground.
@@ -79,6 +85,8 @@ extends Resource
 @export_range(1.0, 20.0) var ik_blend_speed: float = 10.0
 ## Smoothing speed for foot IK target positions (higher = snappier, lower = smoother).
 @export_range(5.0, 50.0) var foot_smooth_speed: float = 16.0
+## Visual rotation smoothing speed (deg/sec). Prevents "crazy legs" during rapid direction changes. 0 = disabled (instant rotation).
+@export_range(0.0, 1440.0) var rotation_smooth_speed: float = 0.0
 
 @export_group("Soft IK")
 ## Enable soft IK to prevent knee snapping at full leg extension.

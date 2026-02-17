@@ -36,6 +36,12 @@ extends Node
 		run_speed = value
 		if config:
 			config.run_speed = value
+## Stride length multiplier when aiming/strafing. Larger steps prevent baby-stepping during strafe movement.
+@export_range(1.0, 3.0) var strafe_stride_multiplier: float = 1.8:
+	set(value):
+		strafe_stride_multiplier = value
+		if config:
+			config.strafe_stride_multiplier = value
 ## Peak height of foot arc during swing phase at run speed.
 @export var step_height: float = 0.2:
 	set(value):
@@ -48,6 +54,18 @@ extends Node
 		min_step_height = value
 		if config:
 			config.min_step_height = value
+## Lateral swing offset (meters). Pushes foot outward during swing to avoid leg collision on backward/sideways strafing.
+@export_range(0.0, 0.3) var swing_lateral_offset: float = 0.08:
+	set(value):
+		swing_lateral_offset = value
+		if config:
+			config.swing_lateral_offset = value
+## Maximum planted foot rotation (degrees) before forcing adjustment step. Prevents ankle twisting during rapid direction changes.
+@export_range(30.0, 120.0) var max_planted_foot_rotation: float = 75.0:
+	set(value):
+		max_planted_foot_rotation = value
+		if config:
+			config.max_planted_foot_rotation = value
 ## Lateral offset from character center for foot placement.
 @export var foot_lateral_offset: float = 0.1:
 	set(value):
@@ -224,6 +242,12 @@ extends Node
 		foot_smooth_speed = value
 		if config:
 			config.foot_smooth_speed = value
+## Visual rotation smoothing speed (deg/sec). Prevents "crazy legs" during rapid direction changes. 0 = disabled (instant rotation).
+@export_range(0.0, 1440.0) var rotation_smooth_speed: float = 0.0:
+	set(value):
+		rotation_smooth_speed = value
+		if config:
+			config.rotation_smooth_speed = value
 
 @export_group("Soft IK")
 ## Enable soft IK to prevent knee snapping at full leg extension.
@@ -816,6 +840,9 @@ var _current_bank_angle: float = 0.0  # Current lateral bank in radians
 var _current_turn_twist: float = 0.0  # Current torso twist in radians
 var _prev_yaw: float = 0.0  # Previous frame yaw for turn rate calculation
 
+# Rotation smoothing (prevents crazy legs during rapid direction changes)
+var _smoothed_yaw: float = 0.0  # Current smoothed visual rotation
+
 # Breathing state
 var _breath_phase: float = 0.0  # Current breath cycle phase (0 to TAU)
 var _current_breath_rate: float = 12.0  # Current breaths per minute (smoothed)
@@ -949,8 +976,11 @@ func _sync_from_config() -> void:
 	max_stride_length = config.max_stride_length
 	walk_speed = config.walk_speed
 	run_speed = config.run_speed
+	strafe_stride_multiplier = config.strafe_stride_multiplier
 	step_height = config.step_height
 	min_step_height = config.min_step_height
+	swing_lateral_offset = config.swing_lateral_offset
+	max_planted_foot_rotation = config.max_planted_foot_rotation
 	foot_lateral_offset = config.foot_lateral_offset
 	foot_height = config.foot_height
 	plant_ahead_ratio = config.plant_ahead_ratio
@@ -982,6 +1012,7 @@ func _sync_from_config() -> void:
 	idle_threshold = config.idle_threshold
 	ik_blend_speed = config.ik_blend_speed
 	foot_smooth_speed = config.foot_smooth_speed
+	rotation_smooth_speed = config.rotation_smooth_speed
 	# Soft IK
 	soft_ik_enabled = config.soft_ik_enabled
 	ik_softness = config.ik_softness
@@ -1247,15 +1278,24 @@ func _regenerate_cadence() -> void:
 
 ## Calculate effective stride length based on current speed.
 ## Interpolates between stride_length (at walk_speed) and max_stride_length (at run_speed).
+## Applies strafe multiplier when character is aiming to prevent baby-stepping.
 func _get_effective_stride(speed: float) -> float:
+	var base_stride: float
 	if speed <= walk_speed:
-		return stride_length
+		base_stride = stride_length
 	elif speed >= run_speed:
-		return max_stride_length
+		base_stride = max_stride_length
 	else:
 		# Lerp between walk and run stride
 		var t := (speed - walk_speed) / (run_speed - walk_speed)
-		return lerpf(stride_length, max_stride_length, t)
+		base_stride = lerpf(stride_length, max_stride_length, t)
+
+	# Apply strafe multiplier when aiming to take larger steps
+	var char_body := _visuals.controller as RenegadeCharacter
+	if char_body and char_body.is_aiming:
+		base_stride *= strafe_stride_multiplier
+
+	return base_stride
 
 
 ## Calculate effective stance ratio based on current speed.
@@ -1601,6 +1641,9 @@ func _setup() -> void:
 	# Initialize yaw tracking for turn-in-place
 	_prev_yaw = initial_yaw
 
+	# Initialize smoothed rotation (for preventing crazy legs)
+	_smoothed_yaw = initial_yaw
+
 	# Find feet_xform modifier (used for turn-in-place, disabled during walking)
 	_feet_xform = _skeleton.get_node_or_null("feet_xform")
 
@@ -1633,7 +1676,7 @@ func _apply_foot_bone_rotations() -> void:
 
 	# Apply left foot rotation from Marker3D
 	if _left_target and _left_foot_idx != -1:
-		var target_basis := _left_target.global_transform.basis
+		var target_basis := _left_target.global_transform.basis.orthonormalized()
 		# Convert world basis to bone-local basis
 		var parent_idx := _skeleton.get_bone_parent(_left_foot_idx)
 		var parent_global: Transform3D
@@ -1641,24 +1684,26 @@ func _apply_foot_bone_rotations() -> void:
 			parent_global = _skeleton.global_transform * Transform3D(_skeleton.get_bone_global_pose(parent_idx))
 		else:
 			parent_global = _skeleton.global_transform
-		var local_basis := parent_global.basis.inverse() * target_basis
+		var local_basis := (parent_global.basis.inverse() * target_basis).orthonormalized()
 		# Blend with influence
 		var current_pose := _skeleton.get_bone_pose(_left_foot_idx)
-		var blended_basis := current_pose.basis.slerp(local_basis, _current_influence)
+		var current_basis := current_pose.basis.orthonormalized()
+		var blended_basis := current_basis.slerp(local_basis, _current_influence).orthonormalized()
 		_skeleton.set_bone_pose_rotation(_left_foot_idx, blended_basis.get_rotation_quaternion())
 
 	# Apply right foot rotation from Marker3D
 	if _right_target and _right_foot_idx != -1:
-		var target_basis := _right_target.global_transform.basis
+		var target_basis := _right_target.global_transform.basis.orthonormalized()
 		var parent_idx := _skeleton.get_bone_parent(_right_foot_idx)
 		var parent_global: Transform3D
 		if parent_idx != -1:
 			parent_global = _skeleton.global_transform * Transform3D(_skeleton.get_bone_global_pose(parent_idx))
 		else:
 			parent_global = _skeleton.global_transform
-		var local_basis := parent_global.basis.inverse() * target_basis
+		var local_basis := (parent_global.basis.inverse() * target_basis).orthonormalized()
 		var current_pose := _skeleton.get_bone_pose(_right_foot_idx)
-		var blended_basis := current_pose.basis.slerp(local_basis, _current_influence)
+		var current_basis := current_pose.basis.orthonormalized()
+		var blended_basis := current_basis.slerp(local_basis, _current_influence).orthonormalized()
 		_skeleton.set_bone_pose_rotation(_right_foot_idx, blended_basis.get_rotation_quaternion())
 
 
@@ -2324,10 +2369,19 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 	var left_swing_t: float = 0.0
 	var right_swing_t: float = 0.0
 
+	# Lateral offset during turn-in-place swing (same as locomotion)
+	var lateral_amount := sin(current_progress * PI)  # Peaks at mid-swing
+	var lateral_dir := _visuals.global_transform.basis.x
+	lateral_dir.y = 0.0
+	lateral_dir = lateral_dir.normalized()
+
 	if _stepping_foot == 0:
 		# Left is stepping — interpolate toward target yaw
 		left_pos = _left_step_start.lerp(_left_step_end, current_progress)
 		left_pos.y += arc_height
+		# Add lateral offset (left foot pushes left)
+		if swing_lateral_offset > 0.0:
+			left_pos += lateral_dir * (-swing_lateral_offset * lateral_amount)
 		left_yaw = lerp_angle(_left_plant_yaw, target_yaw, current_progress)
 		left_swing_t = current_progress  # Foot is in swing
 		# Right stays planted — lower it to bend knee (weight shift)
@@ -2338,6 +2392,9 @@ func _process_turn_step(delta: float, left_target: Vector3, right_target: Vector
 		# Right is stepping — interpolate toward target yaw
 		right_pos = _right_step_start.lerp(_right_step_end, current_progress)
 		right_pos.y += arc_height
+		# Add lateral offset (right foot pushes right)
+		if swing_lateral_offset > 0.0:
+			right_pos += lateral_dir * (swing_lateral_offset * lateral_amount)
 		right_yaw = lerp_angle(_right_plant_yaw, target_yaw, current_progress)
 		right_swing_t = current_progress  # Foot is in swing
 		# Left stays planted — lower it to bend knee (weight shift)
@@ -2364,7 +2421,15 @@ func _process_foot(
 	# Get amplitude variation for this side (gait asymmetry)
 	var amp_variation := _left_amp_variation if side < 0 else _right_amp_variation
 
-	if cycle < effective_stance:
+	# Check if planted foot has rotated beyond threshold (rapid direction change)
+	# If so, force early liftoff to prevent ankle twisting
+	var current_yaw := _visuals.global_rotation.y
+	var plant_yaw := _left_plant_yaw if side < 0 else _right_plant_yaw
+	var yaw_delta := absf(angle_difference(current_yaw, plant_yaw))
+	var max_rotation_rad := deg_to_rad(max_planted_foot_rotation)
+	var force_step := yaw_delta > max_rotation_rad
+
+	if cycle < effective_stance and not force_step:
 		# Plant phase — foot stays at planted world position
 		# Track stance progress for heel-to-toe roll (0-1 within stance)
 		var stance_progress := cycle / effective_stance
@@ -2379,7 +2444,13 @@ func _process_foot(
 		return plant_pos
 	else:
 		# Swing phase — arc from plant position toward next predicted plant
-		var swing_t := (cycle - effective_stance) / (1.0 - effective_stance)  # 0–1 within swing
+		# If forced step (rapid direction change), use faster swing timing
+		var swing_t: float
+		if force_step and cycle < effective_stance:
+			# Forced early liftoff - map current stance progress to swing
+			swing_t = cycle / effective_stance * 0.5  # Start at beginning of swing
+		else:
+			swing_t = (cycle - effective_stance) / (1.0 - effective_stance)  # 0–1 within swing
 
 		# Store swing progress for foot rotation
 		if side < 0:
@@ -2415,6 +2486,17 @@ func _process_foot(
 
 		# Swing from where we lifted (plant_pos) to where we're landing (smoothed target)
 		var ground_pos := plant_pos.lerp(swing_target, eased_t)
+
+		# Lateral offset during swing - pushes foot outward to avoid leg collision
+		# Peaks at mid-swing (50%), strongest during backward/sideways strafing
+		if swing_lateral_offset > 0.0:
+			var lateral_amount := sin(swing_t * PI)  # 0 at start/end, 1.0 at mid-swing
+			var lateral_dir := _visuals.global_transform.basis.x  # Character's right vector
+			lateral_dir.y = 0.0
+			lateral_dir = lateral_dir.normalized()
+			# Left foot pushes left (negative), right foot pushes right (positive)
+			var offset := lateral_dir * (side * swing_lateral_offset * lateral_amount)
+			ground_pos += offset
 
 		# Arc height - quick lift, soft landing
 		# pow(t, 0.6) lifts faster at start, settles slower at end
@@ -2453,13 +2535,14 @@ func _predict_plant_position(move_dir: Vector3, speed: float, side: float) -> Ve
 		_stop_foot_planted = true  # Only modify first plant during stop
 	var forward_offset: Vector3 = move_dir * effective_stride * effective_plant_ratio
 
-	# Lateral offset perpendicular to movement direction
+	# Lateral offset: ALWAYS perpendicular to character facing, NOT movement direction
+	# This prevents asymmetric foot placement during strafing (where move_dir is sideways)
 	# Crossover reduces lateral offset: 0 = normal, 1 = inline (runway walk), >1 = cross over centerline
 	var crossover_scale: float = 1.0 - crossover_amount
-	var lateral: Vector3 = move_dir.cross(Vector3.UP).normalized() * side * foot_lateral_offset * crossover_scale
-	if lateral.is_zero_approx() and crossover_amount < 1.0:
-		# Fallback: use character's right vector (only if not intentionally zeroed by crossover)
-		lateral = _visuals.controller.global_basis.x * side * foot_lateral_offset * crossover_scale
+	var char_right := _visuals.controller.global_basis.x
+	char_right.y = 0.0
+	char_right = char_right.normalized()
+	var lateral: Vector3 = char_right * side * foot_lateral_offset * crossover_scale
 
 	var predicted: Vector3 = char_pos + forward_offset + lateral
 
@@ -2635,10 +2718,35 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 	var left_arm_phase := _phase - phase_offset_rad + _left_arm_phase_offset   # Peaks when RIGHT leg plants
 	var right_arm_phase := _phase + phase_offset_rad + _right_arm_phase_offset # Peaks when LEFT leg plants
 
-	# Calculate swing offset in movement direction
-	var forward := move_dir if move_dir.length_squared() > 0.01 else -_visuals.global_transform.basis.z
-	forward.y = 0.0
-	forward = forward.normalized()
+	# Calculate swing directions based on movement:
+	# - Forward movement: arms swing forward/back (alternating)
+	# - Sideways movement: arms swing left/right (alternating)
+	# - Blend between them for diagonal movement
+	var body_forward := -_visuals.global_transform.basis.z
+	body_forward.y = 0.0
+	body_forward = body_forward.normalized()
+
+	var body_right := _visuals.global_transform.basis.x
+	body_right.y = 0.0
+	body_right = body_right.normalized()
+
+	# Determine forward/lateral blend based on movement direction
+	var forward_amount := 1.0
+	var lateral_amount := 0.0
+	var strafe_direction := 0.0  # -1 = strafing left, +1 = strafing right, 0 = no strafe
+	if is_moving and move_dir.length_squared() > 0.01:
+		var normalized_move := move_dir.normalized()
+		normalized_move.y = 0.0
+		# How much movement is forward vs lateral?
+		forward_amount = absf(normalized_move.dot(body_forward))
+		lateral_amount = absf(normalized_move.dot(body_right))
+		# Get strafe direction (which way are we moving laterally?)
+		strafe_direction = sign(normalized_move.dot(body_right))
+		# Normalize so they sum to 1 (full swing amplitude maintained)
+		var total := forward_amount + lateral_amount
+		if total > 0.01:
+			forward_amount /= total
+			lateral_amount /= total
 
 	# Left arm
 	if _left_hand:
@@ -2648,11 +2756,22 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
 			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
 
-			# Swing offset (only when moving, with random amplitude)
-			# Add forward bias to shift arms forward during movement
-			var swing := sin(left_arm_phase) * swing_amp * _left_arm_amp_scale + arm_forward_bias
+			# Alternating swing phase
+			var swing_phase := sin(left_arm_phase) * swing_amp * _left_arm_amp_scale
+			# Forward swing: along body forward axis
+			var forward_swing := body_forward * swing_phase * forward_amount
+			# Lateral swing: LEFT ARM swings along body_right (right is positive)
+			var lateral_swing := body_right * swing_phase * lateral_amount
+
+			# Strafe offset: leading arm forward, trailing arm back
+			# When strafing LEFT (strafe_direction = -1), left arm LEADS (forward)
+			# When strafing RIGHT (strafe_direction = +1), left arm TRAILS (back)
+			var strafe_offset := body_forward * (-strafe_direction) * swing_amp * 0.5 * lateral_amount
+
+			# Lift component
 			var lift := absf(sin(left_arm_phase)) * arm_swing_lift * _left_arm_amp_scale
-			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
+			# Combine all components
+			var swing_world: Vector3 = forward_swing + lateral_swing + strafe_offset + body_forward * arm_forward_bias + Vector3.UP * lift
 			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
 
 			# Calculate target position
@@ -2680,11 +2799,23 @@ func _update_arm_swing(delta: float, speed: float, move_dir: Vector3, is_moving:
 			var rest_offset_world: Vector3 = Vector3.DOWN * arm_rest_drop + Vector3.UP * (arm_rest_raise + arm_rest_up)
 			var rest_offset_local: Vector3 = parent.global_transform.basis.inverse() * rest_offset_world
 
-			# Swing offset (only when moving, with random amplitude)
-			# Add forward bias to shift arms forward during movement
-			var swing := sin(right_arm_phase) * swing_amp * _right_arm_amp_scale + arm_forward_bias
+			# Alternating swing phase
+			var swing_phase := sin(right_arm_phase) * swing_amp * _right_arm_amp_scale
+			# Forward swing: along body forward axis (same as left)
+			var forward_swing := body_forward * swing_phase * forward_amount
+			# Lateral swing: RIGHT ARM swings OPPOSITE to left arm (negative body_right)
+			# This creates alternating lateral swing - when left goes right, right goes left
+			var lateral_swing := -body_right * swing_phase * lateral_amount
+
+			# Strafe offset: leading arm forward, trailing arm back
+			# When strafing RIGHT (strafe_direction = +1), right arm LEADS (forward)
+			# When strafing LEFT (strafe_direction = -1), right arm TRAILS (back)
+			var strafe_offset := body_forward * strafe_direction * swing_amp * 0.5 * lateral_amount
+
+			# Lift component
 			var lift := absf(sin(right_arm_phase)) * arm_swing_lift * _right_arm_amp_scale
-			var swing_world: Vector3 = forward * swing + Vector3.UP * lift
+			# Combine all components
+			var swing_world: Vector3 = forward_swing + lateral_swing + strafe_offset + body_forward * arm_forward_bias + Vector3.UP * lift
 			var swing_local: Vector3 = parent.global_transform.basis.inverse() * swing_world
 
 			# Calculate target position
@@ -2746,7 +2877,7 @@ func _update_clavicle(delta: float, speed: float, is_moving: bool) -> void:
 
 
 ## Update knee pole target positions to track movement direction.
-## Knees point slightly toward movement when walking, return to rest when idle.
+## Knees always point forward relative to character facing (biomechanically correct).
 func _update_knee_poles(delta: float, move_dir: Vector3, is_moving: bool) -> void:
 	# Skip if no knee targets assigned or knee tracking disabled
 	if _left_knee == null and _right_knee == null:
@@ -2754,19 +2885,11 @@ func _update_knee_poles(delta: float, move_dir: Vector3, is_moving: bool) -> voi
 	if not knee_tracking_enabled:
 		return
 
-	# Knee offset direction: blend between forward (rest) and movement direction
-	var target_dir: Vector3
-	if is_moving and move_dir.length_squared() > 0.01:
-		# Blend toward movement direction based on knee_direction_weight
-		var forward := -_visuals.global_transform.basis.z
-		forward.y = 0.0
-		forward = forward.normalized()
-		target_dir = forward.lerp(_current_knee_direction, knee_direction_weight)
-	else:
-		# Rest: knees point forward relative to character
-		target_dir = -_visuals.global_transform.basis.z
-		target_dir.y = 0.0
-		target_dir = target_dir.normalized()
+	# Knees ALWAYS point forward relative to character facing, regardless of movement direction
+	# This is biomechanically correct - when you walk backwards, your knees still point forward
+	var target_dir := -_visuals.global_transform.basis.z
+	target_dir.y = 0.0
+	target_dir = target_dir.normalized()
 
 	# Distance in front of knee for pole target (roughly shin length)
 	var pole_distance := 0.4
