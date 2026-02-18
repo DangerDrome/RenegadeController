@@ -707,6 +707,44 @@ extends Node
 		if config:
 			config.stance_sharpness = value
 
+@export_group("Footfall Impact")
+## Enable chest/head drop on footstep impacts (AAA weight method).
+@export var footfall_impact_enabled: bool = true:
+	set(value):
+		footfall_impact_enabled = value
+		if config:
+			config.footfall_impact_enabled = value
+## Chest drop amount on foot plant (meters).
+@export_range(0.0, 0.08) var footfall_chest_drop: float = 0.012:
+	set(value):
+		footfall_chest_drop = value
+		if config:
+			config.footfall_chest_drop = value
+## Head drop amount on foot plant (meters).
+@export_range(0.0, 0.05) var footfall_head_drop: float = 0.008:
+	set(value):
+		footfall_head_drop = value
+		if config:
+			config.footfall_head_drop = value
+## Impact strength at minimum speed (walk). At run speed = 1.0x.
+@export_range(0.1, 1.0) var footfall_min_strength: float = 0.3:
+	set(value):
+		footfall_min_strength = value
+		if config:
+			config.footfall_min_strength = value
+## Spring recovery speed (higher = snappier bounce back).
+@export_range(5.0, 30.0) var footfall_spring_speed: float = 10.0:
+	set(value):
+		footfall_spring_speed = value
+		if config:
+			config.footfall_spring_speed = value
+## Spring damping (0 = bouncy, 1 = critically damped, >1 = overdamped).
+@export_range(0.0, 2.0) var footfall_damping: float = 0.6:
+	set(value):
+		footfall_damping = value
+		if config:
+			config.footfall_damping = value
+
 @export_group("Debug")
 ## Enable debug visualization.
 @export var debug_enabled: bool = false
@@ -724,6 +762,8 @@ extends Node
 @export var debug_sphere_size: float = 0.05
 ## Print bone axis reference to console on startup (for IK debugging).
 @export var debug_bone_axes: bool = false
+## Print footfall impact events to console (only when foot plants, no spam).
+@export var debug_footfall: bool = false
 
 var _visuals: CharacterVisuals
 var _skeleton: Skeleton3D
@@ -847,6 +887,15 @@ var _smoothed_yaw: float = 0.0  # Current smoothed visual rotation
 var _breath_phase: float = 0.0  # Current breath cycle phase (0 to TAU)
 var _current_breath_rate: float = 12.0  # Current breaths per minute (smoothed)
 var _exertion_level: float = 0.0  # 0 = resting, 1 = max exertion
+
+# Footfall impact state (spring-damped)
+var _chest_impact_offset: float = 0.0  # Current chest drop from impacts (meters)
+var _chest_impact_velocity: float = 0.0  # Spring velocity for chest
+var _head_impact_offset: float = 0.0  # Current head drop from impacts (meters)
+var _head_impact_velocity: float = 0.0  # Spring velocity for head
+var _left_cycle: float = 0.0  # Current cycle value (0-1) for footfall detection
+var _right_cycle: float = 0.0
+var _debug_footfall_timer: float = 0.0  # Timer for periodic debug prints
 
 # Idle sway state
 var _sway_phase: float = 0.0  # Current sway cycle phase
@@ -1073,6 +1122,13 @@ func _sync_from_config() -> void:
 	breath_rate_exertion = config.breath_rate_exertion
 	breath_chest_amount = config.breath_chest_amount
 	breath_shoulder_amount = config.breath_shoulder_amount
+	# Footfall impact
+	footfall_impact_enabled = config.footfall_impact_enabled
+	footfall_chest_drop = config.footfall_chest_drop
+	footfall_head_drop = config.footfall_head_drop
+	footfall_min_strength = config.footfall_min_strength
+	footfall_spring_speed = config.footfall_spring_speed
+	footfall_damping = config.footfall_damping
 	# Idle sway
 	idle_sway_enabled = config.idle_sway_enabled
 	sway_period = config.sway_period
@@ -1184,6 +1240,106 @@ func _get_breath_offset() -> float:
 	var breath := sin(_breath_phase)
 	# Remap to 0-1 range with slight inhale bias
 	return (breath * 0.5 + 0.5) * breath_chest_amount
+
+
+## Update footfall impacts - detect foot plants and trigger spring-damped chest/head drops.
+## This is THE signature of AAA weighted locomotion.
+func _update_footfall_impacts(delta: float, speed: float) -> void:
+	if not footfall_impact_enabled:
+		# Decay impacts to zero when disabled
+		_chest_impact_offset = lerpf(_chest_impact_offset, 0.0, 1.0 - exp(-10.0 * delta))
+		_head_impact_offset = lerpf(_head_impact_offset, 0.0, 1.0 - exp(-10.0 * delta))
+		_chest_impact_velocity = 0.0
+		_head_impact_velocity = 0.0
+		return
+
+	# Calculate impact strength based on speed (scales from footfall_min_strength at idle to 1.0 at run)
+	var speed_ratio := clampf(speed / run_speed, 0.0, 1.0)
+	var impact_strength := lerpf(footfall_min_strength, 1.0, speed_ratio)
+
+	# Detect foot plants (transition from swing to stance)
+	var effective_stance := _get_effective_stance_ratio(speed)
+
+	# Left foot plant detection
+	# Plant happens when cycle crosses from swing (>= effective_stance) to stance (< effective_stance)
+	# OR when cycle wraps around (was near 1.0, now near 0.0)
+	var left_planted := false
+	if _left_prev_cycle >= effective_stance and _left_cycle < effective_stance:
+		left_planted = true
+	elif _left_prev_cycle > _left_cycle and _left_prev_cycle > 0.9:  # Wrapped around
+		left_planted = true
+
+	# Right foot plant detection
+	var right_planted := false
+	if _right_prev_cycle >= effective_stance and _right_cycle < effective_stance:
+		right_planted = true
+	elif _right_prev_cycle > _right_cycle and _right_prev_cycle > 0.9:  # Wrapped around
+		right_planted = true
+
+	# Trigger impulse on foot plant
+	if left_planted or right_planted:
+		# Apply BOTH displacement and velocity for smooth motion (AAA standard)
+		# Displacement gives immediate visual feedback, velocity smooths the transition
+		var chest_drop := footfall_chest_drop * impact_strength
+		var head_drop := footfall_head_drop * impact_strength
+
+		# Apply 70% as displacement, 30% as velocity impulse for smooth blend
+		_chest_impact_offset -= chest_drop * 0.7
+		_chest_impact_velocity -= chest_drop * 0.3 * footfall_spring_speed
+
+		_head_impact_offset -= head_drop * 0.7
+		_head_impact_velocity -= head_drop * 0.3 * footfall_spring_speed
+
+		# Debug output (only on plant, no spam)
+		if debug_footfall:
+			var foot_name := "LEFT" if left_planted else "RIGHT"
+			print("[FOOTFALL] %s foot planted | Speed: %.2f m/s | Impact: %.1f%% | Chest drop: %.4f m | Head drop: %.4f m | New offsets: Chest=%.4f Head=%.4f" % [
+				foot_name,
+				speed,
+				impact_strength * 100.0,
+				footfall_chest_drop * impact_strength,
+				footfall_head_drop * impact_strength,
+				_chest_impact_offset,
+				_head_impact_offset
+			])
+
+	# Spring-damped recovery using semi-implicit Euler integration
+	# F = -kx - cv (spring force + damping force)
+	var spring_k := footfall_spring_speed * footfall_spring_speed  # Spring stiffness
+	var damping_c := 2.0 * sqrt(spring_k) * footfall_damping  # Critical damping coefficient
+
+	# Update chest impact
+	var chest_force := -spring_k * _chest_impact_offset - damping_c * _chest_impact_velocity
+	_chest_impact_velocity += chest_force * delta
+	_chest_impact_offset += _chest_impact_velocity * delta
+
+	# Update head impact
+	var head_force := -spring_k * _head_impact_offset - damping_c * _head_impact_velocity
+	_head_impact_velocity += head_force * delta
+	_head_impact_offset += _head_impact_velocity * delta
+
+	# Periodic debug output (every 1 second, no spam)
+	if debug_footfall:
+		_debug_footfall_timer += delta
+		if _debug_footfall_timer >= 1.0:
+			_debug_footfall_timer = 0.0
+			print("[FOOTFALL STATE] Chest: offset=%.5f m, vel=%.5f m/s | Head: offset=%.5f m, vel=%.5f m/s | Enabled=%s" % [
+				_chest_impact_offset,
+				_chest_impact_velocity,
+				_head_impact_offset,
+				_head_impact_velocity,
+				str(footfall_impact_enabled)
+			])
+
+
+## Get current footfall impact offset for chest.
+func _get_chest_impact_offset() -> float:
+	return _chest_impact_offset if footfall_impact_enabled else 0.0
+
+
+## Get current footfall impact offset for head.
+func _get_head_impact_offset() -> float:
+	return _head_impact_offset if footfall_impact_enabled else 0.0
 
 
 ## Update idle sway - weight shifting when standing still.
@@ -1373,6 +1529,8 @@ func get_hip_rock_values() -> Dictionary:
 		"turn_twist": _current_turn_twist,
 		"debug_banking": debug_banking,
 		"breath_offset": _get_breath_offset(),
+		"chest_impact_offset": _get_chest_impact_offset(),
+		"head_impact_offset": _get_head_impact_offset(),
 		"sway_offset": _current_sway_offset,
 		"sway_tilt": _current_sway_tilt,
 		# Clavicle motion (applied by modifier to run after AnimationTree)
@@ -1884,6 +2042,7 @@ func _physics_process(delta: float) -> void:
 	# Update AAA features
 	_update_turn_banking(delta, speed)
 	_update_breathing(delta, speed)
+	# Note: footfall impacts updated inside locomotion block after cycle values are set
 	_update_idle_sway(delta, is_moving)
 
 	# Smooth move direction to prevent snap when stopping
@@ -1934,6 +2093,14 @@ func _physics_process(delta: float) -> void:
 		# Compute per-foot cycle values (0–1) - raw phase for plant detection
 		var left_cycle_raw := fmod(_phase / TAU, 1.0)
 		var right_cycle_raw := fmod((_phase + PI) / TAU, 1.0)
+
+		# Store current cycles for footfall impact detection
+		_left_cycle = left_cycle_raw
+		_right_cycle = right_cycle_raw
+
+		# Update footfall impacts NOW (after cycles set, before prev_cycle updated)
+		# This allows detection to compare new cycle vs old prev_cycle
+		_update_footfall_impacts(delta, speed)
 
 		# IMPORTANT: Update plant positions BEFORE processing feet
 		# This prevents one-frame delay when foot plants at new position
@@ -2058,6 +2225,9 @@ func _physics_process(delta: float) -> void:
 func _process_idle_or_turn(delta: float) -> void:
 	# DON'T update _prev_yaw here - we need it from the previous frame to detect rotation!
 	# It gets updated at the END of this function instead
+
+	# Update footfall impacts (will decay springs when idle, no new impacts)
+	_update_footfall_impacts(delta, 0.0)
 
 	# Calculate where feet SHOULD be based on current facing
 	var left_target_pos := _calculate_ideal_foot_position(-1.0)

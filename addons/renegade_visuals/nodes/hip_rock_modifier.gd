@@ -11,6 +11,7 @@ var _pelvis_idx: int = -1
 var _spine_01_idx: int = -1
 var _spine_02_idx: int = -1
 var _spine_03_idx: int = -1
+var _head_idx: int = -1
 var _clavicle_l_idx: int = -1
 var _clavicle_r_idx: int = -1
 
@@ -76,6 +77,11 @@ func _cache_bones(skeleton: Skeleton3D) -> void:
 
 	_spine_02_idx = skeleton.find_bone("spine_02")
 	_spine_03_idx = skeleton.find_bone("spine_03")
+
+	_head_idx = skeleton.find_bone("head")
+	if _head_idx == -1:
+		_head_idx = skeleton.find_bone("Head")
+
 	_clavicle_l_idx = skeleton.find_bone("clavicle_l")
 	_clavicle_r_idx = skeleton.find_bone("clavicle_r")
 
@@ -136,6 +142,8 @@ func _process_modification() -> void:
 	var bank_angle: float = values.get("bank_angle", 0.0)
 	var sway_tilt: float = values.get("sway_tilt", 0.0)
 	var breath_offset: float = values.get("breath_offset", 0.0)
+	var chest_impact_offset: float = values.get("chest_impact_offset", 0.0)
+	var head_impact_offset: float = values.get("head_impact_offset", 0.0)
 	# Note: sway_offset is applied via _visuals.position in stride_wheel_component
 
 	if not hip_motion_enabled:
@@ -161,6 +169,13 @@ func _process_modification() -> void:
 	# Apply breathing as vertical offset to spine bones
 	if breath_offset > 0.001:
 		_apply_breath_expansion(breath_offset)
+
+	# Apply footfall impacts as DOWNWARD offset to chest and head
+	if absf(chest_impact_offset) > 0.001 or absf(head_impact_offset) > 0.001:
+		# Debug output
+		if debug_banking:  # Reuse existing debug flag
+			print("[HIP_ROCK_MODIFIER] Applying footfall: chest=%.5f m, head=%.5f m" % [chest_impact_offset, head_impact_offset])
+		_apply_footfall_impacts(chest_impact_offset, head_impact_offset)
 
 	# Apply clavicle motion (runs after AnimationTree so it won't be overwritten)
 	var clavicle_l_rot: Vector3 = values.get("clavicle_l_rotation", Vector3.ZERO)
@@ -324,6 +339,41 @@ func _apply_breath_expansion(breath_amount: float) -> void:
 		var pose := skeleton.get_bone_pose(_spine_03_idx)
 		var new_origin := pose.origin + Vector3(0.0, breath_amount * 0.3, 0.0)
 		skeleton.set_bone_pose(_spine_03_idx, Transform3D(pose.basis, new_origin))
+
+
+## Apply footfall impact offsets to chest and head bones.
+## This creates the signature AAA weight sensation - chest/head drop on foot plants.
+func _apply_footfall_impacts(chest_impact: float, head_impact: float) -> void:
+	var skeleton := get_skeleton()
+	if skeleton == null:
+		print("[HIP_ROCK_MODIFIER] ERROR: No skeleton!")
+		return
+
+	# Apply chest impact to upper spine (spine_02 and spine_03)
+	# Negative offset = downward drop
+	if absf(chest_impact) > 0.001:
+		if _spine_02_idx != -1:
+			var pose := skeleton.get_bone_pose(_spine_02_idx)
+			var new_origin := pose.origin + Vector3(0.0, chest_impact * 0.5, 0.0)
+			skeleton.set_bone_pose(_spine_02_idx, Transform3D(pose.basis, new_origin))
+		else:
+			print("[HIP_ROCK_MODIFIER] WARNING: spine_02_idx not found!")
+
+		if _spine_03_idx != -1:
+			var pose := skeleton.get_bone_pose(_spine_03_idx)
+			var new_origin := pose.origin + Vector3(0.0, chest_impact * 0.5, 0.0)
+			skeleton.set_bone_pose(_spine_03_idx, Transform3D(pose.basis, new_origin))
+		else:
+			print("[HIP_ROCK_MODIFIER] WARNING: spine_03_idx not found!")
+
+	# Apply head impact to head bone
+	# Negative offset = downward drop
+	if absf(head_impact) > 0.001 and _head_idx != -1:
+		var pose := skeleton.get_bone_pose(_head_idx)
+		var new_origin := pose.origin + Vector3(0.0, head_impact, 0.0)
+		skeleton.set_bone_pose(_head_idx, Transform3D(pose.basis, new_origin))
+	elif absf(head_impact) > 0.001:
+		print("[HIP_ROCK_MODIFIER] WARNING: head_idx not found!")
 
 
 ## Apply clavicle rotation for shoulder blade motion during arm swing.

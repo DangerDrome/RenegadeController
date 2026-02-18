@@ -239,3 +239,17 @@ extends Resource
 @export_range(0.0, 0.5) var cadence_variation: float = 0.1
 ## Foot ground contact sharpness (higher = quicker plant, longer stance).
 @export_range(1.0, 10.0) var stance_sharpness: float = 1.0
+
+@export_group("Footfall Impact")
+## Enable chest/head drop on footstep impacts (AAA weight method).
+@export var footfall_impact_enabled: bool = true
+## Chest drop amount on foot plant (meters). Creates sense of weight/mass.
+@export_range(0.0, 0.08) var footfall_chest_drop: float = 0.012
+## Head drop amount on foot plant (meters). Should be less than chest for realism.
+@export_range(0.0, 0.05) var footfall_head_drop: float = 0.008
+## Impact strength at minimum speed (walk). At run speed = 1.0x.
+@export_range(0.1, 1.0) var footfall_min_strength: float = 0.3
+## Spring recovery speed (higher = snappier bounce back).
+@export_range(5.0, 30.0) var footfall_spring_speed: float = 10.0
+## Spring damping (0 = bouncy, 1 = critically damped, >1 = overdamped).
+@export_range(0.0, 2.0) var footfall_damping: float = 0.6
