@@ -1,126 +1,127 @@
-# Renegade Controller — Full Repo Audit
+# Renegade Visuals — Plugin Audit
 
 ## Objective
-Perform a comprehensive audit of the entire RenegadeController repository — including the core `renegade_controller` plugin and all supporting addons. Clean up, remove duplicates, simplify, and optimize while preserving ALL current functionality. No features should be lost or broken.
+Perform a comprehensive audit of the `renegade_visuals` plugin — a fully procedural AAA character animation system for Godot 4.6. Clean up, remove duplicates, simplify, and optimize while preserving ALL current functionality. No features should be lost or broken.
 
-**Key Principle: Use Godot's built-in nodes first.** Before implementing custom functionality, check if Godot 4.6 already has a node that does what you need. Flag any custom implementations that duplicate built-in node functionality.
+**Key Principle: Use Godot's built-in nodes first.** Before implementing custom functionality, check if Godot 4.6 already has a node that does what you need. Leverage SkeletonModifier3D, AnimationTree, and Skeleton3D nodes properly.
 
 ---
 
-## Repository Overview
+## Plugin Overview
 
-This repo contains multiple Godot 4.6 plugins working together:
+**renegade_visuals** is a Godot 4.6 plugin providing fully procedural character animation with AAA quality motion:
 
-| Plugin | Purpose |
-|--------|---------|
-| `renegade_controller` | Core character controller, camera system, inventory, zones |
-| `modular_hud` | Signal-driven HUD components with reactive data binding |
-| `sky_weather` | Day/night cycle and weather system |
-| `dither_shader` | Retro dithering post-process effect |
-| `pixel_outline` | Pixel-perfect outline shader system |
-| `pixel_upscale` | Integer-scale pixel art upscaling |
-| `universal_door` | Multi-type door system with teleporter support |
-| `material_icons_importer` | Editor tool for Google Material Icons |
+| Feature | Implementation |
+|---------|----------------|
+| **Stride Wheel** | Fully procedural walk/run IK with footfall impacts, hip motion, shoulder counter-rotation |
+| **Foot IK** | Ground-adapting foot placement with slope detection |
+| **Hand IK** | Two-bone IK for hands, wall touching, object placement |
+| **Hip Motion** | Hip bob, rock, twist via SkeletonModifier3D pipeline |
+| **Hit Reactions** | Physics-based hit flinch with spring recovery |
+| **Active Ragdoll** | Powered ragdoll with pose matching |
+| **Root Motion** | AnimationTree integration with velocity extraction |
+| **Procedural Lean** | Body leaning into movement and turns |
+| **Spring Bones** | World collision for physics bones |
 
 ---
 
 ## Phase 1: Discovery & Mapping
 
 ### 1.1 File Inventory
-Scan ALL addon directories and create a complete manifest:
+Scan the renegade_visuals plugin and create a complete manifest:
 - List every `.gd` file with its `class_name` (if any)
 - List every `.tscn` and `.tres` file
-- List every `.gdshader` file
 - Note file sizes and line counts
-- Flag any files that seem unusually large (>300 lines)
+- Flag any files that seem unusually large (>500 lines for procedural systems)
 
-Expected directories to scan:
+Expected directory structure:
 ```
-addons/
-├── dither_shader/
-│   ├── demo/
-│   ├── presets/
-│   └── src/
-├── material_icons_importer/
-│   ├── context_menu/
-│   ├── icons/
-│   └── window/
-├── modular_hud/
-│   ├── components/
-│   ├── core/
-│   ├── examples/
-│   │   └── resources/
-│   └── fonts/
-├── pixel_outline/
-├── pixel_upscale/
-│   ├── presets/
-│   └── src/
-├── renegade_controller/
-│   ├── demo/
-│   ├── presets/
-│   │   └── items/
-│   ├── src/
-│   │   ├── camera/
-│   │   ├── character/
-│   │   ├── controllers/
-│   │   ├── cursor/
-│   │   ├── editor/
-│   │   ├── inventory/
-│   │   └── zones/
-│   └── textures/
-│       ├── dark/
-│       ├── green/
-│       ├── icons/
-│       ├── light/
-│       ├── orange/
-│       ├── purple/
-│       └── red/
-├── sky_weather/
-│   ├── demo/
-│   ├── icons/
-│   └── presets/
-└── universal_door/
+addons/renegade_visuals/
+├── plugin.cfg
+├── plugin.gd
+├── nodes/                              # Main component nodes
+│   ├── stride_wheel_component.gd       # Procedural locomotion (LARGE FILE)
+│   ├── hip_rock_modifier.gd            # SkeletonModifier3D for hip motion
+│   ├── foot_ik_component.gd            # Foot IK solver
+│   ├── hand_ik_component.gd            # Hand IK solver
+│   ├── locomotion_component.gd         # Root motion integration
+│   ├── character_visuals.gd            # Main coordinator node
+│   ├── hit_reaction_component.gd       # Hit detection
+│   ├── hit_reaction_modifier.gd        # SkeletonModifier3D for hits
+│   ├── hit_reactor_component.gd        # Hit physics
+│   ├── active_ragdoll_component.gd     # Powered ragdoll
+│   ├── procedural_lean_component.gd    # Body leaning
+│   ├── item_slots.gd                   # Visual item attachment
+│   ├── hand_object_placement.gd        # Object holding IK
+│   ├── wall_hand_placement.gd          # Wall touching IK
+│   └── spring_bone_world_collision.gd  # Spring bone physics
+├── resources/                          # Configuration resources
+│   ├── stride_wheel_config.gd          # Stride wheel parameters
+│   ├── foot_ik_config.gd               # Foot IK parameters
+│   ├── locomotion_config.gd            # Root motion parameters
+│   ├── lean_config.gd                  # Body lean parameters
+│   ├── hit_reaction_config.gd          # Hit reaction parameters
+│   └── skeleton_config.gd              # Bone mapping
+├── presets/                            # Template scenes
+│   ├── character_visuals.tscn          # Main character visuals template
+│   └── ragdoll.gd                      # Ragdoll setup helper
+├── defaults/                           # Default configs
+│   └── mannequin/
+│       └── uefn_skeleton_config.tres   # UEFN skeleton bone map
+└── tools/                              # Editor tools
+    └── skeleton_analyzer.gd            # Skeleton introspection tool
 ```
 
 ### 1.2 Dependency Graph
 For each script, document:
-- What classes it extends
+- What classes it extends (Node, SkeletonModifier3D, Resource, etc.)
 - What classes it references (type hints, preloads, `class_name` usage)
 - What signals it defines
 - What signals it connects to
-- What groups it uses (`add_to_group`, `is_in_group`, `get_tree().get_nodes_in_group()`)
-- **Cross-plugin dependencies** (e.g., modular_hud ↔ sky_weather integration)
+- Component → CharacterVisuals → Skeleton3D relationship chain
+- SkeletonModifier3D pipeline order (important for correct bone application)
+- AnimationTree → LocomotionComponent → CharacterBody3D → StrideWheel data flow
+
+**Key Relationships:**
+- `CharacterVisuals` (coordinator) → child components
+- `StrideWheelComponent` → `HipRockModifier` (via exposed state)
+- `LocomotionComponent` → AnimationTree → root motion velocity
+- Config resources → component nodes
+- SkeletonConfig → bone index caching
 
 ### 1.3 Export/Public API Surface
 For each class, list:
-- All `@export` properties
+- All `@export` properties (especially Config resources)
 - All public methods (no `_` prefix)
 - All signals
+- All exposed state variables (for component coordination)
 
 ---
 
 ## Phase 2: Godot Built-in Node Analysis
 
-### 2.1 Redundant Custom Implementations
-Check if any custom code duplicates Godot 4.6 built-in functionality:
-- Custom pathfinding vs `NavigationAgent3D`
-- Custom camera collision vs `SpringArm3D` (already used — verify no duplication)
-- Custom animation state management vs `AnimationTree`
-- Custom detection/triggers vs `Area3D` with groups
-- Custom tweening vs `Tween` node
-- Custom timers vs `Timer` node
-- Custom raycasting wrappers vs `RayCast3D` node
-- Custom physics queries vs `ShapeCast3D`
-- Custom sky/environment vs `ProceduralSkyMaterial` (sky_weather uses this — verify correct usage)
-- Custom post-processing vs `CompositorEffect` (Godot 4.3+)
+### 2.1 Proper Use of Godot Animation System
+Verify correct usage of Godot's built-in animation nodes:
+- **Skeleton3D** — Are we querying bone poses correctly? Using bone indices efficiently?
+- **SkeletonModifier3D** — Are modifiers in correct order? Are we preserving/chaining transforms properly?
+- **AnimationTree** — Root motion extraction, blend tree parameters
+- **SkeletonIK3D** — Could we use built-in IK instead of custom two-bone solver? (Likely NO - our solver has more control)
+- **BoneAttachment3D** — Are we using this for item attachment or custom solution?
 
-### 2.2 Jolt Physics Compatibility
-Verify all physics code works with Jolt (Godot 4.6 default):
-- Check for deprecated Godot Physics methods
-- Verify `CharacterBody3D.move_and_slide()` usage
-- Check collision layer/mask setup
-- Verify `RigidBody3D` impulse application patterns
-- Check `AnimatableBody3D` usage in universal_door
+### 2.2 Physics System Integration
+Check physics usage patterns:
+- **RayCast3D** nodes vs direct PhysicsDirectSpaceState3D queries (ground detection, wall touching)
+- **PhysicsBody3D** hierarchy — RigidBody3D for ragdoll, proper collision layers
+- **CharacterBody3D** integration — how does CharacterVisuals connect to controller?
+- **Jolt Physics** compatibility (Godot 4.6 default)
+- Spring physics implementations — are we using Godot's spring joints where appropriate?
+
+### 2.3 Performance & Caching
+Check for:
+- Bone index caching (should cache in `_ready()`, not query every frame)
+- Transform calculations in local vs global space (minimize conversions)
+- PhysicsDirectSpaceState3D query allocation (reuse queries where possible)
+- Exponential damping pattern — using `1.0 - exp(-speed * delta)` consistently?
 
 ---
 
@@ -128,72 +129,71 @@ Verify all physics code works with Jolt (Godot 4.6 default):
 
 ### 3.1 Duplicate Logic
 Search for:
-- Functions with identical or near-identical implementations across files
-- Copy-pasted code blocks (especially math helpers, signal connection patterns)
-- Multiple implementations of the same pattern (e.g., spring damping, exponential smoothing)
-- Redundant utility functions that could be consolidated
-- **Exponential damping pattern** — should use `lerp(a, b, 1.0 - exp(-speed * delta))` consistently. Flag any raw lerp usage or inconsistent implementations.
-- **Cross-plugin duplication** — similar patterns in modular_hud and renegade_controller
+- **Two-bone IK solver** — used in FootIKComponent, HandIKComponent, WallHandPlacement. Should this be extracted to shared utility?
+- **Spring damping physics** — footfall impacts, hit reactions, procedural lean. Are formulas consistent?
+- **Exponential smoothing** — should use `lerp(a, b, 1.0 - exp(-speed * delta))` consistently. Flag raw lerp usage.
+- **Bone index lookups** — multiple components cache spine/head/hand bone indices. Pattern consistent?
+- **Ground raycasting** — used in StrideWheelComponent, FootIKComponent. Shared logic?
+- **Transform math** — vector rotation, basis alignment, local↔global conversions. Consolidate helpers?
 
 ### 3.2 Dead Code
 Identify:
-- Functions that are never called
+- Functions that are never called (especially in large files like stride_wheel_component.gd)
 - Signals that are never emitted or connected
-- `@export` properties that are never read
+- `@export` properties that are never read (bloated config resources?)
 - Variables that are assigned but never used
-- Commented-out code blocks
-- Files that are never referenced or loaded
+- Commented-out code blocks (implementation experiments?)
+- Debug flags that are always false
 
 ### 3.3 Unused Resources
-Check all `presets/` directories:
-- `renegade_controller/presets/` — camera presets, character templates, item definitions
-- `renegade_controller/presets/items/` — weapon/gear/consumable .tres files
-- `modular_hud/examples/resources/` — HUDData .tres files
-- `sky_weather/presets/` — weather preset .tres files
-- `dither_shader/presets/` — dither overlay scenes
-- `pixel_upscale/presets/` — upscale display scenes
-- Any orphaned resources or unused textures in `renegade_controller/textures/`
+Check resources:
+- `defaults/` — unused skeleton configs?
+- `presets/` — orphaned .tscn or .tres files?
+- Old config parameters that are no longer used (check version history if needed)
 
 ---
 
 ## Phase 4: Architecture Review
 
-### 4.1 Class Hierarchy
-Evaluate:
-- Is inheritance used appropriately? Any deep inheritance chains (>2 levels)?
-- Could any inheritance be replaced with composition?
-- Are there base classes with only one subclass?
-- Any circular dependencies?
+### 4.1 Component Composition Pattern
+Evaluate the CharacterVisuals → child component pattern:
+- **CharacterVisuals** (coordinator) — Does it properly manage child components?
+- Component independence — Can components work without each other?
+- Initialization order — Are components initialized in correct sequence?
+- Component coupling — Do components access each other directly or through CharacterVisuals?
 
-Key hierarchies to review:
-- `ControllerInterface` → `PlayerController` / `AIController`
-- `ItemDefinition` → `WeaponDefinition` / `GearDefinition` / `ConsumableDefinition`
-- `CameraZone` → `FirstPersonZone`
-- `HUDData` (Resource) usage pattern in modular_hud
-- `WeatherPreset` (Resource) usage in sky_weather
+Key hierarchies:
+- Node → StrideWheelComponent, FootIKComponent, HandIKComponent, etc. (flat, good)
+- SkeletonModifier3D → HipRockModifier, HitReactionModifier (correct usage)
+- Resource → Config classes (StrideWheelConfig, FootIKConfig, etc.)
 
-### 4.2 Coupling Analysis
+### 4.2 SkeletonModifier3D Pipeline
+Critical review:
+- **Modifier order** — HipRockModifier must run AFTER AnimationTree, BEFORE IK modifiers
+- **Transform preservation** — Are modifiers chaining transforms correctly or overwriting?
+- **Bone pose API** — Using `get_bone_pose()` / `set_bone_pose()` correctly?
+- **Performance** — Are modifiers doing minimal work when disabled?
+
+### 4.3 Data Flow Analysis
+Trace data flow through system:
+1. **Input** → CharacterBody3D velocity → LocomotionComponent
+2. **LocomotionComponent** → AnimationTree parameters → root motion
+3. **AnimationTree** → Skeleton3D bone poses
+4. **StrideWheelComponent** → exposes state (hip motion, footfall impacts)
+5. **HipRockModifier** → reads StrideWheelComponent state → modifies skeleton
+6. **FootIKComponent** → reads ground, modifies skeleton
+
 Check for:
-- Scripts that know too much about other scripts' internals
-- Direct property access that should be method calls
-- Hardcoded node paths that should be exports
-- Type assumptions without proper checks
-- **Cross-plugin coupling** — how tightly are plugins connected?
+- Circular dependencies in data flow
+- State synchronization issues
+- Race conditions in `_physics_process()` vs `_process()`
 
-### 4.3 Signal vs Direct Reference
+### 4.4 Config Resource Pattern
 Review:
-- Are signals used where direct calls would be simpler?
-- Are direct calls used where signals would be more decoupled?
-- Any signal chains that are overly complex?
-- **HUDEvents autoload pattern** — is this the right approach for HUD updates?
-
-### 4.4 Setter Pattern Compliance
-Per CLAUDE.md critical patterns, verify all cross-reference `@export` properties that need signal connections use setters:
-- `RenegadeCharacter.controller`
-- `PlayerController.cursor`
-- `CameraRig` handler property propagation
-- `SkyWeather.time` and `SkyWeather.weather` setters
-- Any other cross-references
+- All components use `@export var config: ConfigResource` pattern (good)
+- Config changes propagate correctly (setters needed?)
+- Default configs provided vs mandatory configs
+- Config validation (null checks, range validation)
 
 ---
 
@@ -204,27 +204,28 @@ Check each file for:
 - Consistent snake_case naming
 - Type hints on ALL function parameters and return types
 - Type hints on ALL variable declarations where type isn't obvious
-- Proper use of `@export` groups
-- Doc comments on public methods
+- Proper use of `@export` groups (stride_wheel_config.gd has MANY groups - is it organized well?)
+- Doc comments on public methods (especially IK solvers, complex math)
 - `_` prefix on private members
 
-### 5.2 Performance Concerns
+### 5.2 Performance Concerns (CRITICAL for Procedural Animation)
 Flag:
-- `get_node()` or `$` calls inside `_process()` or `_physics_process()` (should use `@onready`)
-- String allocations in hot paths
-- Array/Dictionary creation in loops
+- **Bone lookups** — `skeleton.find_bone()` in hot paths (should cache indices in `_ready()`)
+- **Transform allocations** — creating new Transform3D every frame vs reusing
+- **Trigonometry** — unnecessary `sin()`/`cos()` calls (can we use cached values?)
+- **PhysicsDirectSpaceState3D** queries — reuse query objects, don't allocate every frame
 - `distance_to()` where `distance_squared_to()` would work
-- Repeated calculations that could be cached
-- `find_children()` or `get_tree().get_nodes_in_group()` called every frame
-- Missing `reset_physics_interpolation()` on teleport
-- **Shader performance** — any expensive operations in dither/outline/upscale shaders?
+- **Vector3 allocations** — `Vector3(0, 0, 0)` vs `Vector3.ZERO`
+- **Matrix math** — expensive basis operations in tight loops
+- **Debug drawing** — are debug visualizations properly gated behind flags?
 
 ### 5.3 Error Handling
 Check:
-- Null checks before using optional references
-- `is_instance_valid()` for potentially freed nodes
-- Graceful handling of missing resources/presets
-- **Autoload availability checks** — HUDEvents, NPCBrainHooks lookups
+- **Skeleton validity** — null checks before accessing skeleton
+- **Bone index validity** — checking index != -1 before use
+- **Config validation** — handling null configs gracefully
+- **CharacterBody3D reference** — what happens if controller is null?
+- `is_instance_valid()` for cross-references that might be freed
 
 ---
 
@@ -232,239 +233,220 @@ Check:
 
 ### 6.1 Over-Engineering
 Identify:
-- Abstractions that only have one implementation
+- **Hit reaction system** — HitReactionComponent vs HitReactionModifier vs HitReactorComponent. Are all three needed?
+- **Config resources** — Could some configs be merged? (e.g., FootIKConfig vs StrideWheelConfig overlap?)
 - Getter/setter methods that just wrap a property
-- Factory patterns where direct instantiation would suffice
-- State machines where booleans would work
-- Event systems where direct calls would be clearer
+- State variables that could be computed on-demand vs cached
 
 ### 6.2 Code Consolidation
 Propose:
-- Utility functions that could be extracted to a shared `utils/` folder
-- Common patterns that could become helper methods
-- Scripts that could be merged (if tightly coupled and always used together)
-- **Cross-plugin shared code** — common patterns across addons
+- **IK solver utility** — Extract shared two-bone IK logic from FootIK, HandIK, WallHand components
+- **Spring physics helper** — Consolidate spring-damping formulas (footfall, hit reaction, lean)
+- **Bone lookup utility** — Shared bone index caching pattern
+- **Math helpers** — Vector rotation, basis alignment, clamping utilities
+- Could `locomotion_component.gd` be merged into CharacterVisuals? (only 124 lines)
 
 ### 6.3 Configuration Simplification
-Review:
-- `@export` properties that have sensible defaults and are rarely changed
-- Overly granular configuration that could be grouped
-- Magic numbers that should be constants (or vice versa)
+Review stride_wheel_config.gd (256 lines, 16 export groups!):
+- Are all 80+ parameters necessary?
+- Could parameters be grouped into sub-resources? (e.g., GaitConfig, HipMotionConfig, FootfallConfig)
+- Debug flags scattered across components — consolidate to single DebugConfig?
+- Magic numbers — are constants defined vs hardcoded?
 
 ---
 
-## Phase 7: Inventory System Review (renegade_controller)
+## Phase 7: Stride Wheel System Review (LARGEST COMPONENT)
 
-### 7.1 Item Definition Hierarchy
-Review the item resource hierarchy:
-- `ItemDefinition` (base)
-- `WeaponDefinition` (damage, fire_rate, ammo_type)
-- `GearDefinition` (armor_value, slot_type)
-- `ConsumableDefinition` (use_effect, cooldown)
+stride_wheel_component.gd is the heart of the plugin (likely >2000 lines). Review thoroughly:
 
-Check for:
-- Redundant properties across subclasses
-- Missing common functionality in base class
-- Overly complex inheritance vs composition
+### 7.1 Core Locomotion Algorithm
+Review:
+- **Gait cycle calculation** — How are left/right foot cycles computed?
+- **Stride length scaling** — Speed-based stride adjustment logic
+- **Foot plant detection** — Cycle thresholds for stance/swing transitions
+- **Footfall impact system** — Spring-damped chest/head drops (recently added)
+- Are physics formulas correct and consistent?
 
-### 7.2 Inventory/Equipment/Weapon Managers
-Check for:
-- Duplicate logic between `Inventory`, `WeaponManager`, `EquipmentManager`
-- Signal usage consistency
-- Slot/capacity management patterns
+### 7.2 Hip Motion System
+Review hip bob, rock, twist implementation:
+- **Hip bob** — Vertical pelvis oscillation during walk
+- **Hip rock** — X/Y/Z axis rotations (side-to-side, twist, tilt)
+- **Body trail** — Character body offset behind/ahead of feet
+- **Spine lean** — Forward tilt into movement
+- Exposed state → HipRockModifier integration
 
-### 7.3 Loot System
-Review `LootTable`, `LootEntry`, `LootDropper`:
-- Is the weighted random implementation correct?
-- Any simpler Godot-native patterns available?
+### 7.3 Shoulder Counter-Rotation
+Review:
+- Shoulder twist opposite to hips (natural arm swing)
+- Spine twist cascade (hip rotation propagating up spine)
+- Is this data properly exposed to skeleton modifiers?
 
-### 7.4 Inventory UI
-Review `InventoryGridUI`, `InventorySlotUI`, `ItemInfoPanel`:
-- Clean separation of data and presentation?
-- Proper signal-based updates?
+### 7.4 Feature Toggles
+The component has MANY optional features:
+- Turn-in-place stepping
+- Foot rotation (ground normal, swing pitch, heel-toe roll)
+- Knee pole tracking
+- Slope adaptation
+- Start/stop motion
+- Turn banking (lateral lean into turns)
+- Procedural breathing
+- Idle sway
+- Clavicle motion
+- Gait refinement (asymmetry, cadence variation)
+
+Questions:
+- Are all features actually implemented and working?
+- Can features be safely disabled without breaking other systems?
+- Are debug flags comprehensive?
 
 ---
 
-## Phase 8: Camera System Review (renegade_controller)
+## Phase 8: IK Systems Review
 
-### 8.1 Camera Handler Architecture
-Review the handler composition pattern:
-- `CameraCollisionHandler` — collision detection + player mesh fade
-- `CameraAutoFramer` — auto-zoom based on nearby geometry
-- `CameraIdleEffects` — movement-based zoom
+### 8.1 Foot IK Component
+Review foot_ik_component.gd:
+- Two-bone IK solver implementation (is it correct?)
+- Ground detection (raycasting vs stride wheel ground detection - duplication?)
+- Foot rotation to match ground normal
+- Integration with stride wheel foot targets
 
-Check for:
-- Correct responsibility separation
-- Any handlers that could be combined
-- Proper enable/disable propagation
+### 8.2 Hand IK Component
+Review hand_ik_component.gd:
+- Two-bone IK solver (same as foot IK? Should be shared?)
+- Hand target positioning
+- Integration with item holding system
 
-### 8.2 CameraSystem → CameraRig → Handler Chain
-Verify property propagation:
-- `CameraSystem` exposes settings
-- `CameraRig` propagates to handlers
-- Handlers receive updates via setters
+### 8.3 Wall Hand Placement
+Review wall_hand_placement.gd:
+- Wall detection (raycasting)
+- Hand placement on surfaces
+- IK solver (another two-bone implementation?)
 
-### 8.3 Camera Collision
-- `camera_collision.gd` — does this duplicate `SpringArm3D` functionality?
-- `camera_auto_frame.gd` — is this needed or can `SpringArm3D` handle it?
-
----
-
-## Phase 9: Modular HUD System Review
-
-### 9.1 Core Architecture
-Review:
-- `HUDData` (Resource) — reactive data binding pattern
-- `HUDEvents` (Autoload expected) — signal bus for HUD updates
-- Component → Data binding approach
-
-### 9.2 Component Inventory
-Review all HUD components:
-- `health_bar.gd`, `stamina_bar.gd` — stat bars
-- `ammo_display.gd` — weapon ammo
-- `money_display.gd` — currency
-- `damage_flash.gd` — damage feedback
-- `prompt.gd` — interaction prompts
-- `profiler_display.gd` — debug info
-- Sky/weather components: `sky_day_display.gd`, `sky_time_display.gd`, `sky_speed_display.gd`, `sky_weather_icon.gd`, `time_weather_display.gd`
-
-Check for:
-- Consistent patterns across components
-- Duplicate functionality
-- Missing base class opportunities
-
-### 9.3 Sky Weather Integration
-Review how `modular_hud` components integrate with `sky_weather`:
-- Signal connections
-- Data flow
-- Coupling level
+### 8.4 Hand Object Placement
+Review hand_object_placement.gd:
+- Object attachment to hands
+- Rotation/offset handling
+- BoneAttachment3D usage?
 
 ---
 
-## Phase 10: Sky Weather System Review
+## Phase 9: Hit Reaction System Review
 
-### 10.1 Day/Night Cycle
-Review:
-- Time progression logic
-- Sky color blending
-- Sun position calculation (axial tilt, path rotation)
-- Energy/ambient light adjustments
+Three separate components for hit reactions - is this necessary?
 
-### 10.2 Weather System
-Review:
-- `WeatherPreset` resource structure
-- Weather transitions (interpolation)
-- Precipitation spawning
-- Fog handling
+### 9.1 HitReactionComponent
+Review hit_reaction_component.gd:
+- Hit detection (how does it receive hit events?)
+- Impact direction calculation
+- Component coordination
 
-### 10.3 Integration Points
-Check:
-- HUD integration via `_emit_hud_time()`, `_emit_hud_weather()`
-- NPC AI integration via `NPCBrainHooks` conditions
-- Performance of `_update_sky()` called every time change
+### 9.2 HitReactionModifier
+Review hit_reaction_modifier.gd:
+- SkeletonModifier3D implementation
+- Spring-damped bone displacement
+- Modifier order in pipeline
 
----
-
-## Phase 11: Universal Door System Review
-
-### 11.1 Door Types
-Review implementation of:
-- `NORMAL` — hinged rotation
-- `SLIDING` — horizontal slide
-- `GARAGE` — vertical roll
-- `ELEVATOR` — dual panel split
-- `CUSTOM` — AnimationPlayer-driven
-
-### 11.2 Teleporter Feature
-Check:
-- Target resolution (direct reference vs group lookup)
-- Entity positioning and rotation handling
-- Signal emission
-
-### 11.3 Built-in Node Usage
-Verify correct usage of:
-- `AnimatableBody3D` for door physics
-- `Area3D` for detection zones
-- `Tween` for procedural animation
-- `Timer` for auto-close
-- `AnimationPlayer` for custom animations
+### 9.3 HitReactorComponent
+Review hit_reactor_component.gd:
+- What does this do differently from HitReactionComponent?
+- Is there duplication?
 
 ---
 
-## Phase 12: Shader Systems Review
+## Phase 10: Ragdoll System Review
 
-### 12.1 Dither Shader
-Review:
-- `dither.gdshader` — main dithering effect
-- `scene_buffers.gdshader` — buffer handling
-- `DitherOverlay` component
-- `WorldLabel` / `WorldLabelManager` — purpose and usage
+### 10.1 Active Ragdoll Component
+Review active_ragdoll_component.gd:
+- Powered ragdoll implementation (pose matching)
+- RigidBody3D hierarchy
+- Transition from animation → ragdoll
+- Ragdoll → animation recovery
 
-### 12.2 Pixel Outline
-Review:
-- Multi-pass approach (data pass, mesh shaders, post-process)
-- `OutlineMaterial` and `OutlineSetup` components
-- Performance considerations
-
-### 12.3 Pixel Upscale
-Review:
-- `pixel_upscale.gdshader` — upscaling algorithm
-- `PixelUpscaleDisplay` and `PixelUpscaleMaterial` components
-- Integration with viewport rendering
+### 10.2 Ragdoll Setup
+Review presets/ragdoll.gd:
+- Helper for creating ragdoll physics bodies
+- Joint configuration
+- Collision setup
 
 ---
 
-## Phase 13: Documentation Audit
+## Phase 11: Supporting Components Review
 
-### 13.1 CLAUDE.md
-Verify:
-- File structure section matches actual files
-- All critical patterns are documented
-- No outdated information
-- Code examples are accurate
-- "Use Godot's built-in nodes first" principle is present
-- All addons are mentioned
+### 11.1 Procedural Lean Component
+Review procedural_lean_component.gd:
+- Body lean into movement direction
+- Turn banking
+- How does this integrate with hip motion?
 
-### 13.2 README.md (root and per-addon)
-Check:
-- Installation instructions work
-- Setup instructions are complete
-- All features are documented
-- Examples are runnable
+### 11.2 Item Slots
+Review item_slots.gd:
+- Visual attachment points on character
+- BoneAttachment3D usage
+- Item visibility management
 
-### 13.3 Inline Documentation
+### 11.3 Spring Bone World Collision
+Review spring_bone_world_collision.gd:
+- Physics bone collision detection
+- Spring damping
+- Performance impact
+
+---
+
+## Phase 12: Documentation Audit
+
+### 12.1 README.md
+Check if exists and contains:
+- Installation instructions
+- Setup instructions (how to use with CharacterBody3D)
+- Feature list (stride wheel, IK, ragdoll, etc.)
+- Configuration guide (how to tune parameters)
+- Example usage
+
+### 12.2 Inline Documentation
 Ensure:
-- All public classes have doc comments
-- Complex algorithms are explained
-- Non-obvious decisions have comments explaining "why"
+- All component classes have doc comments explaining purpose
+- `StrideWheelConfig` parameters have clear descriptions (some are very technical)
+- IK solver math is explained (two-bone IK formula)
+- Spring physics formulas are documented
+- SkeletonModifier3D pipeline order is documented
+
+### 12.3 Code Comments
+Check:
+- Complex algorithms explained (gait cycle, footfall detection, spring damping)
+- Non-obvious decisions have "why" comments
+- Magic numbers explained (why those specific values?)
+- AAA animation techniques cited (footfall impacts, hip motion, etc.)
 
 ---
 
-## Phase 14: Output Format
+## Phase 13: Output Format
 
-### 14.1 Findings Report
+### 13.1 Findings Report
 Create a structured report with:
 
-```
+```markdown
 ## Summary Statistics
-- Total addons: X
 - Total .gd files: X
 - Total lines of code: X
 - Total .tscn scenes: X
 - Total .tres resources: X
-- Total .gdshader files: X
-- Largest files: [list top 10]
-- Classes defined: X
+- Largest files: [list top 5, flag if >1000 lines]
+- Classes defined: X (with class_name)
 - Signals defined: X
+- Export parameters: X (across all configs)
 
-## Cross-Plugin Dependencies
-- [Plugin A] depends on [Plugin B] via [mechanism]
+## Component Dependency Map
+[Diagram or text showing component relationships]
+- CharacterVisuals → child components
+- StrideWheelComponent → HipRockModifier data flow
+- LocomotionComponent → AnimationTree → root motion
+- Config resources → components
 
-## Godot Built-in Alternatives (Priority Review)
-1. [Custom Implementation] — [Built-in Alternative] — [Recommendation]
+## Godot Built-in Node Usage Review
+1. [Component] — Uses [Godot Node] — [Correct/Incorrect/Could be improved]
 
 ## Critical Issues (Must Fix)
-1. [Issue] — [File:Line] — [Impact]
+1. [Issue] — [File:Line] — [Impact on animation quality/performance]
 
 ## Recommended Improvements (Should Fix)
 1. [Issue] — [File:Line] — [Benefit]
@@ -473,46 +455,47 @@ Create a structured report with:
 1. [Issue] — [File:Line] — [Benefit]
 
 ## Dead Code to Remove
-- [File] — [Reason]
+- [File/Function] — [Reason: never called, feature incomplete, etc.]
 
 ## Duplicate Code to Consolidate
-- [Pattern] found in [File1], [File2] — [Suggestion]
+- [Pattern] found in [File1], [File2], [File3] — [Consolidation suggestion]
 
-## Files to Merge
-- [File1] + [File2] → [Reason]
+## Configuration Complexity
+- stride_wheel_config.gd: X parameters across Y groups
+- Recommendation: [simplify/split/keep as-is]
 
-## Files to Split
-- [File] → [Reason]
+## Performance Hotspots
+- [Component] — [Potential bottleneck] — [Optimization suggestion]
 
-## Plugin-Specific Findings
-### renegade_controller
-...
-### modular_hud
-...
-### sky_weather
-...
-### universal_door
-...
-### dither_shader
-...
-### pixel_outline
-...
-### pixel_upscale
-...
+## SkeletonModifier3D Pipeline Order
+Current order: [list modifiers]
+Recommendation: [correct/needs reordering]
 ```
 
-### 14.2 Refactoring Plan
+### 13.2 Refactoring Plan
 After the report, propose a prioritized action plan:
-1. Quick wins (low effort, high impact)
-2. Medium effort improvements
-3. Larger refactors (if warranted)
+
+**Priority 1: Critical Fixes**
+- Performance issues (bone lookups in hot paths, etc.)
+- Broken functionality
+- SkeletonModifier3D pipeline order issues
+
+**Priority 2: Code Quality**
+- Extract shared IK solver
+- Consolidate spring physics
+- Remove dead code
+
+**Priority 3: Simplification**
+- Config resource simplification
+- Component merging (if warranted)
+- Debug flag consolidation
 
 Each action item should specify:
 - What to change
 - Why it improves the codebase
 - Risk level (safe / needs testing / breaking change)
-- Estimated scope (lines affected)
-- Which plugin(s) affected
+- Estimated scope (lines affected, files touched)
+- Prerequisites (must complete X before Y)
 
 ---
 
@@ -521,10 +504,10 @@ Each action item should specify:
 - **DO NOT** remove or modify any functionality without explicit approval
 - **DO NOT** change public APIs (method signatures, signal names, export properties) without documenting the breaking change
 - **DO** preserve all existing behavior
-- **DO** maintain backwards compatibility with existing scenes using the plugins
+- **DO** maintain backwards compatibility with existing character visuals scenes
 - **DO** keep the audit non-destructive — report findings, don't auto-fix
-- **DO** prioritize Godot built-in nodes over custom implementations
-- **DO** consider cross-plugin compatibility when suggesting changes
+- **DO** prioritize Godot built-in nodes over custom implementations (Skeleton3D, SkeletonModifier3D, AnimationTree)
+- **DO** respect SkeletonModifier3D pipeline order (critical for correct animation)
 
 ---
 
@@ -532,10 +515,10 @@ Each action item should specify:
 
 1. **audit_report.md** — Full findings document
 2. **refactoring_plan.md** — Prioritized action items
-3. **dependency_graph.md** — Visual or textual representation of class relationships (including cross-plugin)
+3. **component_dependency_map.md** — Component relationships and data flow
 4. **dead_code_list.md** — Files/functions safe to remove
-5. **builtin_alternatives.md** — Custom code that could use Godot built-in nodes
-6. **plugin_integration_map.md** — How plugins connect and depend on each other
+5. **performance_recommendations.md** — Optimization opportunities (bone caching, transform math, etc.)
+6. **config_simplification_proposal.md** — Recommendations for reducing config complexity
 
 ---
 
@@ -543,124 +526,66 @@ Each action item should specify:
 
 - **Godot Version**: 4.6
 - **Physics Engine**: Jolt (default for Godot 4.6)
-- **Target Game**: "Renegade Cop" — 80s third-person shooter action-RPG
+- **Target Use Case**: Fully procedural AAA character animation for third-person action games
+- **Key Dependencies**: Requires Skeleton3D, AnimationTree, CharacterBody3D from game
 
 ---
 
 ## Current File Inventory
 
-### renegade_controller/src/
+### renegade_visuals/
 ```
-camera/
-├── camera_auto_frame.gd
-├── camera_collision.gd
-├── camera_idle_effects.gd
-├── camera_preset.gd
-├── camera_rig.gd
-└── camera_system.gd
+plugin.cfg
+plugin.gd
 
-character/
-└── character_body.gd
+nodes/
+├── character_visuals.gd              # Main coordinator
+├── stride_wheel_component.gd         # Procedural locomotion (LARGE)
+├── hip_rock_modifier.gd              # SkeletonModifier3D for hip motion
+├── locomotion_component.gd           # Root motion integration
+├── foot_ik_component.gd              # Foot IK solver
+├── hand_ik_component.gd              # Hand IK solver
+├── hand_object_placement.gd          # Object holding IK
+├── wall_hand_placement.gd            # Wall touching IK
+├── hit_reaction_component.gd         # Hit detection
+├── hit_reaction_modifier.gd          # SkeletonModifier3D for hits
+├── hit_reactor_component.gd          # Hit physics (?)
+├── active_ragdoll_component.gd       # Powered ragdoll
+├── procedural_lean_component.gd      # Body leaning
+├── item_slots.gd                     # Visual item attachment
+└── spring_bone_world_collision.gd    # Spring bone physics
 
-controllers/
-├── ai_controller.gd
-├── controller_interface.gd
-└── player_controller.gd
+resources/
+├── stride_wheel_config.gd            # 256 lines, 80+ parameters
+├── foot_ik_config.gd
+├── locomotion_config.gd
+├── lean_config.gd
+├── hit_reaction_config.gd
+└── skeleton_config.gd                # Bone mapping
 
-cursor/
-└── cursor_3d.gd
+presets/
+├── character_visuals.tscn            # Main template
+└── ragdoll.gd                        # Ragdoll setup helper
 
-editor/
-└── camera_zone_inspector.gd
+defaults/
+└── mannequin/
+    └── uefn_skeleton_config.tres     # UEFN bone map
 
-inventory/
-├── consumable_definition.gd
-├── equipment_manager.gd
-├── gear_definition.gd
-├── inventory.gd
-├── inventory_grid_ui.gd
-├── inventory_slot.gd
-├── inventory_slot_ui.gd
-├── item_definition.gd
-├── item_info_panel.gd
-├── item_slots.gd
-├── loot_dropper.gd
-├── loot_entry.gd
-├── loot_table.gd
-├── weapon_definition.gd
-├── weapon_manager.gd
-├── weapon_wheel.gd
-└── world_pickup.gd
-
-zones/
-├── camera_zone.gd
-├── camera_zone_manager.gd
-└── first_person_zone.gd
-```
-
-### modular_hud/
-```
-components/
-├── ammo_display.gd
-├── damage_flash.gd
-├── health_bar.gd
-├── money_display.gd
-├── profiler_display.gd
-├── prompt.gd
-├── sky_day_display.gd
-├── sky_speed_display.gd
-├── sky_time_display.gd
-├── sky_weather_icon.gd
-├── stamina_bar.gd
-└── time_weather_display.gd
-
-core/
-├── hud_data.gd
-└── hud_events.gd
-
-examples/
-└── game_hud.gd
-```
-
-### sky_weather/
-```
-├── sky_weather.gd
-└── weather_preset.gd
-```
-
-### universal_door/
-```
-├── door_factory.gd
-└── universal_door.gd
-```
-
-### dither_shader/src/
-```
-├── dither.gdshader
-├── dither_overlay.gd
-├── scene_buffers.gd
-├── scene_buffers.gdshader
-├── world_label.gd
-└── world_label_manager.gd
-```
-
-### pixel_outline/
-```
-├── outline_data_pass.gdshader
-├── outline_material.gd
-├── outline_mesh_shaded.gdshader
-├── outline_mesh_unshaded.gdshader
-├── outline_post_process.gdshader
-└── outline_setup.gd
-```
-
-### pixel_upscale/src/
-```
-├── pixel_upscale.gdshader
-├── pixel_upscale_display.gd
-└── pixel_upscale_material.gd
+tools/
+└── skeleton_analyzer.gd              # Editor tool
 ```
 
 ---
 
-Begin by reading CLAUDE.md, then systematically work through each phase. Ask clarifying questions if you find ambiguous situations.
+## Getting Started
+
+Begin audit by:
+1. Reading each .gd file and documenting class structure
+2. Identifying the largest files (stride_wheel_component.gd is likely >2000 lines)
+3. Mapping component dependencies (CharacterVisuals → child components)
+4. Checking SkeletonModifier3D pipeline order
+5. Looking for duplicate IK solver implementations
+6. Reviewing spring physics consistency
+7. Checking bone index caching patterns
+
+Work through each phase systematically. Flag anything that seems questionable or could be improved.
