@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="FootIKConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_visuals/resources/foot_ik_config.gd" id="1_subtle"]
+
+[resource]
+script = ExtResource("1_subtle")
+ray_origin_height = 0.5
+ray_max_depth = 0.8
+ground_layers = 1
+max_hip_drop = 0.3
+hip_smooth_speed = 8.0
+foot_height_offset = 0.05
+locomotion_influence = 0.5
+idle_influence = 0.8
+influence_blend_speed = 6.0
+foot_rotation_weight = 0.5
+max_foot_angle = 25.0

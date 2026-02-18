@@ -28,6 +28,13 @@ extends Node
 			print("Saved skeleton reference to: ", output_path)
 			save_to_file = false
 
+## Print detailed bone axes to console (for quick runtime debugging).
+@export var print_bone_axes: bool = false:
+	set(value):
+		if value and skeleton:
+			_print_bone_axes()
+			print_bone_axes = false
+
 
 func analyze() -> String:
 	if skeleton == null:
@@ -296,3 +303,133 @@ func save_reference(content: String) -> void:
 		file.close()
 	else:
 		push_error("Failed to save skeleton reference to: %s" % output_path)
+
+
+## Print detailed bone axes to console (runtime debugging version).
+## Moved from StrideWheelComponent to centralize skeleton analysis tools.
+func _print_bone_axes() -> void:
+	if skeleton == null:
+		print("ERROR: No skeleton to analyze")
+		return
+
+	print("=" .repeat(70))
+	print("COMPLETE BONE AXIS REFERENCE (for IK/procedural rotations)")
+	print("See: addons/renegade_visuals/docs/skeleton_reference.md")
+	print("=" .repeat(70))
+
+	# Core bones to analyze
+	var key_bones := [
+		# Spine chain
+		"root", "pelvis", "spine_01", "spine_02", "spine_03",
+		# Neck and head
+		"neck_01", "neck_02", "head",
+		# Left arm chain
+		"clavicle_l", "upperarm_l", "upperarm_twist_01_l", "lowerarm_l", "lowerarm_twist_01_l", "hand_l",
+		# Right arm chain
+		"clavicle_r", "upperarm_r", "upperarm_twist_01_r", "lowerarm_r", "lowerarm_twist_01_r", "hand_r",
+		# Left leg chain
+		"thigh_l", "thigh_twist_01_l", "calf_l", "calf_twist_01_l", "foot_l", "ball_l",
+		# Right leg chain
+		"thigh_r", "thigh_twist_01_r", "calf_r", "calf_twist_01_r", "foot_r", "ball_r",
+		# Fingers (just index for reference)
+		"index_01_l", "index_01_r",
+	]
+
+	for bone_name in key_bones:
+		var idx := skeleton.find_bone(bone_name)
+		if idx == -1:
+			continue
+
+		var rest := skeleton.get_bone_rest(idx)
+		var basis := rest.basis
+		var euler := basis.get_euler() * (180.0 / PI)
+
+		var bone_dir := _get_bone_direction(idx)
+
+		print("")
+		print("%s (idx=%d):" % [skeleton.get_bone_name(idx), idx])
+		print("  Rest euler: (%.1f°, %.1f°, %.1f°)" % [euler.x, euler.y, euler.z])
+		print("  Local X -> %s" % _basis_axis_to_world_dir(basis.x))
+		print("  Local Y -> %s" % _basis_axis_to_world_dir(basis.y))
+		print("  Local Z -> %s" % _basis_axis_to_world_dir(basis.z))
+		print("  Bone points along: %s" % bone_dir)
+
+		# Provide rotation recommendations based on bone orientation
+		var twist_axis := _get_twist_axis_recommendation(basis)
+		var pitch_axis := _get_pitch_axis_recommendation(basis)
+		var roll_axis := _get_roll_axis_recommendation(basis)
+		print("  TWIST (yaw): %s" % twist_axis)
+		print("  PITCH (nod): %s" % pitch_axis)
+		print("  ROLL (tilt): %s" % roll_axis)
+
+	print("")
+	print("=" .repeat(70))
+	print("ROTATION AXIS GUIDE:")
+	print("  TWIST = rotation around vertical (world up) axis")
+	print("  PITCH = rotation around lateral (world right) axis")
+	print("  ROLL  = rotation around forward (world forward) axis")
+	print("")
+	print("Use Vector3.UP/RIGHT/FORWARD with Basis.rotated() for world-aligned rotation")
+	print("=" .repeat(70))
+
+
+## Get recommended axis for twist/yaw rotation (around world up).
+func _get_twist_axis_recommendation(basis: Basis) -> String:
+	var x_up := absf(basis.x.dot(Vector3.UP))
+	var y_up := absf(basis.y.dot(Vector3.UP))
+	var z_up := absf(basis.z.dot(Vector3.UP))
+
+	if y_up > x_up and y_up > z_up:
+		return "Vector3.UP (local Y ≈ world up, %.0f%%)" % [y_up * 100]
+	elif x_up > y_up and x_up > z_up:
+		return "Vector3.RIGHT (local X ≈ world up, %.0f%%)" % [x_up * 100]
+	else:
+		return "Vector3.FORWARD (local Z ≈ world up, %.0f%%)" % [z_up * 100]
+
+
+## Get recommended axis for pitch rotation (around world right).
+func _get_pitch_axis_recommendation(basis: Basis) -> String:
+	var x_right := absf(basis.x.dot(Vector3.RIGHT))
+	var y_right := absf(basis.y.dot(Vector3.RIGHT))
+	var z_right := absf(basis.z.dot(Vector3.RIGHT))
+
+	if x_right > y_right and x_right > z_right:
+		return "Vector3.RIGHT (local X ≈ world right, %.0f%%)" % [x_right * 100]
+	elif y_right > x_right and y_right > z_right:
+		return "Vector3.UP (local Y ≈ world right, %.0f%%)" % [y_right * 100]
+	else:
+		return "Vector3.FORWARD (local Z ≈ world right, %.0f%%)" % [z_right * 100]
+
+
+## Get recommended axis for roll rotation (around world forward).
+func _get_roll_axis_recommendation(basis: Basis) -> String:
+	# Note: Godot uses -Z as forward, so we check against BACK (positive Z)
+	var x_fwd := absf(basis.x.dot(Vector3.BACK))
+	var y_fwd := absf(basis.y.dot(Vector3.BACK))
+	var z_fwd := absf(basis.z.dot(Vector3.BACK))
+
+	if z_fwd > x_fwd and z_fwd > y_fwd:
+		return "Vector3.FORWARD (local Z ≈ world forward, %.0f%%)" % [z_fwd * 100]
+	elif x_fwd > y_fwd and x_fwd > z_fwd:
+		return "Vector3.RIGHT (local X ≈ world forward, %.0f%%)" % [x_fwd * 100]
+	else:
+		return "Vector3.UP (local Y ≈ world forward, %.0f%%)" % [y_fwd * 100]
+
+
+## Convert a basis axis vector to human-readable world direction.
+func _basis_axis_to_world_dir(axis: Vector3) -> String:
+	var abs_x := absf(axis.x)
+	var abs_y := absf(axis.y)
+	var abs_z := absf(axis.z)
+
+	var parts: PackedStringArray = []
+	if abs_x > 0.3:
+		parts.append("%.0f%% %s" % [abs_x * 100, "Right" if axis.x > 0 else "Left"])
+	if abs_y > 0.3:
+		parts.append("%.0f%% %s" % [abs_y * 100, "Up" if axis.y > 0 else "Down"])
+	if abs_z > 0.3:
+		parts.append("%.0f%% %s" % [abs_z * 100, "Back" if axis.z > 0 else "Forward"])
+
+	if parts.is_empty():
+		return "(%.2f, %.2f, %.2f)" % [axis.x, axis.y, axis.z]
+	return ", ".join(parts)

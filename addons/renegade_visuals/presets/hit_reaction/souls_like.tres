@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HitReactionConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_visuals/resources/hit_reaction_config.gd" id="1_souls"]
+
+[resource]
+script = ExtResource("1_souls")
+enable_hitstop = true
+hitstop_duration = 0.08
+flinch_max_angle = 25.0
+flinch_decay_speed = 6.0
+partial_ragdoll_influence = 0.8
+partial_ragdoll_duration = 0.5
+impulse_multiplier = 10.0
+ragdoll_settle_time = 1.2
+recovery_blend_duration = 0.6
+upper_body_bones = PackedStringArray(["spine_02", "spine_03", "neck_01", "head", "clavicle_l", "upperarm_l", "clavicle_r", "upperarm_r"])
+lower_body_bones = PackedStringArray(["pelvis", "thigh_l", "calf_l", "thigh_r", "calf_r"])
