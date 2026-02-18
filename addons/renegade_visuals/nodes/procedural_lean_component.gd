@@ -1,118 +1,73 @@
-## Procedural lean into acceleration and pelvis tilt on slopes.
-## Derived from acceleration (not velocity) for correct force representation.
-## Applies additive rotation to spine bones each frame.
+## Procedural pelvis tilt to match ground slopes.
+## IMPORTANT: This is now a SkeletonModifier3D to run in the correct pipeline.
+## Acceleration-based lean is handled by StrideWheelComponent (spine_lean_angle).
 class_name ProceduralLeanComponent
-extends Node
+extends SkeletonModifier3D
 
 @export var config: LeanConfig
 
 var _visuals: CharacterVisuals
-var _skeleton: Skeleton3D
 
-# Spine bone indices for lean
-var _lean_bone_idx: int = -1  # Primary lean bone (spine_01 or spine_02)
+# Bone indices
 var _pelvis_idx: int = -1
 
-# Smoothed lean state
-var _current_lean: Vector3 = Vector3.ZERO  # Euler angles
+# Smoothed tilt state
 var _current_pelvis_tilt: Quaternion = Quaternion.IDENTITY
-
-# Track what we applied last frame (to undo before applying new)
-var _applied_lean_quat: Quaternion = Quaternion.IDENTITY
-var _applied_pelvis_tilt: Quaternion = Quaternion.IDENTITY
 
 
 func _ready() -> void:
-	_visuals = get_parent() as CharacterVisuals
+	# Find CharacterVisuals parent (navigate up from Skeleton3D)
+	var current := get_parent()
+	while current:
+		if current is CharacterVisuals:
+			_visuals = current
+			break
+		current = current.get_parent()
+
 	if _visuals == null:
-		push_error("ProceduralLeanComponent: Parent must be a CharacterVisuals node.")
+		push_error("ProceduralLeanComponent: Could not find CharacterVisuals ancestor.")
 		return
-	
+
 	if config == null:
 		config = LeanConfig.new()
-	
-	_visuals.ready.connect(_setup, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
+
+	# Cache bone index
+	var skeleton := get_skeleton()
+	if skeleton:
+		var skel_config := _visuals.skeleton_config
+		if skel_config == null:
+			skel_config = SkeletonConfig.new()
+		_pelvis_idx = skeleton.find_bone(skel_config.pelvis_bone)
 
 
-func _setup() -> void:
-	_skeleton = _visuals.skeleton
-	if _skeleton == null:
-		return
-	
-	var skel_config := _visuals.skeleton_config
-	if skel_config == null:
-		skel_config = SkeletonConfig.new()
-	
-	# Use spine_02 as primary lean bone (mid-spine gives natural look)
-	_lean_bone_idx = _skeleton.find_bone(skel_config.spine_02)
-	if _lean_bone_idx == -1:
-		_lean_bone_idx = _skeleton.find_bone(skel_config.spine_01)
-	
-	_pelvis_idx = _skeleton.find_bone(skel_config.pelvis_bone)
-
-
-func _physics_process(delta: float) -> void:
-	if _skeleton == null:
+func _process_modification() -> void:
+	if not config or not config.enable_pelvis_tilt:
 		return
 
-	# Skip lean updates while flinching (HitReactionComponent takes over spine)
+	if _visuals == null:
+		return
+
+	var skeleton := get_skeleton()
+	if skeleton == null or _pelvis_idx == -1:
+		return
+
+	# Skip updates while flinching (HitReactionComponent takes over)
 	if _visuals.is_flinching:
-		# Reset our tracking so we don't apply stale offsets when resuming
-		_applied_lean_quat = Quaternion.IDENTITY
-		_applied_pelvis_tilt = Quaternion.IDENTITY
+		_current_pelvis_tilt = Quaternion.IDENTITY
 		return
 
-	_update_lean(delta)
-
-	if config.enable_pelvis_tilt:
-		_update_pelvis_tilt(delta)
+	_update_pelvis_tilt()
 
 
-func _update_lean(delta: float) -> void:
-	if _lean_bone_idx == -1:
-		return
-	
-	var acceleration := _visuals.get_acceleration()
-	
-	# Project acceleration to horizontal plane
-	var horiz_accel := Vector3(acceleration.x, 0.0, acceleration.z)
-	
-	# Convert to character-local space
-	var local_accel := Vector3.ZERO
-	if _visuals.controller:
-		local_accel = _visuals.controller.global_transform.basis.inverse() * horiz_accel
-	
-	# Compute lean angles from acceleration
-	# Lean into movement: forward accel → forward pitch, lateral accel → roll
-	var max_angle := deg_to_rad(config.max_lean_angle)
-	var target_lean := Vector3(
-		clampf(-local_accel.z * config.lean_multiplier, -max_angle, max_angle),  # Pitch
-		0.0,  # No yaw lean
-		clampf(local_accel.x * config.lean_multiplier, -max_angle, max_angle),   # Roll
-	)
-	
-	# Damped spring smoothing
-	_current_lean = _current_lean.lerp(target_lean, config.lean_speed * delta)
-
-	# Apply additive rotation (undo previous frame, apply new)
-	var new_lean_quat := Quaternion.from_euler(_current_lean)
-
-	# Get current rotation and undo what we applied last frame
-	var current_rot := _skeleton.get_bone_pose_rotation(_lean_bone_idx)
-	var base_rot := current_rot * _applied_lean_quat.inverse()
-
-	# Apply new lean
-	_skeleton.set_bone_pose_rotation(_lean_bone_idx, base_rot * new_lean_quat)
-
-	# Store what we applied for next frame
-	_applied_lean_quat = new_lean_quat
-
-
-func _update_pelvis_tilt(delta: float) -> void:
+## Update pelvis tilt to match ground slope.
+## This runs in the SkeletonModifier3D pipeline, so it won't fight with HipRockModifier.
+func _update_pelvis_tilt() -> void:
 	if _pelvis_idx == -1:
 		return
 
+	var skeleton := get_skeleton()
 	var ground_normal := _visuals.get_ground_normal()
+	var delta := get_process_delta_time()
 
 	# Compute target tilt from ground normal
 	var target_tilt := Quaternion.IDENTITY
@@ -126,16 +81,10 @@ func _update_pelvis_tilt(delta: float) -> void:
 			tilt_axis = tilt_axis.normalized()
 			var tilt_angle := angle_from_up * config.pelvis_tilt_weight
 			target_tilt = Quaternion(tilt_axis, tilt_angle)
-	
-	# Smooth tilt
-	_current_pelvis_tilt = _current_pelvis_tilt.slerp(target_tilt, config.pelvis_tilt_speed * delta)
 
-	# Apply additive rotation to pelvis (undo previous frame, apply new)
-	var current_rot := _skeleton.get_bone_pose_rotation(_pelvis_idx)
-	var base_rot := current_rot * _applied_pelvis_tilt.inverse()
+	# Smooth tilt using exponential damping (NOT raw lerp!)
+	_current_pelvis_tilt = _current_pelvis_tilt.slerp(target_tilt, 1.0 - exp(-config.pelvis_tilt_speed * delta))
 
-	# Apply new tilt
-	_skeleton.set_bone_pose_rotation(_pelvis_idx, base_rot * _current_pelvis_tilt)
-
-	# Store what we applied for next frame
-	_applied_pelvis_tilt = _current_pelvis_tilt
+	# Apply rotation directly (SkeletonModifier3D processes in pipeline, no undo needed)
+	var current_rot := skeleton.get_bone_pose_rotation(_pelvis_idx)
+	skeleton.set_bone_pose_rotation(_pelvis_idx, current_rot * _current_pelvis_tilt)

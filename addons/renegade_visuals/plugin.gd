@@ -37,15 +37,22 @@ func _enter_tree() -> void:
 	)
 	add_custom_type(
 		"ProceduralLeanComponent",
-		"Node",
+		"SkeletonModifier3D",
 		preload("nodes/procedural_lean_component.gd"),
 		preload("icons/lean.svg")
 	)
 	add_custom_type(
+		"SpringBoneEnvironmentComponent",
+		"Node",
+		preload("nodes/spring_bone_environment_component.gd"),
+		preload("icons/spring_bone.svg")
+	)
+	# Deprecated: Use SpringBoneEnvironmentComponent instead
+	add_custom_type(
 		"HitReactorComponent",
 		"Node",
-		preload("nodes/hit_reactor_component.gd"),
-		preload("icons/hit_reaction.svg")
+		preload("nodes/spring_bone_environment_component.gd"),
+		preload("icons/spring_bone.svg")
 	)
 	add_custom_type(
 		"WallHandPlacement",
@@ -74,7 +81,8 @@ func _exit_tree() -> void:
 	remove_custom_type("HandIKComponent")
 	remove_custom_type("HitReactionComponent")
 	remove_custom_type("ProceduralLeanComponent")
-	remove_custom_type("HitReactorComponent")
+	remove_custom_type("SpringBoneEnvironmentComponent")
+	remove_custom_type("HitReactorComponent")  # Deprecated alias
 	remove_custom_type("WallHandPlacement")
 	remove_custom_type("StrideWheelComponent")
 	remove_custom_type("ItemSlots")

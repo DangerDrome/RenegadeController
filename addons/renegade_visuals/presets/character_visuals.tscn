@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://2sjlah8s6otn" path="res://addons/renegade_visuals/nodes/item_slots.gd" id="7_itemslots"]
 [ext_resource type="Resource" path="res://addons/renegade_visuals/defaults/mannequin/uefn_skeleton_config.tres" id="8_skel_config"]
 [ext_resource type="Script" uid="uid://bfrn5yi5jt0yu" path="res://addons/renegade_visuals/resources/stride_wheel_config.gd" id="9_gxbdi"]
-[ext_resource type="Script" uid="uid://b1gw3ugxw25lv" path="res://addons/renegade_visuals/nodes/hit_reactor_component.gd" id="9_hit_reactor"]
+[ext_resource type="Script" uid="uid://dvxpae3hykn2v" path="res://addons/renegade_visuals/nodes/spring_bone_environment_component.gd" id="9_hit_reactor"]
 [ext_resource type="Script" uid="uid://dl2kifkgjqqxc" path="res://addons/renegade_visuals/nodes/hand_object_placement.gd" id="10_hand_obj"]
 [ext_resource type="Script" uid="uid://djvdkfvg68hpx" path="res://addons/renegade_visuals/nodes/stride_wheel_component.gd" id="11_stride_wheel"]
 [ext_resource type="Script" uid="uid://cn8id6yanwl6l" path="res://addons/renegade_visuals/nodes/hip_rock_modifier.gd" id="12_hip_rock"]

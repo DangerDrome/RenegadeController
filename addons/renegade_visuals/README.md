@@ -31,7 +31,7 @@ CharacterBody3D (your controller)
     ├── FootIKComponent                  ← Raycast ground IK + hip offset
     ├── HandIKComponent                  ← Interaction hand IK
     ├── HitReactionComponent             ← Flinch + partial ragdoll + full ragdoll + hitstop
-    └── ProceduralLeanComponent          ← Acceleration lean + pelvis slope tilt
+    └── ProceduralLeanComponent          ← Pelvis slope tilt (acceleration lean is in StrideWheel)
 ```
 
 ## Processing Pipeline
@@ -42,14 +42,39 @@ Godot 4.6's guaranteed processing order makes this work:
 2. **LocomotionComponent** extracts root motion → drives CharacterBody3D.move_and_slide()
 3. **StrideWheelComponent** (if no walk anims) drives foot targets procedurally from velocity
 4. **FootIKComponent** raycasts ground → positions Marker3D targets → adjusts pelvis height
-5. **TwoBoneIK3D** (SkeletonModifier3D) solves leg chains to reach targets
-6. **CopyTransformModifier3D** copies foot rotation from ground-aligned targets
-7. **LimitAngularVelocityModifier3D** smooths any IK snapping
-8. **ProceduralLeanComponent** applies additive spine lean from acceleration
-9. **HitReactionComponent** applies flinch offsets or ragdoll influence
-10. **PhysicalBoneSimulator3D** (if active) blends physics poses via influence
+5. **SkeletonModifier3D pipeline** (see critical order below)
+6. **ProceduralLeanComponent** applies pelvis tilt to match ground slopes
+7. **HitReactionComponent** applies flinch offsets or ragdoll influence
+8. **PhysicalBoneSimulator3D** (if active) blends physics poses via influence
 
-SkeletonModifier3D children process in **scene tree order** — arrange them accordingly.
+### ⚠️ CRITICAL: SkeletonModifier3D Scene Tree Order
+
+**SkeletonModifier3D children process in SCENE TREE ORDER.** Wrong order = bones fight each other!
+
+**Required order for Skeleton3D children:**
+```
+Skeleton3D
+├── TwoBoneIK3D (left_leg)          # 1. Solve leg IK first
+├── TwoBoneIK3D (right_leg)
+├── TwoBoneIK3D (left_arm)          # 2. Solve arm IK
+├── TwoBoneIK3D (right_arm)
+├── TwoBoneIK3D (left_arm_object)   # 3. Object grip IK (optional)
+├── TwoBoneIK3D (right_arm_object)
+├── HipRockModifier                 # 4. Hip motion, breathing, footfall impacts
+├── ProceduralLeanComponent         # 5. Pelvis tilt on slopes
+├── HitReactionComponent            # 6. Flinch reactions
+├── LookAtModifier3D                # 7. Head tracking
+├── CopyTransformModifier3D (L_foot)# 8. Copy foot rotations
+├── CopyTransformModifier3D (R_foot)
+├── LimitAngularVelocityModifier3D  # 9. Smoothing
+└── PhysicalBoneSimulator3D         # 10. Ragdoll (when active)
+```
+
+**Why this order:**
+- IK solves BEFORE spine modifiers (so hip motion doesn't affect leg solving)
+- HipRockModifier BEFORE ProceduralLeanComponent (so they don't fight)
+- Foot rotation AFTER all bone modifications
+- Smoothing LAST (prevents IK jitter)
 
 ## Quick Setup
 

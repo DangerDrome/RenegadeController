@@ -18,6 +18,8 @@ extends SkeletonModifier3D
 # Current reaction state per bone: {bone_idx: Vector3 rotation offset}
 var _bone_offsets: Dictionary = {}
 var _skeleton: Skeleton3D
+# Cached bone indices (PERFORMANCE FIX - don't find_bone() in hot path!)
+var _reactive_bone_indices: Array[int] = []
 
 
 func _ready() -> void:
@@ -29,6 +31,9 @@ func _ready() -> void:
 		push_error("HitReactionModifier must be a child of Skeleton3D")
 		return
 
+	# Cache bone indices (CRITICAL - prevents find_bone() calls in hit loop)
+	_cache_bone_indices()
+
 	# Ensure modifier is active
 	active = true
 
@@ -39,6 +44,15 @@ func _ready() -> void:
 		print("[HitReactionModifier] Connected to CharacterVisuals.hit_received")
 	else:
 		push_warning("[HitReactionModifier] No CharacterVisuals found - call apply_hit() directly")
+
+
+## Cache bone indices from reactive_bones array.
+## This prevents expensive find_bone() calls in the hit reaction hot path.
+func _cache_bone_indices() -> void:
+	_reactive_bone_indices.clear()
+	for bone_name in reactive_bones:
+		var bone_idx := _skeleton.find_bone(bone_name)
+		_reactive_bone_indices.append(bone_idx)  # -1 if not found (will be skipped later)
 
 
 func _process_modification() -> void:
@@ -104,15 +118,14 @@ func _on_hit_received(bone_name: StringName, direction: Vector3, force: float) -
 		-local_dir.x * clamped_force * 0.5  # Roll
 	)
 
-	# Apply to reactive bones with falloff
-	for i in range(reactive_bones.size()):
-		var bone_name_str: String = reactive_bones[i]
-		var bone_idx: int = _skeleton.find_bone(bone_name_str)
+	# Apply to reactive bones with falloff using CACHED indices (performance fix!)
+	for i in range(_reactive_bone_indices.size()):
+		var bone_idx: int = _reactive_bone_indices[i]
 		if bone_idx == -1:
 			continue
 
 		# Falloff: upper spine reacts more
-		var falloff: float = float(i + 1) / float(reactive_bones.size())
+		var falloff: float = float(i + 1) / float(_reactive_bone_indices.size())
 		var bone_offset: Vector3 = offset * falloff
 
 		# Add to existing offset (allows overlapping hits)

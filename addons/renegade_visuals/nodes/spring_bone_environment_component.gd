@@ -1,8 +1,9 @@
-## Displaces a SpringBoneCollisionCapsule3D ("HitReactor") based on nearby world geometry.
+## Displaces a SpringBoneCollisionCapsule3D based on nearby world geometry.
 ## The capsule uses inside=true so spring bones are constrained within it.
 ## When the capsule shifts away from walls/objects, bones react naturally —
 ## the character's upper body leans away from nearby surfaces.
-class_name HitReactorComponent
+## Previously misnamed "HitReactorComponent" (not related to hit reactions!).
+class_name SpringBoneEnvironmentComponent
 extends Node
 
 @export_group("Detection")
