@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="SettingsData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_manager/src/settings/settings_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+window_mode = 0
+vsync = true
+max_fps = 0
+master_volume = 1.0
+music_volume = 0.8
+sfx_volume = 1.0
+voice_volume = 1.0
+ambient_volume = 0.7
+mute_on_unfocus = true
+sensitivity = 0.5
+invert_y = false
+input_remaps = {}
+subtitles = true
+subtitle_scale = 1.0
+screen_shake = 1.0

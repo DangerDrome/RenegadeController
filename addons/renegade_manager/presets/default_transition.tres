@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="TransitionEffect" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/renegade_manager/src/transitions/transition_effect.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+effect_type = 0
+duration = 0.5
+color = Color(0, 0, 0, 1)
+hold_duration = 0.0
